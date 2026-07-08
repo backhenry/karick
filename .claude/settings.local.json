@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(command -v volta fnm nvm asdf)",
+      "Bash(/usr/local/bin/npm install *)",
+      "Bash(/usr/local/bin/npx tsc *)"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "karick",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Plataforma de quiz interativo em tempo real (estilo Kahoot)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:server dev:host dev:player",
+    "dev:server": "npm run dev --workspace @karick/server",
+    "dev:host": "npm run dev --workspace @karick/host",
+    "dev:player": "npm run dev --workspace @karick/player",
+    "build": "npm run build --workspace @karick/player && npm run build --workspace @karick/host",
+    "start": "npm run start --workspace @karick/server",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
