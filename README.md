@@ -33,6 +33,37 @@ Depois:
 
 Rodar apps individualmente: `npm run dev:server`, `npm run dev:host`, `npm run dev:player`.
 
+## Deploy (produção, servidor único)
+
+Em produção, o servidor Node serve os dois front-ends compilados **e** o
+WebSocket na mesma origem — uma URL só:
+
+- `/`      → tela do Jogador (Player)
+- `/host`  → tela do Apresentador (Host)
+
+```bash
+npm run build   # compila Player e Host (Vite)
+npm start       # sobe o servidor único (lê a porta de process.env.PORT)
+```
+
+### Render (com o Blueprint `render.yaml`)
+
+1. Suba o código para um repositório no GitHub.
+2. No painel do Render → **New → Blueprint** → conecte o repositório.
+   O Render lê o `render.yaml` e cria o serviço com build/start prontos.
+3. Ao terminar, o app fica em `https://<seu-servico>.onrender.com`
+   (Player na raiz, Host em `/host`).
+
+> Plano free do Render "dorme" após ~15 min sem uso; o 1º acesso demora
+> ~50s para acordar. Abra a página antes de começar o quiz.
+
+### Docker (Fly.io, VPS, etc.)
+
+```bash
+docker build -t karick .
+docker run -p 3001:3001 -e PORT=3001 karick
+```
+
 ## Arquitetura
 
 - **Servidor autoritativo**: clientes só emitem intenções; o servidor valida,

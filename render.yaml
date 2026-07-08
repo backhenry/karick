@@ -1,0 +1,14 @@
+# Render Blueprint — o Render lê este arquivo e cria o serviço já configurado.
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: karick
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
