@@ -5,9 +5,8 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from '@karick/shared';
-import { MAX_NICKNAME_LENGTH } from '@karick/shared';
+import { MAX_NICKNAME_LENGTH, validateQuiz } from '@karick/shared';
 import { generatePin, type RoomStore } from '../store/roomStore.js';
-import { SAMPLE_QUIZZES } from '../data/sampleQuiz.js';
 import {
   allPlayersAnswered,
   buildLeaderboard,
@@ -92,15 +91,15 @@ export function registerGameGateway(io: IO, store: RoomStore) {
 
   io.on('connection', (socket: IOSocket) => {
     // ─── HOST: cria a sala ───────────────────────────────
-    socket.on('host:createRoom', ({ quizId }, ack) => {
-      const quiz = SAMPLE_QUIZZES[quizId];
-      if (!quiz) return ack?.({ ok: false, error: 'Quiz não encontrado' });
+    socket.on('host:createRoom', ({ quiz }, ack) => {
+      const err = validateQuiz(quiz);
+      if (err) return ack?.({ ok: false, error: err });
 
       const pin = generatePin(store);
       const room: GameRoom = {
         pin,
         hostSocketId: socket.id,
-        quiz,
+        quiz: { id: pin, title: quiz.title.trim(), questions: quiz.questions },
         status: 'LOBBY',
         currentQuestionIndex: -1,
         questionStartedAt: null,
@@ -167,6 +166,10 @@ export function registerGameGateway(io: IO, store: RoomStore) {
       player.score += pointsAwarded;
 
       ack?.({ ok: true, isCorrect, pointsAwarded, totalScore: player.score });
+
+      const players = Object.values(room.players);
+      const answered = players.filter((p) => p.currentAnswer !== null).length;
+      io.to(room.hostSocketId).emit('game:answerCount', { answered, total: players.length });
 
       if (allPlayersAnswered(room)) revealAnswer(room);
     });

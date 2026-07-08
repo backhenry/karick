@@ -1,6 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { OPTION_COLORS, OPTION_SHAPES, MAX_NICKNAME_LENGTH } from '@karick/shared';
 import { usePlayerSocket } from './hooks/usePlayerSocket.js';
+import { TimerBar } from './TimerBar.js';
+import { sfx } from './lib/sound.js';
 
 function Center({ children }: { children: ReactNode }) {
   return (
@@ -14,6 +16,24 @@ export function App() {
   const { screen, error, question, feedback, join, answer } = usePlayerSocket();
   const [pin, setPin] = useState('');
   const [nickname, setNickname] = useState('');
+  const [expired, setExpired] = useState(false);
+
+  // Reinicia o "expirado" a cada nova pergunta.
+  useEffect(() => {
+    if (screen === 'QUESTION') setExpired(false);
+  }, [screen, question?.index]);
+
+  // Som de acerto/erro ao receber o feedback.
+  useEffect(() => {
+    if (screen === 'FEEDBACK' && feedback) {
+      feedback.isCorrect ? sfx.correct() : sfx.wrong();
+    }
+  }, [screen, feedback]);
+
+  const handleAnswer = (i: number) => {
+    sfx.tap();
+    answer(i);
+  };
 
   if (screen === 'JOIN') {
     return (
@@ -53,17 +73,30 @@ export function App() {
 
   if (screen === 'QUESTION' && question) {
     return (
-      <div className="grid h-screen grid-cols-2 gap-3 p-3">
-        {Array.from({ length: question.optionsCount }).map((_, i) => (
-          <button
-            key={i}
-            onClick={() => answer(i)}
-            className="flex items-center justify-center rounded-xl text-6xl text-white transition active:scale-95"
-            style={{ background: OPTION_COLORS[i] }}
-          >
-            {OPTION_SHAPES[i]}
-          </button>
-        ))}
+      <div className="flex h-screen flex-col">
+        <TimerBar
+          durationSec={question.timeLimitSec}
+          resetKey={question.index}
+          onExpire={() => setExpired(true)}
+        />
+        {expired ? (
+          <div className="flex flex-1 items-center justify-center text-2xl text-slate-500">
+            Tempo esgotado ⏰
+          </div>
+        ) : (
+          <div className="grid flex-1 grid-cols-2 gap-3 p-3">
+            {Array.from({ length: question.optionsCount }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => handleAnswer(i)}
+                className="flex items-center justify-center rounded-xl text-6xl text-white transition active:scale-95"
+                style={{ background: OPTION_COLORS[i] }}
+              >
+                {OPTION_SHAPES[i]}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -79,9 +112,7 @@ export function App() {
         }`}
       >
         <h1 className="text-5xl font-black">{feedback.isCorrect ? 'Acertou! 🎉' : 'Errou 😢'}</h1>
-        {feedback.pointsAwarded > 0 && (
-          <p className="mt-2 text-2xl">+{feedback.pointsAwarded} pontos</p>
-        )}
+        {feedback.pointsAwarded > 0 && <p className="mt-2 text-2xl">+{feedback.pointsAwarded} pontos</p>}
         <p className="mt-6 text-3xl font-bold">{feedback.totalScore} pts</p>
       </div>
     );

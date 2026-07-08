@@ -9,6 +9,7 @@ import type {
   PlayerQuestionPayload,
   LeaderboardRow,
   AnswerResult,
+  QuizDraft,
 } from './types.js';
 
 /** Callback de confirmação (ACK) padrão dos eventos cliente→servidor. */
@@ -22,6 +23,8 @@ export interface ServerToClientEvents {
   /** O Host recebe o payload completo; cada Player recebe o reduzido. */
   'game:question:host': (data: HostQuestionPayload) => void;
   'game:question:player': (data: PlayerQuestionPayload) => void;
+  /** Quantos jogadores já responderam a pergunta atual (para o Host mostrar progresso). */
+  'game:answerCount': (data: { answered: number; total: number }) => void;
   'game:reveal': (data: { correctIndex: number; leaderboard: LeaderboardRow[] }) => void;
   'game:over': (data: { podium: LeaderboardRow[] }) => void;
   'game:hostLeft': () => void;
@@ -29,7 +32,7 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  'host:createRoom': (payload: { quizId: string }, ack: Ack<{ pin: string }>) => void;
+  'host:createRoom': (payload: { quiz: QuizDraft }, ack: Ack<{ pin: string }>) => void;
   'host:startGame': () => void;
   'host:nextQuestion': () => void;
   'player:join': (payload: { pin: string; nickname: string }, ack: Ack) => void;

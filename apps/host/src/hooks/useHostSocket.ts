@@ -6,24 +6,26 @@ import type {
   HostQuestionPayload,
   LeaderboardRow,
   PublicPlayer,
+  QuizDraft,
 } from '@karick/shared';
+import { sfx } from '../lib/sound.js';
 
-// Dev: front (Vite :5173) e server (:3001) são origens diferentes → aponta explícito.
-// Prod: front é servido pelo próprio server → mesma origem (window.location.origin).
 const SERVER_URL =
   import.meta.env.VITE_SERVER_URL ??
   (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin);
 
-export type HostPhase = 'CONNECTING' | 'LOBBY' | 'QUESTION' | 'REVEAL' | 'OVER' | 'ERROR';
+export type HostPhase = 'EDITOR' | 'LOBBY' | 'QUESTION' | 'REVEAL' | 'OVER';
 
 type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
-export function useHostSocket(quizId: string) {
+export function useHostSocket() {
   const socketRef = useRef<ClientSocket | null>(null);
+  const [connected, setConnected] = useState(false);
   const [pin, setPin] = useState('');
-  const [phase, setPhase] = useState<HostPhase>('CONNECTING');
+  const [phase, setPhase] = useState<HostPhase>('EDITOR');
   const [players, setPlayers] = useState<PublicPlayer[]>([]);
   const [question, setQuestion] = useState<HostQuestionPayload | null>(null);
+  const [answeredCount, setAnsweredCount] = useState(0);
   const [reveal, setReveal] = useState<{ correctIndex: number; leaderboard: LeaderboardRow[] } | null>(null);
   const [podium, setPodium] = useState<LeaderboardRow[]>([]);
 
@@ -31,43 +33,58 @@ export function useHostSocket(quizId: string) {
     const socket: ClientSocket = io(SERVER_URL);
     socketRef.current = socket;
 
-    socket.on('connect', () => {
-      socket.emit('host:createRoom', { quizId }, (res) => {
-        if (res.ok && res.pin) {
-          setPin(res.pin);
-          setPhase('LOBBY');
-        } else {
-          setPhase('ERROR');
-        }
-      });
-    });
+    socket.on('connect', () => setConnected(true));
+    socket.on('disconnect', () => setConnected(false));
 
     socket.on('lobby:updated', ({ players }) => setPlayers(players));
     socket.on('game:question:host', (q) => {
       setQuestion(q);
+      setAnsweredCount(0);
       setPhase('QUESTION');
+      sfx.questionStart();
     });
+    socket.on('game:answerCount', ({ answered }) => setAnsweredCount(answered));
     socket.on('game:reveal', (data) => {
       setReveal(data);
       setPhase('REVEAL');
+      sfx.reveal();
     });
     socket.on('game:over', ({ podium }) => {
       setPodium(podium);
       setPhase('OVER');
+      sfx.over();
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [quizId]);
+  }, []);
+
+  const createRoom = (quiz: QuizDraft): Promise<string | null> =>
+    new Promise((resolve) => {
+      const socket = socketRef.current;
+      if (!socket) return resolve('Sem conexão com o servidor.');
+      socket.emit('host:createRoom', { quiz }, (res) => {
+        if (res.ok && res.pin) {
+          setPin(res.pin);
+          setPhase('LOBBY');
+          resolve(null);
+        } else {
+          resolve(res.error ?? 'Não foi possível criar a sala.');
+        }
+      });
+    });
 
   return {
+    connected,
     pin,
     phase,
     players,
     question,
+    answeredCount,
     reveal,
     podium,
+    createRoom,
     start: () => socketRef.current?.emit('host:startGame'),
     next: () => socketRef.current?.emit('host:nextQuestion'),
   };

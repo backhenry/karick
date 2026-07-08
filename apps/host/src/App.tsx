@@ -1,17 +1,19 @@
 import type { ReactNode } from 'react';
 import { OPTION_COLORS, OPTION_SHAPES } from '@karick/shared';
 import { useHostSocket } from './hooks/useHostSocket.js';
-
-const QUIZ_ID = 'quiz-123';
+import { QuizEditor } from './QuizEditor.js';
+import { TimerBar } from './TimerBar.js';
 
 export function App() {
-  const g = useHostSocket(QUIZ_ID);
+  const g = useHostSocket();
 
-  if (g.phase === 'CONNECTING')
-    return <Screen dark>Conectando ao servidor…</Screen>;
-
-  if (g.phase === 'ERROR')
-    return <Screen dark>⚠️ Não foi possível criar a sala. O servidor está rodando?</Screen>;
+  // ─── EDITOR: monta o quiz e cria a sala ───
+  if (g.phase === 'EDITOR')
+    return (
+      <div className="min-h-screen bg-slate-900">
+        <QuizEditor connected={g.connected} onStart={g.createRoom} />
+      </div>
+    );
 
   // ─── LOBBY: PIN gigante + jogadores entrando ───
   if (g.phase === 'LOBBY')
@@ -36,7 +38,7 @@ export function App() {
       </div>
     );
 
-  // ─── QUESTION: pergunta + grade de opções ───
+  // ─── QUESTION: pergunta + opções + tempo + progresso ───
   if (g.phase === 'QUESTION' && g.question)
     return (
       <div className="flex min-h-screen flex-col bg-white">
@@ -44,10 +46,17 @@ export function App() {
           <span className="text-xl">
             Pergunta {g.question.index + 1} de {g.question.total}
           </span>
+          <span className="rounded-full bg-slate-100 px-4 py-1 text-xl font-bold text-slate-700">
+            {g.answeredCount}/{g.players.length} responderam
+          </span>
         </div>
-        <h2 className="px-10 pb-8 text-center text-5xl font-bold text-slate-800">
-          {g.question.text}
-        </h2>
+
+        <div className="px-10">
+          <TimerBar durationSec={g.question.timeLimitSec} resetKey={g.question.index} />
+        </div>
+
+        <h2 className="px-10 py-8 text-center text-5xl font-bold text-slate-800">{g.question.text}</h2>
+
         <div className="grid flex-1 grid-cols-2 gap-4 p-6">
           {g.question.options.map((opt, i) => (
             <div
@@ -69,10 +78,7 @@ export function App() {
         <h2 className="mb-8 text-center text-4xl font-bold">Placar</h2>
         <ol className="mx-auto max-w-2xl space-y-3">
           {g.reveal.leaderboard.slice(0, 8).map((r) => (
-            <li
-              key={r.rank}
-              className="flex justify-between rounded-lg bg-white/10 px-6 py-3 text-2xl"
-            >
+            <li key={r.rank} className="flex justify-between rounded-lg bg-white/10 px-6 py-3 text-2xl">
               <span>
                 {r.rank}. {r.nickname}
               </span>
@@ -82,7 +88,7 @@ export function App() {
         </ol>
         <button
           onClick={g.next}
-          className="mx-auto mt-10 block rounded-xl bg-blue-500 px-10 py-4 text-2xl font-bold"
+          className="mx-auto mt-10 block rounded-xl bg-blue-500 px-10 py-4 text-2xl font-bold hover:bg-blue-400"
         >
           Próxima →
         </button>
@@ -99,6 +105,12 @@ export function App() {
             {['🥇', '🥈', '🥉'][r.rank - 1]} {r.nickname} — {r.score} pts
           </div>
         ))}
+        <button
+          onClick={() => location.reload()}
+          className="mt-6 rounded-xl bg-white/10 px-8 py-3 text-xl hover:bg-white/20"
+        >
+          Novo jogo
+        </button>
       </div>
     );
 

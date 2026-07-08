@@ -21,6 +21,12 @@ export interface Quiz {
   questions: Question[];
 }
 
+/** Quiz montado pelo Host no navegador e enviado ao criar a sala (sem id). */
+export interface QuizDraft {
+  title: string;
+  questions: Question[];
+}
+
 export interface PlayerAnswer {
   optionIndex: number;
   answeredAt: number;
