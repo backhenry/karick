@@ -1,8 +1,6 @@
 import type { QuizDraft, Question } from '@karick/shared';
 import { DEFAULT_TIME_LIMIT, DEFAULT_POINTS } from '@karick/shared';
 
-const KEY = 'karick.quizDraft';
-
 export function emptyQuestion(): Question {
   return {
     text: '',
@@ -11,6 +9,10 @@ export function emptyQuestion(): Question {
     timeLimitSec: DEFAULT_TIME_LIMIT,
     points: DEFAULT_POINTS,
   };
+}
+
+export function emptyDraft(): QuizDraft {
+  return { title: '', questions: [emptyQuestion()] };
 }
 
 export function exampleQuiz(): QuizDraft {
@@ -22,22 +24,4 @@ export function exampleQuiz(): QuizDraft {
       { text: 'Quem pintou a Mona Lisa?', options: ['Van Gogh', 'Picasso', 'Da Vinci', 'Michelangelo'], correctIndex: 2, timeLimitSec: 20, points: 1000 },
     ],
   };
-}
-
-export function loadDraft(): QuizDraft {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as QuizDraft;
-  } catch {
-    /* ignora JSON corrompido */
-  }
-  return { title: '', questions: [emptyQuestion()] };
-}
-
-export function saveDraft(draft: QuizDraft): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(draft));
-  } catch {
-    /* localStorage indisponível (modo privado) — segue sem persistir */
-  }
 }

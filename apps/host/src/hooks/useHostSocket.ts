@@ -14,7 +14,7 @@ const SERVER_URL =
   import.meta.env.VITE_SERVER_URL ??
   (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin);
 
-export type HostPhase = 'EDITOR' | 'LOBBY' | 'QUESTION' | 'REVEAL' | 'OVER';
+export type HostPhase = 'PREGAME' | 'LOBBY' | 'QUESTION' | 'REVEAL' | 'OVER';
 
 type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -22,7 +22,7 @@ export function useHostSocket() {
   const socketRef = useRef<ClientSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const [pin, setPin] = useState('');
-  const [phase, setPhase] = useState<HostPhase>('EDITOR');
+  const [phase, setPhase] = useState<HostPhase>('PREGAME');
   const [players, setPlayers] = useState<PublicPlayer[]>([]);
   const [question, setQuestion] = useState<HostQuestionPayload | null>(null);
   const [answeredCount, setAnsweredCount] = useState(0);

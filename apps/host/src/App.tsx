@@ -1,19 +1,44 @@
-import type { ReactNode } from 'react';
-import { OPTION_COLORS, OPTION_SHAPES } from '@karick/shared';
+import { useState, type ReactNode } from 'react';
+import { OPTION_COLORS, OPTION_SHAPES, type QuizDraft } from '@karick/shared';
 import { useHostSocket } from './hooks/useHostSocket.js';
 import { QuizEditor } from './QuizEditor.js';
+import { Library } from './Library.js';
 import { TimerBar } from './TimerBar.js';
+import { emptyDraft } from './lib/quizStorage.js';
+
+type PreGameView =
+  | { screen: 'LIBRARY' }
+  | { screen: 'EDITOR'; draft: QuizDraft; quizId: string | null };
 
 export function App() {
   const g = useHostSocket();
+  const [view, setView] = useState<PreGameView>({ screen: 'LIBRARY' });
 
-  // ─── EDITOR: monta o quiz e cria a sala ───
-  if (g.phase === 'EDITOR')
+  // ─── PRÉ-JOGO: biblioteca ou editor ───
+  if (g.phase === 'PREGAME') {
+    if (view.screen === 'EDITOR')
+      return (
+        <div className="min-h-screen bg-slate-900">
+          <QuizEditor
+            connected={g.connected}
+            initialDraft={view.draft}
+            quizId={view.quizId}
+            onStart={g.createRoom}
+            onBack={() => setView({ screen: 'LIBRARY' })}
+            onSavedId={(id) => setView((v) => (v.screen === 'EDITOR' ? { ...v, quizId: id } : v))}
+          />
+        </div>
+      );
     return (
       <div className="min-h-screen bg-slate-900">
-        <QuizEditor connected={g.connected} onStart={g.createRoom} />
+        <Library
+          onNew={() => setView({ screen: 'EDITOR', draft: emptyDraft(), quizId: null })}
+          onEdit={(quizId, draft) => setView({ screen: 'EDITOR', draft, quizId })}
+          onHost={(draft) => g.createRoom(draft)}
+        />
       </div>
     );
+  }
 
   // ─── LOBBY: PIN gigante + jogadores entrando ───
   if (g.phase === 'LOBBY')

@@ -27,6 +27,31 @@ export interface QuizDraft {
   questions: Question[];
 }
 
+/** Quiz salvo na biblioteca (banco de dados). */
+export interface SavedQuiz {
+  id: string;
+  title: string;
+  questions: Question[];
+  updatedAt: string; // ISO
+}
+
+/** Resumo para listar a biblioteca sem carregar todas as perguntas. */
+export interface QuizSummary {
+  id: string;
+  title: string;
+  questionCount: number;
+  updatedAt: string; // ISO
+}
+
+/** Uma partida registrada no histórico. */
+export interface GameHistoryEntry {
+  id: string;
+  quizTitle: string;
+  pin: string;
+  playedAt: string; // ISO
+  players: LeaderboardRow[];
+}
+
 export interface PlayerAnswer {
   optionIndex: number;
   answeredAt: number;

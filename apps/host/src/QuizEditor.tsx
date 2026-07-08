@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { QuizDraft, Question } from '@karick/shared';
 import {
   OPTION_COLORS,
@@ -9,19 +9,25 @@ import {
   MAX_TIME_LIMIT,
   validateQuiz,
 } from '@karick/shared';
-import { loadDraft, saveDraft, emptyQuestion, exampleQuiz } from './lib/quizStorage.js';
+import { emptyQuestion, exampleQuiz } from './lib/quizStorage.js';
+import { api } from './lib/api.js';
 
 interface Props {
   connected: boolean;
+  initialDraft: QuizDraft;
+  quizId: string | null;
   onStart: (quiz: QuizDraft) => Promise<string | null>;
+  onBack: () => void;
+  onSavedId: (id: string) => void;
 }
 
-export function QuizEditor({ connected, onStart }: Props) {
-  const [draft, setDraft] = useState<QuizDraft>(loadDraft);
+export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, onSavedId }: Props) {
+  const [draft, setDraft] = useState<QuizDraft>(initialDraft);
+  const [id, setId] = useState<string | null>(quizId);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
-
-  useEffect(() => saveDraft(draft), [draft]);
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   const update = (fn: (d: QuizDraft) => void) =>
     setDraft((prev) => {
@@ -29,9 +35,25 @@ export function QuizEditor({ connected, onStart }: Props) {
       fn(next);
       return next;
     });
+  const patchQuestion = (qi: number, fn: (q: Question) => void) => update((d) => fn(d.questions[qi]));
 
-  const patchQuestion = (qi: number, fn: (q: Question) => void) =>
-    update((d) => fn(d.questions[qi]));
+  const save = async () => {
+    const err = validateQuiz(draft);
+    if (err) return setError(err);
+    setError(null);
+    setSaving(true);
+    try {
+      const saved = id ? await api.updateQuiz(id, draft) : await api.createQuiz(draft);
+      setId(saved.id);
+      onSavedId(saved.id);
+      setSavedMsg('Salvo na biblioteca ✓');
+      setTimeout(() => setSavedMsg(null), 2500);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const start = async () => {
     const err = validateQuiz(draft);
@@ -45,8 +67,10 @@ export function QuizEditor({ connected, onStart }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl p-6 text-slate-100">
-      <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-4xl font-black text-indigo-400">Karick</h1>
+      <header className="mb-6 flex items-center justify-between gap-2">
+        <button onClick={onBack} className="rounded bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
+          ← Biblioteca
+        </button>
         <div className="flex gap-2 text-sm">
           <button onClick={() => setDraft(exampleQuiz())} className="rounded bg-white/10 px-3 py-2 hover:bg-white/20">
             Carregar exemplo
@@ -72,10 +96,8 @@ export function QuizEditor({ connected, onStart }: Props) {
           <div key={qi} className="rounded-xl bg-white/5 p-5">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-lg font-bold text-white/70">Pergunta {qi + 1}</span>
-              <div className="flex gap-2 text-sm">
-                <span className="text-white/40">
-                  {q.timeLimitSec}s · {q.points} pts
-                </span>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-white/40">{q.timeLimitSec}s · {q.points} pts</span>
                 {draft.questions.length > 1 && (
                   <button
                     onClick={() => update((d) => d.questions.splice(qi, 1))}
@@ -97,14 +119,8 @@ export function QuizEditor({ connected, onStart }: Props) {
 
             <div className="grid gap-2 sm:grid-cols-2">
               {q.options.map((opt, oi) => (
-                <div
-                  key={oi}
-                  className="flex items-center gap-2 rounded-lg p-2"
-                  style={{ background: OPTION_COLORS[oi] + '33' }}
-                >
-                  <span className="text-xl" style={{ color: OPTION_COLORS[oi] }}>
-                    {OPTION_SHAPES[oi]}
-                  </span>
+                <div key={oi} className="flex items-center gap-2 rounded-lg p-2" style={{ background: OPTION_COLORS[oi] + '33' }}>
+                  <span className="text-xl" style={{ color: OPTION_COLORS[oi] }}>{OPTION_SHAPES[oi]}</span>
                   <input
                     value={opt}
                     onChange={(e) => patchQuestion(qi, (qq) => (qq.options[oi] = e.target.value))}
@@ -140,10 +156,7 @@ export function QuizEditor({ connected, onStart }: Props) {
 
             <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
               {q.options.length < MAX_OPTIONS && (
-                <button
-                  onClick={() => patchQuestion(qi, (qq) => qq.options.push(''))}
-                  className="rounded bg-white/10 px-3 py-1 hover:bg-white/20"
-                >
+                <button onClick={() => patchQuestion(qi, (qq) => qq.options.push(''))} className="rounded bg-white/10 px-3 py-1 hover:bg-white/20">
                   + opção
                 </button>
               )}
@@ -182,14 +195,24 @@ export function QuizEditor({ connected, onStart }: Props) {
       </button>
 
       {error && <p className="mt-4 rounded-lg bg-red-500/20 p-3 text-center text-red-300">{error}</p>}
+      {savedMsg && <p className="mt-4 rounded-lg bg-green-500/20 p-3 text-center text-green-300">{savedMsg}</p>}
 
-      <button
-        onClick={start}
-        disabled={starting || !connected}
-        className="mt-4 w-full rounded-xl bg-green-500 py-4 text-2xl font-bold text-white transition hover:bg-green-400 disabled:opacity-40"
-      >
-        {!connected ? 'Conectando…' : starting ? 'Criando sala…' : 'Iniciar hospedagem →'}
-      </button>
+      <div className="mt-4 flex gap-3">
+        <button
+          onClick={save}
+          disabled={saving}
+          className="flex-1 rounded-xl bg-white/10 py-4 text-xl font-bold text-white hover:bg-white/20 disabled:opacity-40"
+        >
+          {saving ? 'Salvando…' : id ? 'Salvar alterações' : 'Salvar na biblioteca'}
+        </button>
+        <button
+          onClick={start}
+          disabled={starting || !connected}
+          className="flex-1 rounded-xl bg-green-500 py-4 text-xl font-bold text-white hover:bg-green-400 disabled:opacity-40"
+        >
+          {!connected ? 'Conectando…' : starting ? 'Criando sala…' : 'Iniciar hospedagem →'}
+        </button>
+      </div>
     </div>
   );
 }

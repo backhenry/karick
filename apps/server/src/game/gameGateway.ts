@@ -7,6 +7,7 @@ import type {
 } from '@karick/shared';
 import { MAX_NICKNAME_LENGTH, validateQuiz } from '@karick/shared';
 import { generatePin, type RoomStore } from '../store/roomStore.js';
+import type { HistoryRepository } from '../store/historyRepository.js';
 import {
   allPlayersAnswered,
   buildLeaderboard,
@@ -32,7 +33,7 @@ function clearRoomTimer(pin: string) {
   }
 }
 
-export function registerGameGateway(io: IO, store: RoomStore) {
+export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRepository) {
   function broadcastLobby(room: GameRoom) {
     const players = Object.values(room.players).map((p) => ({
       nickname: p.nickname,
@@ -85,8 +86,15 @@ export function registerGameGateway(io: IO, store: RoomStore) {
   function endGame(room: GameRoom) {
     clearRoomTimer(room.pin);
     room.status = 'FINISHED';
-    io.to(room.pin).emit('game:over', { podium: buildLeaderboard(room).slice(0, 3) });
-    // TODO: persistir GameResult no PostgreSQL aqui.
+    const leaderboard = buildLeaderboard(room);
+    io.to(room.pin).emit('game:over', { podium: leaderboard.slice(0, 3) });
+
+    // Registra a partida no histórico (best-effort — não derruba o jogo se falhar).
+    if (leaderboard.length > 0) {
+      history
+        .record({ quizTitle: room.quiz.title, pin: room.pin, players: leaderboard })
+        .catch((err) => console.error('Falha ao gravar histórico:', err));
+    }
   }
 
   io.on('connection', (socket: IOSocket) => {

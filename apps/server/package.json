@@ -10,12 +10,14 @@
   "dependencies": {
     "@karick/shared": "*",
     "express": "^4.19.2",
+    "pg": "^8.12.0",
     "socket.io": "^4.7.5",
     "tsx": "^4.16.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.6",
     "typescript": "^5.5.4"
   }
 }

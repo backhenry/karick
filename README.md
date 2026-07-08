@@ -64,6 +64,29 @@ docker build -t karick .
 docker run -p 3001:3001 -e PORT=3001 karick
 ```
 
+## Persistência (biblioteca de quizzes + histórico)
+
+O servidor usa **PostgreSQL** (via `pg`) para guardar os quizzes salvos e o
+histórico de partidas. É **opcional**: sem `DATABASE_URL`, o app roda com um
+repositório em memória (não persiste entre reinícios) — útil em dev.
+
+- Tabelas (`quizzes`, `game_history`) são criadas automaticamente no boot.
+- API REST em `/api`: `GET/POST/PUT/DELETE /api/quizzes`, `GET /api/history`.
+
+### Configurar o banco (Supabase)
+
+1. Crie um projeto em [supabase.com](https://supabase.com).
+2. Em **Project Settings → Database → Connection string**, copie a string do
+   **Session pooler** (compatível com IPv4, ideal para servidor persistente).
+3. Substitua `[YOUR-PASSWORD]` pela senha do banco.
+4. Defina como variável de ambiente `DATABASE_URL` (no Render: painel do serviço
+   → **Environment**).
+
+```bash
+# Local, para testar contra o banco real:
+DATABASE_URL="postgresql://...pooler.supabase.com:5432/postgres" npm start
+```
+
 ## Arquitetura
 
 - **Servidor autoritativo**: clientes só emitem intenções; o servidor valida,

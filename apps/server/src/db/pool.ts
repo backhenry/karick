@@ -1,0 +1,39 @@
+import pg from 'pg';
+
+/**
+ * Cria o pool de conexões a partir de DATABASE_URL (ex.: connection string do
+ * Supabase). Se a variável não existir, retorna null → o app roda sem banco
+ * (modo em memória), útil em dev.
+ */
+export function createPool(): pg.Pool | null {
+  const url = process.env.DATABASE_URL;
+  if (!url) return null;
+
+  return new pg.Pool({
+    connectionString: url,
+    // Supabase/serviços gerenciados exigem SSL; rejectUnauthorized:false evita
+    // problema de cadeia de certificados em plataformas como o Render.
+    ssl: { rejectUnauthorized: false },
+    max: 5,
+  });
+}
+
+/** Cria as tabelas se ainda não existirem (roda uma vez no boot). */
+export async function initSchema(pool: pg.Pool): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS quizzes (
+      id         TEXT PRIMARY KEY,
+      title      TEXT NOT NULL,
+      questions  JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS game_history (
+      id         TEXT PRIMARY KEY,
+      quiz_title TEXT NOT NULL,
+      pin        TEXT NOT NULL,
+      players    JSONB NOT NULL,
+      played_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_game_history_played_at ON game_history (played_at DESC);
+  `);
+}

@@ -13,3 +13,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Connection string do Postgres (Supabase). Marcada como secret:
+      # o Render pede o valor no painel ao aplicar o Blueprint. Sem ela,
+      # o app roda em memória (quizzes/histórico não persistem).
+      - key: DATABASE_URL
+        sync: false
