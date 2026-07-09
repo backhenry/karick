@@ -32,3 +32,24 @@ export function buildLeaderboard(room: GameRoom): LeaderboardRow[] {
     .sort((a, b) => b.score - a.score)
     .map((p, i) => ({ rank: i + 1, nickname: p.nickname, score: p.score }));
 }
+
+/**
+ * Leaderboard da revelação: inclui os pontos ganhos na rodada e a variação
+ * de posição vs. a última revelação. Mutação: atualiza `previousRank` de cada
+ * jogador para servir de base à próxima rodada.
+ */
+export function buildRevealLeaderboard(room: GameRoom): LeaderboardRow[] {
+  const sorted = Object.values(room.players).sort((a, b) => b.score - a.score);
+  return sorted.map((p, i) => {
+    const rank = i + 1;
+    const rankDelta = p.previousRank !== undefined ? p.previousRank - rank : undefined;
+    p.previousRank = rank;
+    return {
+      rank,
+      nickname: p.nickname,
+      score: p.score,
+      gained: p.currentAnswer?.pointsAwarded ?? 0,
+      rankDelta,
+    };
+  });
+}

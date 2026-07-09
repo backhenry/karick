@@ -6,23 +6,32 @@ import type {
   PlayerQuestionPayload,
   AnswerResult,
 } from '@karick/shared';
+import { MAX_NICKNAME_LENGTH } from '@karick/shared';
 
-// Dev: front (Vite :5174) e server (:3001) são origens diferentes → aponta explícito.
-// Prod: front é servido pelo próprio server → mesma origem (window.location.origin).
 const SERVER_URL =
   import.meta.env.VITE_SERVER_URL ??
   (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin);
 
 export type PlayerScreen = 'JOIN' | 'LOBBY' | 'QUESTION' | 'ANSWERED' | 'FEEDBACK' | 'OVER';
 
+export interface RevealInfo {
+  correctIndex: number;
+  correctText: string;
+  rank?: number;
+  gained?: number;
+  score?: number;
+}
+
 type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export function usePlayerSocket() {
   const socketRef = useRef<ClientSocket | null>(null);
+  const nicknameRef = useRef('');
   const [screen, setScreen] = useState<PlayerScreen>('JOIN');
   const [error, setError] = useState<string | null>(null);
   const [question, setQuestion] = useState<PlayerQuestionPayload | null>(null);
   const [feedback, setFeedback] = useState<AnswerResult | null>(null);
+  const [reveal, setReveal] = useState<RevealInfo | null>(null);
 
   useEffect(() => {
     const socket: ClientSocket = io(SERVER_URL);
@@ -31,11 +40,12 @@ export function usePlayerSocket() {
     socket.on('game:question:player', (q) => {
       setQuestion(q);
       setFeedback(null);
+      setReveal(null);
       setScreen('QUESTION');
     });
-    socket.on('game:reveal', () => {
-      // Vai para FEEDBACK: se o jogador respondeu, o feedback já está setado;
-      // se não respondeu (tempo esgotou), a tela mostra "Tempo esgotado".
+    socket.on('game:reveal', ({ correctIndex, correctText, leaderboard }) => {
+      const mine = leaderboard.find((r) => r.nickname === nicknameRef.current);
+      setReveal({ correctIndex, correctText, rank: mine?.rank, gained: mine?.gained, score: mine?.score });
       setScreen('FEEDBACK');
     });
     socket.on('game:over', () => setScreen('OVER'));
@@ -50,8 +60,12 @@ export function usePlayerSocket() {
     new Promise<boolean>((resolve) => {
       setError(null);
       socketRef.current?.emit('player:join', { pin, nickname }, (res) => {
-        if (res.ok) setScreen('LOBBY');
-        else setError(res.error ?? 'Não foi possível entrar');
+        if (res.ok) {
+          nicknameRef.current = nickname.trim().slice(0, MAX_NICKNAME_LENGTH);
+          setScreen('LOBBY');
+        } else {
+          setError(res.error ?? 'Não foi possível entrar');
+        }
         resolve(res.ok);
       });
     });
@@ -69,5 +83,5 @@ export function usePlayerSocket() {
     });
   };
 
-  return { screen, error, question, feedback, join, answer };
+  return { screen, error, question, feedback, reveal, join, answer };
 }

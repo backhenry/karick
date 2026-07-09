@@ -26,7 +26,11 @@ export function useHostSocket() {
   const [players, setPlayers] = useState<PublicPlayer[]>([]);
   const [question, setQuestion] = useState<HostQuestionPayload | null>(null);
   const [answeredCount, setAnsweredCount] = useState(0);
-  const [reveal, setReveal] = useState<{ correctIndex: number; leaderboard: LeaderboardRow[] } | null>(null);
+  const [reveal, setReveal] = useState<{
+    correctIndex: number;
+    correctText: string;
+    leaderboard: LeaderboardRow[];
+  } | null>(null);
   const [podium, setPodium] = useState<LeaderboardRow[]>([]);
 
   useEffect(() => {

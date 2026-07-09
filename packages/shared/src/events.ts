@@ -25,7 +25,7 @@ export interface ServerToClientEvents {
   'game:question:player': (data: PlayerQuestionPayload) => void;
   /** Quantos jogadores já responderam a pergunta atual (para o Host mostrar progresso). */
   'game:answerCount': (data: { answered: number; total: number }) => void;
-  'game:reveal': (data: { correctIndex: number; leaderboard: LeaderboardRow[] }) => void;
+  'game:reveal': (data: { correctIndex: number; correctText: string; leaderboard: LeaderboardRow[] }) => void;
   'game:over': (data: { podium: LeaderboardRow[] }) => void;
   'game:hostLeft': () => void;
   'error:msg': (data: { message: string }) => void;

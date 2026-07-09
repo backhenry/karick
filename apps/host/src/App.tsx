@@ -96,29 +96,47 @@ export function App() {
       </div>
     );
 
-  // ─── REVEAL: leaderboard entre perguntas ───
-  if (g.phase === 'REVEAL' && g.reveal)
+  // ─── REVEAL: resposta certa + placar com ganhos e variação ───
+  if (g.phase === 'REVEAL' && g.reveal) {
+    const isLast = g.question ? g.question.index >= g.question.total - 1 : false;
     return (
       <div className="min-h-screen bg-slate-900 p-10 text-white">
-        <h2 className="mb-8 text-center text-4xl font-bold">Placar</h2>
+        <div className="mx-auto mb-8 max-w-2xl text-center">
+          <p className="mb-2 text-lg text-white/50">Resposta certa</p>
+          <div
+            className="inline-flex items-center gap-3 rounded-xl px-8 py-4 text-3xl font-bold"
+            style={{ background: OPTION_COLORS[g.reveal.correctIndex] }}
+          >
+            <span className="text-4xl">{OPTION_SHAPES[g.reveal.correctIndex]}</span>
+            {g.reveal.correctText}
+          </div>
+        </div>
+
+        <h2 className="mb-4 text-center text-3xl font-bold">Placar</h2>
         <ol className="mx-auto max-w-2xl space-y-3">
           {g.reveal.leaderboard.slice(0, 8).map((r) => (
-            <li key={r.rank} className="flex justify-between rounded-lg bg-white/10 px-6 py-3 text-2xl">
-              <span>
+            <li key={r.nickname} className="flex items-center justify-between rounded-lg bg-white/10 px-6 py-3 text-2xl">
+              <span className="flex items-center gap-3">
+                <RankDelta delta={r.rankDelta} />
                 {r.rank}. {r.nickname}
               </span>
-              <span className="font-bold">{r.score}</span>
+              <span className="flex items-baseline gap-3">
+                {r.gained ? <span className="text-lg font-bold text-green-400">+{r.gained}</span> : <span className="text-lg text-white/30">+0</span>}
+                <span className="font-bold">{r.score}</span>
+              </span>
             </li>
           ))}
         </ol>
+
         <button
           onClick={g.next}
           className="mx-auto mt-10 block rounded-xl bg-blue-500 px-10 py-4 text-2xl font-bold hover:bg-blue-400"
         >
-          Próxima →
+          {isLast ? 'Ver pódio 🏆' : 'Próxima →'}
         </button>
       </div>
     );
+  }
 
   // ─── OVER: pódio final ───
   if (g.phase === 'OVER')
@@ -140,6 +158,13 @@ export function App() {
     );
 
   return <Screen dark>Carregando…</Screen>;
+}
+
+function RankDelta({ delta }: { delta?: number }) {
+  if (delta === undefined) return <span className="w-8 text-center text-sm text-white/30">•</span>;
+  if (delta > 0) return <span className="w-8 text-center text-sm font-bold text-green-400">▲{delta}</span>;
+  if (delta < 0) return <span className="w-8 text-center text-sm font-bold text-red-400">▼{-delta}</span>;
+  return <span className="w-8 text-center text-sm text-white/30">—</span>;
 }
 
 function Screen({ children, dark }: { children: ReactNode; dark?: boolean }) {

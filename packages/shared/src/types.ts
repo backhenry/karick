@@ -65,6 +65,8 @@ export interface Player {
   score: number;
   /** Resposta da pergunta atual; resetada a cada nova pergunta. */
   currentAnswer: PlayerAnswer | null;
+  /** Posição no ranking na última revelação (para calcular a variação). */
+  previousRank?: number;
 }
 
 /** Estado vivo da sala (em memória / Redis). Não é persistido no banco relacional. */
@@ -90,6 +92,10 @@ export interface LeaderboardRow {
   rank: number;
   nickname: string;
   score: number;
+  /** Pontos ganhos na pergunta que acabou de ser revelada. */
+  gained?: number;
+  /** Variação de posição vs. rodada anterior (positivo = subiu; undefined = 1ª rodada). */
+  rankDelta?: number;
 }
 
 /** Pergunta como o HOST a vê (inclui a resposta certa). */

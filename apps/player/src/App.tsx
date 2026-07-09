@@ -13,7 +13,7 @@ function Center({ children }: { children: ReactNode }) {
 }
 
 export function App() {
-  const { screen, error, question, feedback, join, answer } = usePlayerSocket();
+  const { screen, error, question, feedback, reveal, join, answer } = usePlayerSocket();
   const [pin, setPin] = useState('');
   const [nickname, setNickname] = useState('');
   const [expired, setExpired] = useState(false);
@@ -104,16 +104,34 @@ export function App() {
   if (screen === 'ANSWERED') return <Center>Resposta enviada! Aguardando os outros… ⏳</Center>;
 
   if (screen === 'FEEDBACK') {
-    if (!feedback) return <Center>Tempo esgotado ⏰</Center>;
+    const answered = !!feedback;
+    const correct = feedback?.isCorrect ?? false;
+    const bg = !answered ? 'bg-slate-700' : correct ? 'bg-green-600' : 'bg-red-600';
+    const gained = reveal?.gained ?? feedback?.pointsAwarded ?? 0;
+    const total = reveal?.score ?? feedback?.totalScore;
     return (
-      <div
-        className={`flex min-h-screen flex-col items-center justify-center p-6 text-center text-white ${
-          feedback.isCorrect ? 'bg-green-600' : 'bg-red-600'
-        }`}
-      >
-        <h1 className="text-5xl font-black">{feedback.isCorrect ? 'Acertou! 🎉' : 'Errou 😢'}</h1>
-        {feedback.pointsAwarded > 0 && <p className="mt-2 text-2xl">+{feedback.pointsAwarded} pontos</p>}
-        <p className="mt-6 text-3xl font-bold">{feedback.totalScore} pts</p>
+      <div className={`flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center text-white ${bg}`}>
+        <h1 className="text-5xl font-black">
+          {!answered ? 'Tempo esgotado ⏰' : correct ? 'Acertou! 🎉' : 'Errou 😢'}
+        </h1>
+
+        {reveal && (
+          <div className="flex items-center gap-2 rounded-lg bg-black/20 px-4 py-2 text-lg">
+            <span className="opacity-80">Resposta certa:</span>
+            <span className="text-2xl" style={{ color: OPTION_COLORS[reveal.correctIndex] }}>
+              {OPTION_SHAPES[reveal.correctIndex]}
+            </span>
+            <b>{reveal.correctText}</b>
+          </div>
+        )}
+
+        <p className="text-2xl font-bold">{gained > 0 ? `+${gained} pontos` : 'sem pontos'}</p>
+        {total !== undefined && (
+          <p className="text-lg opacity-90">
+            Total: <b>{total} pts</b>
+            {reveal?.rank !== undefined && <> · Você está em <b>{reveal.rank}º</b></>}
+          </p>
+        )}
       </div>
     );
   }

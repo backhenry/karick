@@ -11,6 +11,7 @@ import type { HistoryRepository } from '../store/historyRepository.js';
 import {
   allPlayersAnswered,
   buildLeaderboard,
+  buildRevealLeaderboard,
   computeScore,
   currentQuestion,
   hasMoreQuestions,
@@ -79,7 +80,8 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     const q = currentQuestion(room);
     io.to(room.pin).emit('game:reveal', {
       correctIndex: q ? q.correctIndex : -1,
-      leaderboard: buildLeaderboard(room),
+      correctText: q ? q.options[q.correctIndex] : '',
+      leaderboard: buildRevealLeaderboard(room),
     });
   }
 
