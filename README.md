@@ -87,6 +87,26 @@ repositório em memória (não persiste entre reinícios) — útil em dev.
 DATABASE_URL="postgresql://...pooler.supabase.com:5432/postgres" npm start
 ```
 
+## Importar quiz via JSON
+
+No editor há **Importar JSON** (upload de arquivo ou colar texto). Ótimo para
+gerar perguntas com uma IA. Formato canônico:
+
+```json
+{
+  "title": "Nome do quiz",
+  "questions": [
+    { "text": "Enunciado?", "options": ["A", "B", "C", "D"], "correctIndex": 1, "timeLimitSec": 20, "points": 1000 }
+  ]
+}
+```
+
+- `correctIndex` é **0-based** (0 = primeira opção). Alternativa: `correctAnswer`
+  com o **texto exato** de uma das opções.
+- `timeLimitSec` e `points` são opcionais (padrão 20s / 1000).
+- O botão **Copiar prompt para IA** no editor coloca um prompt pronto na área
+  de transferência.
+
 ## Arquitetura
 
 - **Servidor autoritativo**: clientes só emitem intenções; o servidor valida,
