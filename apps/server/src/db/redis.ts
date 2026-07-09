@@ -1,36 +1,22 @@
 import { Redis } from 'ioredis';
-import type { Server } from 'socket.io';
-import { createAdapter } from '@socket.io/redis-adapter';
 
 /**
- * Ativa o adapter Redis do Socket.IO (broadcast entre instâncias) se REDIS_URL
- * existir e o Redis estiver acessível. Caso contrário, segue sem adapter (uma
- * instância). Nunca derruba o boot por causa do Redis.
- *
- * IMPORTANTE: isto é só a camada de mensagens. O estado das salas ainda vive em
- * memória — rodar VÁRIAS instâncias com segurança exige também externalizar o
- * estado (com escrita atômica). Até lá: mantenha 1 instância.
+ * Conecta ao Redis se REDIS_URL existir e estiver acessível; senão retorna null
+ * (o app segue com estado/broadcast em memória). Nunca derruba o boot.
+ * O cliente retornado é usado tanto pela RedisRoomStore quanto pelo adapter.
  */
-export async function setupRedisAdapter(io: Server): Promise<boolean> {
+export async function connectRedis(): Promise<Redis | null> {
   const url = process.env.REDIS_URL;
-  if (!url) return false;
+  if (!url) return null;
 
+  const client = new Redis(url, { lazyConnect: true, connectTimeout: 4000, maxRetriesPerRequest: 2 });
+  client.on('error', (e) => console.error('Redis:', e.message));
   try {
-    const pub = new Redis(url, {
-      lazyConnect: true,
-      connectTimeout: 4000,
-      maxRetriesPerRequest: 1,
-      retryStrategy: () => null, // não fica retentando no boot
-    });
-    const sub = pub.duplicate();
-    pub.on('error', (e) => console.error('Redis (pub):', e.message));
-    sub.on('error', (e) => console.error('Redis (sub):', e.message));
-    await pub.connect();
-    await sub.connect();
-    io.adapter(createAdapter(pub, sub));
-    return true;
+    await client.connect();
+    return client;
   } catch (e) {
-    console.error('⚠️  Falha ao conectar no Redis — seguindo sem adapter:', (e as Error).message);
-    return false;
+    console.error('⚠️  Falha ao conectar no Redis — seguindo em memória:', (e as Error).message);
+    client.disconnect();
+    return null;
   }
 }

@@ -5,7 +5,9 @@ import { existsSync } from 'node:fs';
 import express from 'express';
 import { Server } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents, SocketData } from '@karick/shared';
-import { InMemoryRoomStore } from './store/roomStore.js';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { InMemoryRoomStore, type RoomStore } from './store/roomStore.js';
+import { RedisRoomStore } from './store/redisRoomStore.js';
 import { registerGameGateway } from './game/gameGateway.js';
 import { createPool, initSchema } from './db/pool.js';
 import {
@@ -22,7 +24,7 @@ import { createApiRouter } from './api/apiRouter.js';
 import { RateLimiter } from './util/rateLimiter.js';
 import { InMemoryUserRepository, PostgresUserRepository, type UserRepository } from './store/userRepository.js';
 import { createAuthRouter } from './auth/authRouter.js';
-import { setupRedisAdapter } from './db/redis.js';
+import { connectRedis } from './db/redis.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? '*';
@@ -96,16 +98,24 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents, Record<string,
   { cors: { origin: CORS_ORIGIN } },
 );
 
-registerGameGateway(io, new InMemoryRoomStore(), historyRepo);
+// Redis (opcional): adapter de broadcast + estado das salas atômico.
+const redis = await connectRedis();
+let roomStore: RoomStore;
+if (redis) {
+  io.adapter(createAdapter(redis, redis.duplicate()));
+  roomStore = new RedisRoomStore(redis);
+} else {
+  roomStore = new InMemoryRoomStore();
+}
 
-const redisOn = await setupRedisAdapter(io);
+registerGameGateway(io, roomStore, historyRepo);
 
 httpServer.listen(PORT, () => {
   console.log(`🚀 Karick server pronto na porta ${PORT}`);
   console.log(FRONTENDS_BUILT ? '   servindo fronts (Player em / e Host em /host)' : '   modo dev');
   console.log(
-    redisOn
-      ? '🔻 Redis adapter ativo — MANTENHA 1 instância até externalizar o estado das salas'
-      : '   Socket.IO em memória (instância única)',
+    redis
+      ? '🔻 Redis ativo: estado das salas + broadcast entre instâncias (valide em staging antes de escalar)'
+      : '   Estado das salas em memória (instância única)',
   );
 });

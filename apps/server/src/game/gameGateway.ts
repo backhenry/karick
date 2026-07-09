@@ -6,7 +6,7 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from '@karick/shared';
-import { MAX_NICKNAME_LENGTH, validateQuiz } from '@karick/shared';
+import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS } from '@karick/shared';
 import { generatePin, type RoomStore } from '../store/roomStore.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
 import { RateLimiter } from '../util/rateLimiter.js';
@@ -21,18 +21,13 @@ import {
   hasMoreQuestions,
   streakBonus,
 } from './gameService.js';
-import { AVATARS, ADD_TIME_SECONDS } from '@karick/shared';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type IOSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 
-/**
- * Timers autoritativos, fora do objeto GameRoom (não são serializáveis).
- * Débito técnico para escala: mover para BullMQ/Redis para sobreviver a restart.
- */
+/** Timers autoritativos, em processo (não serializáveis). Ao escalar: BullMQ. */
 const timers = new Map<string, NodeJS.Timeout>();
 
-// Rate limiting anti-flood, por endereço (janela de 1 min).
 const createRoomLimiter = new RateLimiter(15, 60_000);
 const joinLimiter = new RateLimiter(40, 60_000);
 const answerLimiter = new RateLimiter(120, 60_000);
@@ -46,6 +41,7 @@ function clearRoomTimer(pin: string) {
 }
 
 export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRepository) {
+  // Emissões (somente leitura do room já obtido) ────────────────
   function broadcastLobby(room: GameRoom) {
     const players = Object.values(room.players).map((p) => ({
       nickname: p.nickname,
@@ -55,7 +51,6 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     io.to(room.pin).emit('lobby:updated', { players, count: players.length });
   }
 
-  /** Envia ao jogador (re)conectado o estado atual, para cair na tela certa. */
   function sendSync(room: GameRoom, player: Player, socket: IOSocket) {
     if (room.status === 'FINISHED') return socket.emit('game:sync', { screen: 'OVER' });
     const q = currentQuestion(room);
@@ -64,16 +59,15 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       const remainingSec = room.questionEndsAt
         ? Math.max(0, Math.round((room.questionEndsAt - Date.now()) / 1000))
         : q.timeLimitSec;
-      const question = {
-        index: room.currentQuestionIndex,
-        total: room.quiz.questions.length,
-        optionsCount: q.options.length,
-        timeLimitSec: q.timeLimitSec,
-        imageUrl: q.imageUrl,
-      };
       return socket.emit('game:sync', {
         screen: player.currentAnswer ? 'ANSWERED' : 'QUESTION',
-        question,
+        question: {
+          index: room.currentQuestionIndex,
+          total: room.quiz.questions.length,
+          optionsCount: q.options.length,
+          timeLimitSec: q.timeLimitSec,
+          imageUrl: q.imageUrl,
+        },
         remainingSec,
       });
     }
@@ -96,14 +90,19 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     return socket.emit('game:sync', { screen: 'LOBBY' });
   }
 
-  function sendQuestion(room: GameRoom) {
+  // Transições (mutação atômica via store.update) ───────────────
+  async function sendQuestion(pin: string) {
+    const room = await store.update(pin, (r) => {
+      const q = currentQuestion(r);
+      if (!q) return;
+      r.status = 'QUESTION';
+      r.questionStartedAt = Date.now();
+      r.questionEndsAt = Date.now() + q.timeLimitSec * 1000;
+      Object.values(r.players).forEach((p) => (p.currentAnswer = null));
+    });
+    if (!room) return;
     const q = currentQuestion(room);
-    if (!q) return endGame(room);
-
-    room.status = 'QUESTION';
-    room.questionStartedAt = Date.now();
-    room.questionEndsAt = Date.now() + q.timeLimitSec * 1000;
-    Object.values(room.players).forEach((p) => (p.currentAnswer = null));
+    if (!q) return endGame(pin);
 
     io.to(room.hostSocketId).emit('game:question:host', {
       index: room.currentQuestionIndex,
@@ -114,7 +113,6 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       correctIndex: q.correctIndex,
       imageUrl: q.imageUrl,
     });
-
     Object.values(room.players).forEach((p) => {
       io.to(p.socketId).emit('game:question:player', {
         index: room.currentQuestionIndex,
@@ -125,59 +123,81 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       });
     });
 
-    clearRoomTimer(room.pin);
-    timers.set(room.pin, setTimeout(() => revealAnswer(room), q.timeLimitSec * 1000));
+    clearRoomTimer(pin);
+    timers.set(pin, setTimeout(() => void revealAnswer(pin), q.timeLimitSec * 1000));
   }
 
-  function revealAnswer(room: GameRoom) {
-    clearRoomTimer(room.pin);
-    if (room.status !== 'QUESTION') return; // já revelada
-    room.status = 'REVEAL';
-    const q = currentQuestion(room);
-    const distribution = q ? buildDistribution(room, q.options.length) : [];
-    const payload = {
-      correctIndex: q ? q.correctIndex : -1,
-      correctText: q ? q.options[q.correctIndex] : '',
-      distribution,
-      leaderboard: buildRevealLeaderboard(room),
-    };
-    room.lastReveal = payload;
-    if (q) {
-      room.stats.push({
-        text: q.text,
-        correctCount: distribution[q.correctIndex] ?? 0,
-        answered: distribution.reduce((a, b) => a + b, 0),
-        total: Object.keys(room.players).length,
-      });
-    }
-    io.to(room.pin).emit('game:reveal', payload);
+  async function revealAnswer(pin: string) {
+    clearRoomTimer(pin);
+    let payload: { correctIndex: number; correctText: string; distribution: number[]; leaderboard: ReturnType<typeof buildRevealLeaderboard> } | null = null;
+    let transitioned = false;
+    const room = await store.update(pin, (r) => {
+      payload = null;
+      transitioned = false;
+      if (r.status !== 'QUESTION') return; // já revelada
+      transitioned = true;
+      r.status = 'REVEAL';
+      const q = currentQuestion(r);
+      const distribution = q ? buildDistribution(r, q.options.length) : [];
+      payload = {
+        correctIndex: q ? q.correctIndex : -1,
+        correctText: q ? q.options[q.correctIndex] : '',
+        distribution,
+        leaderboard: buildRevealLeaderboard(r),
+      };
+      r.lastReveal = payload;
+      if (q) {
+        r.stats.push({
+          text: q.text,
+          correctCount: distribution[q.correctIndex] ?? 0,
+          answered: distribution.reduce((a, b) => a + b, 0),
+          total: Object.keys(r.players).length,
+        });
+      }
+    });
+    if (room && transitioned && payload) io.to(room.pin).emit('game:reveal', payload);
   }
 
-  function endGame(room: GameRoom) {
-    clearRoomTimer(room.pin);
-    room.status = 'FINISHED';
-    const leaderboard = buildLeaderboard(room);
-    io.to(room.pin).emit('game:over', { podium: leaderboard.slice(0, 3), stats: room.stats });
-
-    // Registra a partida no histórico (best-effort — não derruba o jogo se falhar).
+  async function endGame(pin: string) {
+    clearRoomTimer(pin);
+    let did = false;
+    let leaderboard: ReturnType<typeof buildLeaderboard> = [];
+    let stats: GameRoom['stats'] = [];
+    let quizTitle = '';
+    let ownerId: string | null = null;
+    const room = await store.update(pin, (r) => {
+      did = false;
+      if (r.status === 'FINISHED') return;
+      did = true;
+      r.status = 'FINISHED';
+      leaderboard = buildLeaderboard(r);
+      stats = r.stats;
+      quizTitle = r.quiz.title;
+      ownerId = r.hostUserId;
+    });
+    if (!room || !did) return;
+    io.to(room.pin).emit('game:over', { podium: leaderboard.slice(0, 3), stats });
     if (leaderboard.length > 0) {
       history
-        .record({ quizTitle: room.quiz.title, pin: room.pin, players: leaderboard, ownerId: room.hostUserId })
+        .record({ quizTitle, pin, players: leaderboard, ownerId })
         .catch((err) => console.error('Falha ao gravar histórico:', err));
     }
   }
 
+  const isHost = (room: GameRoom | null, socket: IOSocket): room is GameRoom =>
+    !!room && room.hostSocketId === socket.id;
+
   io.on('connection', (socket: IOSocket) => {
     // ─── HOST: cria a sala ───────────────────────────────
-    socket.on('host:createRoom', ({ quiz }, ack) => {
+    socket.on('host:createRoom', async ({ quiz }, ack) => {
       if (!createRoomLimiter.allow(socket.handshake.address)) {
         return ack?.({ ok: false, error: 'Muitas salas criadas, aguarde um instante.' });
       }
       const err = validateQuiz(quiz);
       if (err) return ack?.({ ok: false, error: err });
 
-      const pin = generatePin(store);
-      const room: GameRoom = {
+      const pin = await generatePin(store);
+      await store.create({
         pin,
         hostSocketId: socket.id,
         hostUserId: userIdFromCookieHeader(socket.handshake.headers.cookie),
@@ -188,8 +208,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         questionEndsAt: null,
         stats: [],
         players: {},
-      };
-      store.create(room);
+      });
       socket.join(pin);
       socket.data.pin = pin;
       socket.data.role = 'host';
@@ -197,170 +216,184 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     });
 
     // ─── PLAYER: entra na sala (ou reconecta) ────────────
-    socket.on('player:join', ({ pin, nickname, avatar, playerId }, ack) => {
+    socket.on('player:join', async ({ pin, nickname, avatar, playerId }, ack) => {
       if (!joinLimiter.allow(socket.handshake.address)) {
         return ack?.({ ok: false, error: 'Muitas tentativas, aguarde um instante.' });
       }
-      const room = store.get(pin);
-      if (!room) return ack?.({ ok: false, error: 'Sala não encontrada' });
       if (!playerId) return ack?.({ ok: false, error: 'Identificador ausente' });
 
-      const existing = room.players[playerId];
-      if (existing) {
-        // Reconexão: religa o socket e re-sincroniza o estado atual.
-        existing.socketId = socket.id;
-        existing.connected = true;
-        socket.join(pin);
-        socket.data.pin = pin;
-        socket.data.role = 'player';
-        socket.data.playerId = playerId;
-        ack?.({ ok: true });
-        sendSync(room, existing, socket);
-        broadcastLobby(room);
-        return;
-      }
-
-      // Novo jogador só entra no lobby.
-      if (room.status !== 'LOBBY') return ack?.({ ok: false, error: 'Jogo já iniciado' });
+      let outcome = 'new' as 'reconnect' | 'new' | 'inprogress' | 'badnick' | 'taken';
       const clean = nickname?.trim().slice(0, MAX_NICKNAME_LENGTH);
-      if (!clean) return ack?.({ ok: false, error: 'Apelido inválido' });
-      const taken = Object.values(room.players).some((p) => p.nickname === clean);
-      if (taken) return ack?.({ ok: false, error: 'Apelido já em uso' });
+      const room = await store.update(pin, (r) => {
+        const existing = r.players[playerId];
+        if (existing) {
+          existing.socketId = socket.id;
+          existing.connected = true;
+          outcome = 'reconnect';
+          return;
+        }
+        if (r.status !== 'LOBBY') return void (outcome = 'inprogress');
+        if (!clean) return void (outcome = 'badnick');
+        if (Object.values(r.players).some((p) => p.nickname === clean)) return void (outcome = 'taken');
+        const chosenAvatar =
+          avatar && AVATARS.includes(avatar as (typeof AVATARS)[number])
+            ? avatar
+            : AVATARS[Math.floor(Math.random() * AVATARS.length)];
+        r.players[playerId] = {
+          id: playerId,
+          socketId: socket.id,
+          nickname: clean,
+          score: 0,
+          avatar: chosenAvatar,
+          streak: 0,
+          connected: true,
+          currentAnswer: null,
+        };
+        outcome = 'new';
+      });
 
-      const chosenAvatar = (avatar && AVATARS.includes(avatar as (typeof AVATARS)[number]))
-        ? avatar
-        : AVATARS[Math.floor(Math.random() * AVATARS.length)];
-      room.players[playerId] = {
-        id: playerId,
-        socketId: socket.id,
-        nickname: clean,
-        score: 0,
-        avatar: chosenAvatar,
-        streak: 0,
-        connected: true,
-        currentAnswer: null,
-      };
+      if (!room) return ack?.({ ok: false, error: 'Sala não encontrada' });
+      if (outcome === 'inprogress') return ack?.({ ok: false, error: 'Jogo já iniciado' });
+      if (outcome === 'badnick') return ack?.({ ok: false, error: 'Apelido inválido' });
+      if (outcome === 'taken') return ack?.({ ok: false, error: 'Apelido já em uso' });
+
       socket.join(pin);
       socket.data.pin = pin;
       socket.data.role = 'player';
       socket.data.playerId = playerId;
       ack?.({ ok: true });
+      if (outcome === 'reconnect') sendSync(room, room.players[playerId], socket);
       broadcastLobby(room);
     });
 
     // ─── HOST: inicia o jogo ─────────────────────────────
-    socket.on('host:startGame', () => {
-      const room = store.get(socket.data.pin ?? '');
-      if (!room || room.hostSocketId !== socket.id) return;
-      room.currentQuestionIndex = 0;
-      sendQuestion(room);
+    socket.on('host:startGame', async () => {
+      const room = await store.get(socket.data.pin ?? '');
+      if (!isHost(room, socket)) return;
+      await store.update(room.pin, (r) => (r.currentQuestionIndex = 0));
+      await sendQuestion(room.pin);
     });
 
     // ─── HOST: próxima pergunta ──────────────────────────
-    socket.on('host:nextQuestion', () => {
-      const room = store.get(socket.data.pin ?? '');
-      if (!room || room.hostSocketId !== socket.id) return;
-      if (!hasMoreQuestions(room)) return endGame(room);
-      room.currentQuestionIndex += 1;
-      sendQuestion(room);
+    socket.on('host:nextQuestion', async () => {
+      const room = await store.get(socket.data.pin ?? '');
+      if (!isHost(room, socket)) return;
+      if (!hasMoreQuestions(room)) return void endGame(room.pin);
+      await store.update(room.pin, (r) => (r.currentQuestionIndex += 1));
+      await sendQuestion(room.pin);
     });
 
-    // ─── HOST: revelar agora (pular o tempo restante) ────
-    socket.on('host:revealNow', () => {
-      const room = store.get(socket.data.pin ?? '');
-      if (!room || room.hostSocketId !== socket.id || room.status !== 'QUESTION') return;
-      revealAnswer(room);
+    // ─── HOST: revelar agora ─────────────────────────────
+    socket.on('host:revealNow', async () => {
+      const room = await store.get(socket.data.pin ?? '');
+      if (!isHost(room, socket) || room.status !== 'QUESTION') return;
+      await revealAnswer(room.pin);
     });
 
     // ─── HOST: adicionar tempo ───────────────────────────
-    socket.on('host:addTime', () => {
-      const room = store.get(socket.data.pin ?? '');
-      if (!room || room.hostSocketId !== socket.id || room.status !== 'QUESTION' || room.questionEndsAt === null) return;
-      room.questionEndsAt += ADD_TIME_SECONDS * 1000;
-      const remainingMs = Math.max(0, room.questionEndsAt - Date.now());
+    socket.on('host:addTime', async () => {
+      const room0 = await store.get(socket.data.pin ?? '');
+      if (!isHost(room0, socket) || room0.status !== 'QUESTION' || room0.questionEndsAt === null) return;
+      let remainingMs = 0;
+      const room = await store.update(room0.pin, (r) => {
+        if (r.questionEndsAt === null) return;
+        r.questionEndsAt += ADD_TIME_SECONDS * 1000;
+        remainingMs = Math.max(0, r.questionEndsAt - Date.now());
+      });
+      if (!room) return;
       clearRoomTimer(room.pin);
-      timers.set(room.pin, setTimeout(() => revealAnswer(room), remainingMs));
+      timers.set(room.pin, setTimeout(() => void revealAnswer(room.pin), remainingMs));
       io.to(room.pin).emit('game:timer', { remainingSec: Math.round(remainingMs / 1000) });
     });
 
     // ─── HOST: remover jogador ───────────────────────────
-    socket.on('host:kickPlayer', ({ nickname }) => {
-      const room = store.get(socket.data.pin ?? '');
-      if (!room || room.hostSocketId !== socket.id) return;
-      const entry = Object.entries(room.players).find(([, p]) => p.nickname === nickname);
-      if (!entry) return;
-      const [key, player] = entry;
-      delete room.players[key];
-      const target = io.sockets.sockets.get(player.socketId);
-      if (target) {
-        target.emit('player:kicked');
-        target.leave(room.pin);
-        target.data.pin = undefined;
+    socket.on('host:kickPlayer', async ({ nickname }) => {
+      const room0 = await store.get(socket.data.pin ?? '');
+      if (!isHost(room0, socket)) return;
+      let kickedSocketId: string | null = null;
+      const room = await store.update(room0.pin, (r) => {
+        const entry = Object.entries(r.players).find(([, p]) => p.nickname === nickname);
+        if (!entry) return;
+        kickedSocketId = entry[1].socketId;
+        delete r.players[entry[0]];
+      });
+      if (kickedSocketId) {
+        io.to(kickedSocketId).emit('player:kicked');
+        const target = io.sockets.sockets.get(kickedSocketId); // só se for local
+        if (target) {
+          target.leave(room0.pin);
+          target.data.pin = undefined;
+        }
       }
-      broadcastLobby(room);
+      if (room) broadcastLobby(room);
     });
 
     // ─── PLAYER: responde ────────────────────────────────
-    socket.on('player:submitAnswer', ({ optionIndex }, ack) => {
+    socket.on('player:submitAnswer', async ({ optionIndex }, ack) => {
       if (!answerLimiter.allow(socket.handshake.address)) {
         return ack?.({ ok: false, error: 'Muitas ações, aguarde um instante.' });
       }
-      const room = store.get(socket.data.pin ?? '');
-      if (!room || room.status !== 'QUESTION' || room.questionStartedAt === null) {
-        return ack?.({ ok: false, error: 'Fora de uma pergunta ativa' });
-      }
-      const player = socket.data.playerId ? room.players[socket.data.playerId] : undefined;
-      if (!player) return ack?.({ ok: false, error: 'Jogador não está na sala' });
-      if (player.currentAnswer) return ack?.({ ok: false, error: 'Você já respondeu' });
-
-      const q = currentQuestion(room)!;
-      const elapsedSec = (Date.now() - room.questionStartedAt) / 1000;
-      const isCorrect = optionIndex === q.correctIndex;
-
-      let bonus = 0;
-      if (isCorrect) {
-        player.streak += 1;
-        bonus = streakBonus(player.streak);
-      } else {
-        player.streak = 0;
-      }
-      const pointsAwarded = isCorrect ? computeScore(q, elapsedSec) + bonus : 0;
-
-      player.currentAnswer = { optionIndex, answeredAt: Date.now(), isCorrect, pointsAwarded };
-      player.score += pointsAwarded;
-
-      ack?.({ ok: true, isCorrect, pointsAwarded, totalScore: player.score, streak: player.streak, streakBonus: bonus });
+      const pin = socket.data.pin ?? '';
+      const playerId = socket.data.playerId;
+      let outcome = 'ok' as 'ok' | 'inactive' | 'noplayer' | 'answered';
+      let result: { isCorrect: boolean; pointsAwarded: number; totalScore: number; streak: number; streakBonus: number } | null = null;
+      const room = await store.update(pin, (r) => {
+        outcome = 'ok';
+        result = null;
+        if (r.status !== 'QUESTION' || r.questionStartedAt === null) return void (outcome = 'inactive');
+        const p = playerId ? r.players[playerId] : undefined;
+        if (!p) return void (outcome = 'noplayer');
+        if (p.currentAnswer) return void (outcome = 'answered');
+        const q = currentQuestion(r)!;
+        const elapsedSec = (Date.now() - r.questionStartedAt) / 1000;
+        const isCorrect = optionIndex === q.correctIndex;
+        let bonus = 0;
+        if (isCorrect) {
+          p.streak += 1;
+          bonus = streakBonus(p.streak);
+        } else {
+          p.streak = 0;
+        }
+        const pointsAwarded = isCorrect ? computeScore(q, elapsedSec) + bonus : 0;
+        p.currentAnswer = { optionIndex, answeredAt: Date.now(), isCorrect, pointsAwarded };
+        p.score += pointsAwarded;
+        result = { isCorrect, pointsAwarded, totalScore: p.score, streak: p.streak, streakBonus: bonus };
+      });
+      if (!room || outcome === 'inactive') return ack?.({ ok: false, error: 'Fora de uma pergunta ativa' });
+      if (outcome === 'noplayer') return ack?.({ ok: false, error: 'Jogador não está na sala' });
+      if (outcome === 'answered') return ack?.({ ok: false, error: 'Você já respondeu' });
+      ack?.({ ok: true, ...result! });
 
       const connected = Object.values(room.players).filter((p) => p.connected);
       const answered = connected.filter((p) => p.currentAnswer !== null).length;
       io.to(room.hostSocketId).emit('game:answerCount', { answered, total: connected.length });
-
-      if (allPlayersAnswered(room)) revealAnswer(room);
+      if (allPlayersAnswered(room)) await revealAnswer(pin);
     });
 
     // ─── Desconexão ──────────────────────────────────────
-    socket.on('disconnect', () => {
-      const room = store.get(socket.data.pin ?? '');
-      if (!room) return;
+    socket.on('disconnect', async () => {
+      const pin = socket.data.pin ?? '';
+      const room0 = await store.get(pin);
+      if (!room0) return;
 
-      if (room.hostSocketId === socket.id) {
-        io.to(room.pin).emit('game:hostLeft');
-        clearRoomTimer(room.pin);
-        store.delete(room.pin);
+      if (room0.hostSocketId === socket.id) {
+        io.to(pin).emit('game:hostLeft');
+        clearRoomTimer(pin);
+        await store.delete(pin);
         return;
       }
 
       const pid = socket.data.playerId;
-      const player = pid ? room.players[pid] : undefined;
-      // Ignora desconexão "velha" (o jogador já reconectou com outro socket).
-      if (!player || player.socketId !== socket.id) return;
-
-      if (room.status === 'LOBBY') {
-        delete room.players[pid!]; // antes do jogo, sair = deixar a sala
-      } else {
-        player.connected = false; // durante o jogo, mantém a pontuação
-      }
-      broadcastLobby(room);
+      if (!pid) return;
+      let changed = false;
+      const room = await store.update(pin, (r) => {
+        const p = r.players[pid];
+        if (!p || p.socketId !== socket.id) return; // desconexão "velha" (já reconectou)
+        if (r.status === 'LOBBY') delete r.players[pid];
+        else p.connected = false;
+        changed = true;
+      });
+      if (changed && room) broadcastLobby(room);
     });
   });
 }

@@ -123,17 +123,23 @@ vê apenas a **própria** biblioteca de quizzes e histórico.
 > Quizzes criados antes do login ficam sem dono (`owner_id` nulo) e não
 > aparecem para nenhuma conta.
 
-## Escala horizontal (Redis) — parcial
+## Escala horizontal (Redis)
 
-Definir **`REDIS_URL`** ativa o **adapter Redis do Socket.IO** (broadcast entre
-instâncias). Se o Redis estiver inacessível, o app degrada e segue em memória —
-o boot nunca quebra por causa disso.
+Definir **`REDIS_URL`** ativa dois mecanismos:
+1. **Adapter Redis do Socket.IO** — broadcast de eventos entre instâncias.
+2. **Estado das salas no Redis** (`RedisRoomStore`) — com **escrita atômica**
+   (WATCH/MULTI) para não perder atualizações concorrentes (ex.: dois jogadores
+   respondendo em instâncias diferentes).
 
-> ⚠️ **Isto é só a camada de mensagens.** O estado das salas (jogadores,
-> respostas, timers) ainda vive **em memória de cada instância**. Rodar VÁRIAS
-> instâncias com segurança exige também externalizar esse estado no Redis com
-> **escrita atômica** (para não perder pontuação em respostas concorrentes) e
-> timers resilientes. Até isso ser feito e validado em staging: **use 1 instância.**
+Sem `REDIS_URL`, o estado fica em memória (instância única). Se o Redis estiver
+inacessível no boot, o app degrada e segue em memória — o boot nunca quebra.
+
+> ⚠️ **Validar em staging antes de escalar.** Dois pontos precisam de teste com
+> um Redis real + carga: (a) a semântica de WATCH/MULTI sob concorrência real
+> (aqui foi validada só contra um mock); (b) os **timers de pergunta ainda são
+> em processo** — se a instância que hospeda a sala cair, o timer daquela sala é
+> perdido (resiliência de timers exigiria algo como BullMQ). Recomendado usar
+> **sticky sessions** no balanceador.
 
 ## Arquitetura
 
