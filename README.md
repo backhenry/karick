@@ -123,6 +123,18 @@ vê apenas a **própria** biblioteca de quizzes e histórico.
 > Quizzes criados antes do login ficam sem dono (`owner_id` nulo) e não
 > aparecem para nenhuma conta.
 
+## Escala horizontal (Redis) — parcial
+
+Definir **`REDIS_URL`** ativa o **adapter Redis do Socket.IO** (broadcast entre
+instâncias). Se o Redis estiver inacessível, o app degrada e segue em memória —
+o boot nunca quebra por causa disso.
+
+> ⚠️ **Isto é só a camada de mensagens.** O estado das salas (jogadores,
+> respostas, timers) ainda vive **em memória de cada instância**. Rodar VÁRIAS
+> instâncias com segurança exige também externalizar esse estado no Redis com
+> **escrita atômica** (para não perder pontuação em respostas concorrentes) e
+> timers resilientes. Até isso ser feito e validado em staging: **use 1 instância.**
+
 ## Arquitetura
 
 - **Servidor autoritativo**: clientes só emitem intenções; o servidor valida,

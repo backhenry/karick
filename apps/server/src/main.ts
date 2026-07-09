@@ -22,6 +22,7 @@ import { createApiRouter } from './api/apiRouter.js';
 import { RateLimiter } from './util/rateLimiter.js';
 import { InMemoryUserRepository, PostgresUserRepository, type UserRepository } from './store/userRepository.js';
 import { createAuthRouter } from './auth/authRouter.js';
+import { setupRedisAdapter } from './db/redis.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? '*';
@@ -97,7 +98,14 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents, Record<string,
 
 registerGameGateway(io, new InMemoryRoomStore(), historyRepo);
 
+const redisOn = await setupRedisAdapter(io);
+
 httpServer.listen(PORT, () => {
   console.log(`🚀 Karick server pronto na porta ${PORT}`);
   console.log(FRONTENDS_BUILT ? '   servindo fronts (Player em / e Host em /host)' : '   modo dev');
+  console.log(
+    redisOn
+      ? '🔻 Redis adapter ativo — MANTENHA 1 instância até externalizar o estado das salas'
+      : '   Socket.IO em memória (instância única)',
+  );
 });
