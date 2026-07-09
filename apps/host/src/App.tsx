@@ -43,10 +43,10 @@ export function App() {
     const setup = setupDraft && (
       <GameSetup
         onCancel={() => setSetupDraft(null)}
-        onConfirm={async (teams) => {
+        onConfirm={async (mode, teams) => {
           const draft = setupDraft;
           setSetupDraft(null);
-          const err = await g.createRoom(draft, teams);
+          const err = await g.createRoom(draft, teams, mode);
           if (err) alert(err);
         }}
       />
@@ -88,6 +88,11 @@ export function App() {
     const joinUrl = `${window.location.origin}/?pin=${g.pin}`;
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-slate-900 p-6 text-white">
+        {g.mode !== 'individual' && (
+          <span className="rounded-full bg-indigo-500/30 px-4 py-1 text-sm font-bold text-indigo-200">
+            Modo: {g.mode === 'teams' ? 'Equipes' : g.mode === 'betting' ? 'Aposta' : 'Sobrevivência'}
+          </span>
+        )}
         <div className="flex flex-wrap items-center justify-center gap-10">
           <div className="text-center">
             <p className="mb-2 text-xl opacity-70">Acesse e use o PIN</p>

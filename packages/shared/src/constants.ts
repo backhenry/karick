@@ -39,3 +39,6 @@ export const MAX_TAG_LENGTH = 24;
 export const MIN_TEAMS = 2;
 export const MAX_TEAMS = 6;
 export const MAX_TEAM_NAME_LENGTH = 20;
+
+/** Banco inicial de cada jogador no modo aposta. */
+export const STARTING_BANK = 1000;

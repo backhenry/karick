@@ -55,6 +55,18 @@ export function App() {
   const [powerups, setPowerups] = useState({ fiftyFifty: true, double: true, freeze: true });
   const [keep, setKeep] = useState<number[] | null>(null); // 50/50: opções a manter
   const [activeScoring, setActiveScoring] = useState<'double' | 'freeze' | null>(null);
+  const [wagerPct, setWagerPct] = useState(50); // modo aposta
+  const [eliminated, setEliminated] = useState(false); // modo sobrevivência
+
+  // Sobrevivência: eliminado ao errar/não responder. Reinicia por partida.
+  useEffect(() => {
+    if (screen === 'LOBBY') setEliminated(false);
+  }, [screen]);
+  useEffect(() => {
+    if (screen === 'FEEDBACK' && question?.mode === 'survival' && (!feedback || !feedback.isCorrect)) {
+      setEliminated(true);
+    }
+  }, [screen, question, feedback]);
 
   // Power-ups: disponibilidade reinicia por partida; efeitos reiniciam por pergunta.
   useEffect(() => {
@@ -86,9 +98,11 @@ export function App() {
     }
   }, [screen, feedback]);
 
+  const bank = question?.bank ?? 0;
+  const wager = Math.max(1, Math.round((bank * wagerPct) / 100));
   const handleAnswer = (i: number) => {
     sfx.tap();
-    answer(i);
+    answer(i, question?.mode === 'betting' ? wager : undefined);
   };
 
   if (screen === 'JOIN') {
@@ -199,35 +213,57 @@ export function App() {
             />
           </div>
         )}
-        {expired ? (
+        {eliminated && question.mode === 'survival' ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-slate-500">
+            <span className="text-5xl">💀</span>
+            <span className="text-2xl">Eliminado — assistindo</span>
+          </div>
+        ) : expired ? (
           <div className="flex flex-1 items-center justify-center text-2xl text-slate-500">
             Tempo esgotado ⏰
           </div>
         ) : (
           <>
-            <div className="flex justify-center gap-2 px-3 pb-1">
-              <button
-                onClick={() => doPowerup('fiftyFifty')}
-                disabled={!powerups.fiftyFifty || !!keep}
-                className="rounded-lg bg-slate-200 px-3 py-1 text-sm font-bold text-slate-700 disabled:opacity-40"
-              >
-                50/50
-              </button>
-              <button
-                onClick={() => doPowerup('double')}
-                disabled={!powerups.double || !!activeScoring}
-                className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'double' ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-700'}`}
-              >
-                2× pontos
-              </button>
-              <button
-                onClick={() => doPowerup('freeze')}
-                disabled={!powerups.freeze || !!activeScoring}
-                className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'freeze' ? 'bg-cyan-500 text-white' : 'bg-slate-200 text-slate-700'}`}
-              >
-                ⏱ congelar
-              </button>
-            </div>
+            {question.mode === 'betting' ? (
+              <div className="px-3 pb-1 text-center">
+                <p className="text-sm text-slate-500">Banco: <b>{bank}</b> · apostando <b>{wager}</b></p>
+                <div className="mt-1 flex justify-center gap-2">
+                  {[25, 50, 100].map((pct) => (
+                    <button
+                      key={pct}
+                      onClick={() => setWagerPct(pct)}
+                      className={`rounded-lg px-3 py-1 text-sm font-bold ${wagerPct === pct ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}
+                    >
+                      {pct === 100 ? 'Tudo' : `${pct}%`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-center gap-2 px-3 pb-1">
+                <button
+                  onClick={() => doPowerup('fiftyFifty')}
+                  disabled={!powerups.fiftyFifty || !!keep}
+                  className="rounded-lg bg-slate-200 px-3 py-1 text-sm font-bold text-slate-700 disabled:opacity-40"
+                >
+                  50/50
+                </button>
+                <button
+                  onClick={() => doPowerup('double')}
+                  disabled={!powerups.double || !!activeScoring}
+                  className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'double' ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-700'}`}
+                >
+                  2× pontos
+                </button>
+                <button
+                  onClick={() => doPowerup('freeze')}
+                  disabled={!powerups.freeze || !!activeScoring}
+                  className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'freeze' ? 'bg-cyan-500 text-white' : 'bg-slate-200 text-slate-700'}`}
+                >
+                  ⏱ congelar
+                </button>
+              </div>
+            )}
             <div className="grid flex-1 grid-cols-2 gap-3 p-3">
               {(keep ?? Array.from({ length: question.optionsCount }, (_, i) => i)).map((i) => (
                 <button

@@ -7,6 +7,8 @@ export type GameStatus = 'LOBBY' | 'QUESTION' | 'REVEAL' | 'FINISHED';
 
 export type PowerupType = 'fiftyFifty' | 'double' | 'freeze';
 
+export type GameMode = 'individual' | 'teams' | 'betting' | 'survival';
+
 export interface Question {
   text: string;
   options: string[];
@@ -97,6 +99,8 @@ export interface Player {
   fiftyUsedQ?: boolean;
   /** Power-up de pontuação ativo na pergunta atual. */
   scoringPowerupQ?: 'double' | 'freeze' | null;
+  /** Eliminado no modo sobrevivência (vira espectador). */
+  eliminated?: boolean;
   /** Resposta da pergunta atual; resetada a cada nova pergunta. */
   currentAnswer: PlayerAnswer | null;
   /** Posição no ranking na última revelação (para calcular a variação). */
@@ -112,7 +116,9 @@ export interface GameRoom {
   quiz: Quiz;
   status: GameStatus;
   currentQuestionIndex: number;
-  /** Equipes do jogo (vazio = modo individual). */
+  /** Modo de jogo. */
+  mode: GameMode;
+  /** Equipes do jogo (só quando mode === 'teams'). */
   teams: string[];
   /** Timestamp (ms) em que a pergunta atual começou — base do cálculo de velocidade. */
   questionStartedAt: number | null;
@@ -162,6 +168,7 @@ export interface HostQuestionPayload {
   timeLimitSec: number;
   correctIndex: number;
   imageUrl?: string;
+  mode?: GameMode;
 }
 
 /** Pergunta como o PLAYER a vê (sem texto nem resposta — só os botões). */
@@ -171,6 +178,9 @@ export interface PlayerQuestionPayload {
   optionsCount: number;
   timeLimitSec: number;
   imageUrl?: string;
+  mode: GameMode;
+  /** Banco atual do jogador (modo aposta). */
+  bank?: number;
 }
 
 export interface AnswerResult {

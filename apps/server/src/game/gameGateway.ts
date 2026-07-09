@@ -6,7 +6,8 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from '@karick/shared';
-import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS, REACTIONS, normalizeTeams } from '@karick/shared';
+import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS, REACTIONS, normalizeTeams, STARTING_BANK } from '@karick/shared';
+import type { GameMode } from '@karick/shared';
 import { generatePin, type RoomStore } from '../store/roomStore.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
 import { RateLimiter } from '../util/rateLimiter.js';
@@ -71,6 +72,8 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
           optionsCount: q.options.length,
           timeLimitSec: q.timeLimitSec,
           imageUrl: q.imageUrl,
+          mode: room.mode,
+          ...(room.mode === 'betting' ? { bank: player.score } : {}),
         },
         remainingSec,
       });
@@ -121,6 +124,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       timeLimitSec: q.timeLimitSec,
       correctIndex: q.correctIndex,
       imageUrl: q.imageUrl,
+      mode: room.mode,
     });
     Object.values(room.players).forEach((p) => {
       io.to(p.socketId).emit('game:question:player', {
@@ -129,6 +133,8 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         optionsCount: q.options.length,
         timeLimitSec: q.timeLimitSec,
         imageUrl: q.imageUrl,
+        mode: room.mode,
+        ...(room.mode === 'betting' ? { bank: p.score } : {}),
       });
     });
 
@@ -146,6 +152,12 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       if (r.status !== 'QUESTION') return; // já revelada
       transitioned = true;
       r.status = 'REVEAL';
+      // Sobrevivência: quem errou ou não respondeu (e ainda estava vivo) é eliminado.
+      if (r.mode === 'survival') {
+        for (const p of Object.values(r.players)) {
+          if (!p.eliminated && (!p.currentAnswer || !p.currentAnswer.isCorrect)) p.eliminated = true;
+        }
+      }
       const q = currentQuestion(r);
       const distribution = q ? buildDistribution(r, q.options.length) : [];
       const teamLeaderboard = buildTeamLeaderboard(r);
@@ -207,7 +219,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
 
   io.on('connection', (socket: IOSocket) => {
     // ─── HOST: cria a sala ───────────────────────────────
-    socket.on('host:createRoom', async ({ quiz, teams }, ack) => {
+    socket.on('host:createRoom', async ({ quiz, teams, mode }, ack) => {
       if (!createRoomLimiter.allow(socket.handshake.address)) {
         return ack?.({ ok: false, error: 'Muitas salas criadas, aguarde um instante.' });
       }
@@ -215,6 +227,9 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       if (err) return ack?.({ ok: false, error: err });
 
       const normTeams = normalizeTeams(teams);
+      const valid: GameMode[] = ['individual', 'teams', 'betting', 'survival'];
+      let gameMode: GameMode = mode && valid.includes(mode) ? mode : 'individual';
+      if (gameMode === 'teams' && normTeams.length < 2) gameMode = 'individual';
       const pin = await generatePin(store);
       await store.create({
         pin,
@@ -223,7 +238,8 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         quiz: { id: pin, title: quiz.title.trim(), questions: quiz.questions },
         status: 'LOBBY',
         currentQuestionIndex: -1,
-        teams: normTeams.length >= 2 ? normTeams : [],
+        mode: gameMode,
+        teams: gameMode === 'teams' ? normTeams : [],
         questionStartedAt: null,
         questionEndsAt: null,
         stats: [],
@@ -265,11 +281,12 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
           id: playerId,
           socketId: socket.id,
           nickname: clean,
-          score: 0,
+          score: r.mode === 'betting' ? STARTING_BANK : 0,
           avatar: chosenAvatar,
           streak: 0,
           connected: true,
           powerups: { fiftyFifty: true, double: true, freeze: true },
+          eliminated: false,
           ...(r.teams.length > 0 ? { team } : {}),
           currentAnswer: null,
         };
@@ -287,7 +304,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       socket.data.pin = pin;
       socket.data.role = 'player';
       socket.data.playerId = playerId;
-      ack?.({ ok: true });
+      ack?.({ ok: true, mode: room.mode });
       if (outcome === 'reconnect') sendSync(room, room.players[playerId], socket);
       broadcastLobby(room);
     });
@@ -355,13 +372,13 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     });
 
     // ─── PLAYER: responde ────────────────────────────────
-    socket.on('player:submitAnswer', async ({ optionIndex }, ack) => {
+    socket.on('player:submitAnswer', async ({ optionIndex, wager }, ack) => {
       if (!answerLimiter.allow(socket.handshake.address)) {
         return ack?.({ ok: false, error: 'Muitas ações, aguarde um instante.' });
       }
       const pin = socket.data.pin ?? '';
       const playerId = socket.data.playerId;
-      let outcome = 'ok' as 'ok' | 'inactive' | 'noplayer' | 'answered';
+      let outcome = 'ok' as 'ok' | 'inactive' | 'noplayer' | 'answered' | 'eliminated';
       let result: { isCorrect: boolean; pointsAwarded: number; totalScore: number; streak: number; streakBonus: number } | null = null;
       const room = await store.update(pin, (r) => {
         outcome = 'ok';
@@ -369,31 +386,42 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         if (r.status !== 'QUESTION' || r.questionStartedAt === null) return void (outcome = 'inactive');
         const p = playerId ? r.players[playerId] : undefined;
         if (!p) return void (outcome = 'noplayer');
+        if (p.eliminated) return void (outcome = 'eliminated');
         if (p.currentAnswer) return void (outcome = 'answered');
         const q = currentQuestion(r)!;
         const elapsedSec = (Date.now() - r.questionStartedAt) / 1000;
         const isCorrect = optionIndex === q.correctIndex;
+
+        let pointsAwarded: number;
         let bonus = 0;
-        if (isCorrect) {
-          p.streak += 1;
-          bonus = streakBonus(p.streak);
+        if (r.mode === 'betting') {
+          // Aposta: acertou ganha o valor apostado, errou perde. Sem velocidade/streak.
+          const bet = Math.max(1, Math.min(Math.round(wager ?? 0) || 0, p.score));
+          pointsAwarded = isCorrect ? bet : -bet;
+          p.score = Math.max(0, p.score + pointsAwarded);
         } else {
-          p.streak = 0;
+          if (isCorrect) {
+            p.streak += 1;
+            bonus = streakBonus(p.streak);
+          } else {
+            p.streak = 0;
+          }
+          // Power-ups: freeze = pontuação de velocidade máxima; double = dobra o total.
+          const base = p.scoringPowerupQ === 'freeze' ? q.points : computeScore(q, elapsedSec);
+          pointsAwarded = isCorrect ? base + bonus : 0;
+          if (isCorrect && p.scoringPowerupQ === 'double') pointsAwarded *= 2;
+          p.score += pointsAwarded;
         }
-        // Power-ups: freeze = pontuação de velocidade máxima; double = dobra o total.
-        const base = p.scoringPowerupQ === 'freeze' ? q.points : computeScore(q, elapsedSec);
-        let pointsAwarded = isCorrect ? base + bonus : 0;
-        if (isCorrect && p.scoringPowerupQ === 'double') pointsAwarded *= 2;
         p.currentAnswer = { optionIndex, answeredAt: Date.now(), isCorrect, pointsAwarded };
-        p.score += pointsAwarded;
         result = { isCorrect, pointsAwarded, totalScore: p.score, streak: p.streak, streakBonus: bonus };
       });
       if (!room || outcome === 'inactive') return ack?.({ ok: false, error: 'Fora de uma pergunta ativa' });
       if (outcome === 'noplayer') return ack?.({ ok: false, error: 'Jogador não está na sala' });
+      if (outcome === 'eliminated') return ack?.({ ok: false, error: 'Você foi eliminado' });
       if (outcome === 'answered') return ack?.({ ok: false, error: 'Você já respondeu' });
       ack?.({ ok: true, ...result! });
 
-      const connected = Object.values(room.players).filter((p) => p.connected);
+      const connected = Object.values(room.players).filter((p) => p.connected && !p.eliminated);
       const answered = connected.filter((p) => p.currentAnswer !== null).length;
       io.to(room.hostSocketId).emit('game:answerCount', { answered, total: connected.length });
       if (allPlayersAnswered(room)) await revealAnswer(pin);

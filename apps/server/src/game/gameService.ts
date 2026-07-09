@@ -61,8 +61,8 @@ export function hasMoreQuestions(room: GameRoom): boolean {
 }
 
 export function allPlayersAnswered(room: GameRoom): boolean {
-  // Considera apenas jogadores conectados — quem caiu não trava a revelação.
-  const players = Object.values(room.players).filter((p) => p.connected);
+  // Considera só conectados e não eliminados — quem caiu ou saiu não trava a revelação.
+  const players = Object.values(room.players).filter((p) => p.connected && !p.eliminated);
   return players.length > 0 && players.every((p) => p.currentAnswer !== null);
 }
 

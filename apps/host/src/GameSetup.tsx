@@ -1,32 +1,37 @@
 import { useState } from 'react';
-import { MIN_TEAMS, MAX_TEAMS, MAX_TEAM_NAME_LENGTH, normalizeTeams } from '@karick/shared';
+import { MIN_TEAMS, MAX_TEAMS, MAX_TEAM_NAME_LENGTH, normalizeTeams, type GameMode } from '@karick/shared';
 
-/** Modal de opções ao iniciar a partida: individual ou em equipes. */
-export function GameSetup({ onConfirm, onCancel }: { onConfirm: (teams: string[]) => void; onCancel: () => void }) {
-  const [mode, setMode] = useState<'individual' | 'teams'>('individual');
+const MODES: { id: GameMode; label: string; desc: string }[] = [
+  { id: 'individual', label: 'Individual', desc: 'Cada um por si (padrão)' },
+  { id: 'teams', label: 'Equipes', desc: 'Placar somado por time' },
+  { id: 'betting', label: 'Aposta', desc: 'Aposte pontos antes de responder' },
+  { id: 'survival', label: 'Sobrevivência', desc: 'Errou, está eliminado' },
+];
+
+/** Modal de opções ao iniciar a partida: escolha do modo de jogo. */
+export function GameSetup({ onConfirm, onCancel }: { onConfirm: (mode: GameMode, teams: string[]) => void; onCancel: () => void }) {
+  const [mode, setMode] = useState<GameMode>('individual');
   const [names, setNames] = useState<string[]>(['Time A', 'Time B']);
 
   const setName = (i: number, v: string) => setNames((n) => n.map((x, j) => (j === i ? v : x)));
-  const valid = mode === 'individual' || normalizeTeams(names).length >= MIN_TEAMS;
+  const valid = mode !== 'teams' || normalizeTeams(names).length >= MIN_TEAMS;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" role="dialog" aria-modal="true">
       <div className="w-full max-w-md rounded-2xl bg-slate-800 p-6 text-slate-100">
-        <h2 className="mb-4 text-2xl font-bold">Opções da partida</h2>
+        <h2 className="mb-4 text-2xl font-bold">Modo de jogo</h2>
 
-        <div className="mb-4 flex gap-2">
-          <button
-            onClick={() => setMode('individual')}
-            className={`flex-1 rounded-lg p-3 font-bold ${mode === 'individual' ? 'bg-indigo-600' : 'bg-white/10'}`}
-          >
-            Individual
-          </button>
-          <button
-            onClick={() => setMode('teams')}
-            className={`flex-1 rounded-lg p-3 font-bold ${mode === 'teams' ? 'bg-indigo-600' : 'bg-white/10'}`}
-          >
-            Em equipes
-          </button>
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setMode(m.id)}
+              className={`rounded-lg p-3 text-left ${mode === m.id ? 'bg-indigo-600' : 'bg-white/10 hover:bg-white/20'}`}
+            >
+              <div className="font-bold">{m.label}</div>
+              <div className="text-xs text-white/60">{m.desc}</div>
+            </button>
+          ))}
         </div>
 
         {mode === 'teams' && (
@@ -60,7 +65,7 @@ export function GameSetup({ onConfirm, onCancel }: { onConfirm: (teams: string[]
             Cancelar
           </button>
           <button
-            onClick={() => onConfirm(mode === 'teams' ? normalizeTeams(names) : [])}
+            onClick={() => onConfirm(mode, mode === 'teams' ? normalizeTeams(names) : [])}
             disabled={!valid}
             className="flex-1 rounded-lg bg-green-500 p-3 font-bold text-white hover:bg-green-400 disabled:opacity-40"
           >

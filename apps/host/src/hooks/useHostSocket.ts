@@ -9,6 +9,7 @@ import type {
   QuizDraft,
   QuestionStat,
   TeamRow,
+  GameMode,
 } from '@karick/shared';
 import { sfx } from '../lib/sound.js';
 
@@ -27,6 +28,7 @@ export function useHostSocket() {
   const [phase, setPhase] = useState<HostPhase>('PREGAME');
   const [players, setPlayers] = useState<PublicPlayer[]>([]);
   const [teams, setTeams] = useState<string[]>([]);
+  const [mode, setMode] = useState<GameMode>('individual');
   const [question, setQuestion] = useState<HostQuestionPayload | null>(null);
   const [answeredCount, setAnsweredCount] = useState(0);
   const [timer, setTimer] = useState<{ durationSec: number; key: string }>({ durationSec: 0, key: 'init' });
@@ -88,13 +90,14 @@ export function useHostSocket() {
     };
   }, []);
 
-  const createRoom = (quiz: QuizDraft, teams?: string[]): Promise<string | null> =>
+  const createRoom = (quiz: QuizDraft, teams?: string[], gameMode: GameMode = 'individual'): Promise<string | null> =>
     new Promise((resolve) => {
       const socket = socketRef.current;
       if (!socket) return resolve('Sem conexão com o servidor.');
-      socket.emit('host:createRoom', { quiz, teams }, (res) => {
+      socket.emit('host:createRoom', { quiz, teams, mode: gameMode }, (res) => {
         if (res.ok && res.pin) {
           setPin(res.pin);
+          setMode(gameMode);
           setPhase('LOBBY');
           resolve(null);
         } else {
@@ -109,6 +112,7 @@ export function useHostSocket() {
     phase,
     players,
     teams,
+    mode,
     question,
     answeredCount,
     timer,
