@@ -9,6 +9,7 @@ import type {
 import { MAX_NICKNAME_LENGTH, validateQuiz } from '@karick/shared';
 import { generatePin, type RoomStore } from '../store/roomStore.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
+import { RateLimiter } from '../util/rateLimiter.js';
 import {
   allPlayersAnswered,
   buildDistribution,
@@ -29,6 +30,11 @@ type IOSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string
  * Débito técnico para escala: mover para BullMQ/Redis para sobreviver a restart.
  */
 const timers = new Map<string, NodeJS.Timeout>();
+
+// Rate limiting anti-flood, por endereço (janela de 1 min).
+const createRoomLimiter = new RateLimiter(15, 60_000);
+const joinLimiter = new RateLimiter(40, 60_000);
+const answerLimiter = new RateLimiter(120, 60_000);
 
 function clearRoomTimer(pin: string) {
   const t = timers.get(pin);
@@ -163,6 +169,9 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
   io.on('connection', (socket: IOSocket) => {
     // ─── HOST: cria a sala ───────────────────────────────
     socket.on('host:createRoom', ({ quiz }, ack) => {
+      if (!createRoomLimiter.allow(socket.handshake.address)) {
+        return ack?.({ ok: false, error: 'Muitas salas criadas, aguarde um instante.' });
+      }
       const err = validateQuiz(quiz);
       if (err) return ack?.({ ok: false, error: err });
 
@@ -187,6 +196,9 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
 
     // ─── PLAYER: entra na sala (ou reconecta) ────────────
     socket.on('player:join', ({ pin, nickname, avatar, playerId }, ack) => {
+      if (!joinLimiter.allow(socket.handshake.address)) {
+        return ack?.({ ok: false, error: 'Muitas tentativas, aguarde um instante.' });
+      }
       const room = store.get(pin);
       if (!room) return ack?.({ ok: false, error: 'Sala não encontrada' });
       if (!playerId) return ack?.({ ok: false, error: 'Identificador ausente' });
@@ -288,6 +300,9 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
 
     // ─── PLAYER: responde ────────────────────────────────
     socket.on('player:submitAnswer', ({ optionIndex }, ack) => {
+      if (!answerLimiter.allow(socket.handshake.address)) {
+        return ack?.({ ok: false, error: 'Muitas ações, aguarde um instante.' });
+      }
       const room = store.get(socket.data.pin ?? '');
       if (!room || room.status !== 'QUESTION' || room.questionStartedAt === null) {
         return ack?.({ ok: false, error: 'Fora de uma pergunta ativa' });

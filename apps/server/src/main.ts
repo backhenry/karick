@@ -19,6 +19,7 @@ import {
   type HistoryRepository,
 } from './store/historyRepository.js';
 import { createApiRouter } from './api/apiRouter.js';
+import { RateLimiter } from './util/rateLimiter.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? '*';
@@ -54,9 +55,18 @@ const dbEnabled = !!pool;
 
 // ─── HTTP / Express ───
 const app = express();
+app.set('trust proxy', 1); // atrás do proxy do Render: usa o IP real do cliente
 app.use(express.json({ limit: '256kb' }));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+// Rate limit da API (por IP) — protege contra flood de requisições.
+const apiLimiter = new RateLimiter(Number(process.env.API_RATE_MAX ?? 100), 60_000);
+app.use('/api', (req, res, next) => {
+  const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+  if (!apiLimiter.allow(ip)) return res.status(429).json({ error: 'Muitas requisições, tente novamente em instantes.' });
+  next();
+});
 app.use('/api', createApiRouter(quizRepo, historyRepo, dbEnabled));
 
 if (FRONTENDS_BUILT) {
