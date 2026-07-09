@@ -34,3 +34,8 @@ export const ADD_TIME_SECONDS = 20;
 /** Limites de tags por quiz. */
 export const MAX_TAGS = 8;
 export const MAX_TAG_LENGTH = 24;
+
+/** Limites do modo em equipes. */
+export const MIN_TEAMS = 2;
+export const MAX_TEAMS = 6;
+export const MAX_TEAM_NAME_LENGTH = 20;

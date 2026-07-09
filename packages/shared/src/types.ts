@@ -87,6 +87,8 @@ export interface Player {
   streak: number;
   /** Se o jogador está conectado agora (false enquanto caído, mantendo a pontuação). */
   connected: boolean;
+  /** Equipe do jogador (só no modo em equipes). */
+  team?: string;
   /** Resposta da pergunta atual; resetada a cada nova pergunta. */
   currentAnswer: PlayerAnswer | null;
   /** Posição no ranking na última revelação (para calcular a variação). */
@@ -102,12 +104,14 @@ export interface GameRoom {
   quiz: Quiz;
   status: GameStatus;
   currentQuestionIndex: number;
+  /** Equipes do jogo (vazio = modo individual). */
+  teams: string[];
   /** Timestamp (ms) em que a pergunta atual começou — base do cálculo de velocidade. */
   questionStartedAt: number | null;
   /** Timestamp (ms) em que a pergunta atual expira (pode ser estendido pelo host). */
   questionEndsAt: number | null;
   /** Última revelação (para re-sincronizar quem reconecta durante o REVEAL). */
-  lastReveal?: { correctIndex: number; correctText: string; distribution: number[]; leaderboard: LeaderboardRow[]; explanation?: string };
+  lastReveal?: { correctIndex: number; correctText: string; distribution: number[]; leaderboard: LeaderboardRow[]; teamLeaderboard?: TeamRow[]; explanation?: string };
   /** Estatística acumulada por pergunta revelada. */
   stats: QuestionStat[];
   players: Record<string, Player>;
@@ -119,6 +123,15 @@ export interface PublicPlayer {
   nickname: string;
   score: number;
   avatar?: string;
+  team?: string;
+}
+
+/** Linha do placar por equipe (soma das pontuações dos membros). */
+export interface TeamRow {
+  rank: number;
+  name: string;
+  score: number;
+  players: number;
 }
 
 export interface LeaderboardRow {

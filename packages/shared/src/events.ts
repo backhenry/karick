@@ -11,6 +11,7 @@ import type {
   AnswerResult,
   QuizDraft,
   QuestionStat,
+  TeamRow,
 } from './types.js';
 
 /** Callback de confirmação (ACK) padrão dos eventos cliente→servidor. */
@@ -20,7 +21,7 @@ export type Ack<T = {}> = (
 ) => void;
 
 export interface ServerToClientEvents {
-  'lobby:updated': (data: { players: PublicPlayer[]; count: number }) => void;
+  'lobby:updated': (data: { players: PublicPlayer[]; count: number; teams: string[] }) => void;
   /** O Host recebe o payload completo; cada Player recebe o reduzido. */
   'game:question:host': (data: HostQuestionPayload) => void;
   'game:question:player': (data: PlayerQuestionPayload) => void;
@@ -32,11 +33,12 @@ export interface ServerToClientEvents {
     /** Quantos jogadores escolheram cada opção (mesmo índice das opções). */
     distribution: number[];
     leaderboard: LeaderboardRow[];
+    teamLeaderboard?: TeamRow[];
     explanation?: string;
   }) => void;
   /** Uma reação (emoji) enviada por um jogador — o Host faz flutuar na tela. */
   'game:reaction': (data: { emoji: string }) => void;
-  'game:over': (data: { podium: LeaderboardRow[]; stats: QuestionStat[] }) => void;
+  'game:over': (data: { podium: LeaderboardRow[]; stats: QuestionStat[]; teamPodium?: TeamRow[] }) => void;
   'game:hostLeft': () => void;
   /** Tempo restante mudou (ex.: host adicionou tempo) — clientes re-sincronizam o cronômetro. */
   'game:timer': (data: { remainingSec: number }) => void;
@@ -54,7 +56,7 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  'host:createRoom': (payload: { quiz: QuizDraft }, ack: Ack<{ pin: string }>) => void;
+  'host:createRoom': (payload: { quiz: QuizDraft; teams?: string[] }, ack: Ack<{ pin: string }>) => void;
   'host:startGame': () => void;
   'host:nextQuestion': () => void;
   /** Revela a resposta imediatamente, sem esperar o tempo. */
@@ -63,7 +65,10 @@ export interface ClientToServerEvents {
   'host:addTime': () => void;
   /** Remove um jogador da sala (pelo apelido). */
   'host:kickPlayer': (payload: { nickname: string }) => void;
-  'player:join': (payload: { pin: string; nickname: string; avatar?: string; playerId: string }, ack: Ack) => void;
+  'player:join': (
+    payload: { pin: string; nickname: string; avatar?: string; playerId: string; team?: string },
+    ack: Ack<{ needTeam: boolean; teams: string[] }>,
+  ) => void;
   'player:submitAnswer': (payload: { optionIndex: number }, ack: Ack<AnswerResult>) => void;
   /** Jogador envia uma reação (emoji) que aparece na tela do Host. */
   'player:react': (payload: { emoji: string }) => void;

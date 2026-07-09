@@ -8,6 +8,7 @@ import type {
   PublicPlayer,
   QuizDraft,
   QuestionStat,
+  TeamRow,
 } from '@karick/shared';
 import { sfx } from '../lib/sound.js';
 
@@ -25,6 +26,7 @@ export function useHostSocket() {
   const [pin, setPin] = useState('');
   const [phase, setPhase] = useState<HostPhase>('PREGAME');
   const [players, setPlayers] = useState<PublicPlayer[]>([]);
+  const [teams, setTeams] = useState<string[]>([]);
   const [question, setQuestion] = useState<HostQuestionPayload | null>(null);
   const [answeredCount, setAnsweredCount] = useState(0);
   const [timer, setTimer] = useState<{ durationSec: number; key: string }>({ durationSec: 0, key: 'init' });
@@ -33,9 +35,11 @@ export function useHostSocket() {
     correctText: string;
     distribution: number[];
     leaderboard: LeaderboardRow[];
+    teamLeaderboard?: TeamRow[];
     explanation?: string;
   } | null>(null);
   const [podium, setPodium] = useState<LeaderboardRow[]>([]);
+  const [teamPodium, setTeamPodium] = useState<TeamRow[]>([]);
   const [stats, setStats] = useState<QuestionStat[]>([]);
   const [reactions, setReactions] = useState<{ id: number; emoji: string; x: number }[]>([]);
 
@@ -46,7 +50,10 @@ export function useHostSocket() {
     socket.on('connect', () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));
 
-    socket.on('lobby:updated', ({ players }) => setPlayers(players));
+    socket.on('lobby:updated', ({ players, teams }) => {
+      setPlayers(players);
+      setTeams(teams);
+    });
     socket.on('game:question:host', (q) => {
       setQuestion(q);
       setAnsweredCount(0);
@@ -68,9 +75,10 @@ export function useHostSocket() {
       setPhase('REVEAL');
       sfx.reveal();
     });
-    socket.on('game:over', ({ podium, stats }) => {
+    socket.on('game:over', ({ podium, stats, teamPodium }) => {
       setPodium(podium);
       setStats(stats);
+      setTeamPodium(teamPodium ?? []);
       setPhase('OVER');
       sfx.over();
     });
@@ -80,11 +88,11 @@ export function useHostSocket() {
     };
   }, []);
 
-  const createRoom = (quiz: QuizDraft): Promise<string | null> =>
+  const createRoom = (quiz: QuizDraft, teams?: string[]): Promise<string | null> =>
     new Promise((resolve) => {
       const socket = socketRef.current;
       if (!socket) return resolve('Sem conexão com o servidor.');
-      socket.emit('host:createRoom', { quiz }, (res) => {
+      socket.emit('host:createRoom', { quiz, teams }, (res) => {
         if (res.ok && res.pin) {
           setPin(res.pin);
           setPhase('LOBBY');
@@ -100,11 +108,13 @@ export function useHostSocket() {
     pin,
     phase,
     players,
+    teams,
     question,
     answeredCount,
     timer,
     reveal,
     podium,
+    teamPodium,
     stats,
     reactions,
     createRoom,

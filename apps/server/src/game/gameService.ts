@@ -1,5 +1,24 @@
-import type { GameRoom, LeaderboardRow, Question } from '@karick/shared';
+import type { GameRoom, LeaderboardRow, Question, TeamRow } from '@karick/shared';
 import { STREAK_BONUS_STEP, STREAK_BONUS_MAX } from '@karick/shared';
+
+/** Placar por equipe: soma das pontuações dos membros, ordenado. Vazio se individual. */
+export function buildTeamLeaderboard(room: GameRoom): TeamRow[] {
+  if (room.teams.length === 0) return [];
+  const totals = new Map<string, { score: number; players: number }>();
+  for (const name of room.teams) totals.set(name, { score: 0, players: 0 });
+  for (const p of Object.values(room.players)) {
+    if (!p.team) continue;
+    const t = totals.get(p.team);
+    if (t) {
+      t.score += p.score;
+      t.players += 1;
+    }
+  }
+  return [...totals.entries()]
+    .map(([name, t]) => ({ name, score: t.score, players: t.players }))
+    .sort((a, b) => b.score - a.score)
+    .map((t, i) => ({ rank: i + 1, ...t }));
+}
 
 /**
  * Lógica de jogo PURA (sem I/O nem sockets) — fácil de testar isoladamente.

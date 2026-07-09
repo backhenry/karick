@@ -23,7 +23,7 @@ function getPlayerId(): string {
   return id;
 }
 
-type JoinParams = { pin: string; nickname: string; avatar: string };
+type JoinParams = { pin: string; nickname: string; avatar: string; team?: string };
 const JOIN_KEY = 'karick.join';
 const getSavedJoin = (): JoinParams | null => {
   try {
@@ -146,20 +146,20 @@ export function usePlayerSocket() {
     };
   }, []);
 
-  const join = (pin: string, nickname: string, avatar: string) =>
-    new Promise<boolean>((resolve) => {
+  const join = (pin: string, nickname: string, avatar: string, team?: string) =>
+    new Promise<{ ok: boolean; needTeam?: boolean; teams?: string[] }>((resolve) => {
       setError(null);
       const cleanNick = nickname.trim().slice(0, MAX_NICKNAME_LENGTH);
-      socketRef.current?.emit('player:join', { pin, nickname, avatar, playerId: playerIdRef.current }, (res) => {
+      socketRef.current?.emit('player:join', { pin, nickname, avatar, playerId: playerIdRef.current, team }, (res) => {
         if (res.ok) {
           nicknameRef.current = cleanNick;
-          joinParamsRef.current = { pin, nickname, avatar };
-          setSavedJoin({ pin, nickname, avatar });
+          joinParamsRef.current = { pin, nickname, avatar, team };
+          setSavedJoin({ pin, nickname, avatar, team });
           setScreen('LOBBY');
-        } else {
+        } else if (!res.needTeam) {
           setError(res.error ?? 'Não foi possível entrar');
         }
-        resolve(res.ok);
+        resolve({ ok: res.ok, needTeam: res.needTeam, teams: res.teams });
       });
     });
 
@@ -180,5 +180,5 @@ export function usePlayerSocket() {
     });
   };
 
-  return { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react };
+  return { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, team: joinParamsRef.current?.team };
 }

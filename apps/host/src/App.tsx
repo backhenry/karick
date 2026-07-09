@@ -4,6 +4,7 @@ import { useHostSocket } from './hooks/useHostSocket.js';
 import { QuizEditor } from './QuizEditor.js';
 import { Library } from './Library.js';
 import { Auth } from './Auth.js';
+import { GameSetup } from './GameSetup.js';
 import { api, type AuthUser } from './lib/api.js';
 import { TimerBar } from './TimerBar.js';
 import { Leaderboard } from './Leaderboard.js';
@@ -22,6 +23,7 @@ export function App() {
   const g = useHostSocket();
   const [view, setView] = useState<PreGameView>({ screen: 'LIBRARY' });
   const [authUser, setAuthUser] = useState<AuthUser | null | 'loading'>('loading');
+  const [setupDraft, setSetupDraft] = useState<QuizDraft | null>(null);
 
   useEffect(() => {
     api.me().then(setAuthUser).catch(() => setAuthUser(null));
@@ -38,6 +40,18 @@ export function App() {
     if (authUser === 'loading')
       return <Screen dark>Carregando…</Screen>;
     if (authUser === null) return <Auth onAuthed={setAuthUser} />;
+    const setup = setupDraft && (
+      <GameSetup
+        onCancel={() => setSetupDraft(null)}
+        onConfirm={async (teams) => {
+          const draft = setupDraft;
+          setSetupDraft(null);
+          const err = await g.createRoom(draft, teams);
+          if (err) alert(err);
+        }}
+      />
+    );
+
     if (view.screen === 'EDITOR')
       return (
         <div className="min-h-screen bg-slate-900">
@@ -45,10 +59,14 @@ export function App() {
             connected={g.connected}
             initialDraft={view.draft}
             quizId={view.quizId}
-            onStart={g.createRoom}
+            onStart={async (draft) => {
+              setSetupDraft(draft);
+              return null;
+            }}
             onBack={() => setView({ screen: 'LIBRARY' })}
             onSavedId={(id) => setView((v) => (v.screen === 'EDITOR' ? { ...v, quizId: id } : v))}
           />
+          {setup}
         </div>
       );
     return (
@@ -58,8 +76,9 @@ export function App() {
           onLogout={logout}
           onNew={() => setView({ screen: 'EDITOR', draft: emptyDraft(), quizId: null })}
           onEdit={(quizId, draft) => setView({ screen: 'EDITOR', draft, quizId })}
-          onHost={(draft) => g.createRoom(draft)}
+          onHost={(draft) => setSetupDraft(draft)}
         />
+        {setup}
       </div>
     );
   }
@@ -81,21 +100,42 @@ export function App() {
           </div>
         </div>
 
-        <div className="flex max-w-4xl flex-wrap justify-center gap-2">
-          {g.players.map((p) => (
-            <span key={p.nickname} className="group flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-lg">
-              <span className="text-xl">{p.avatar}</span>
-              {p.nickname}
-              <button
-                onClick={() => g.kick(p.nickname)}
-                title="Remover jogador"
-                className="ml-1 text-white/30 hover:text-red-400"
-              >
-                ✕
-              </button>
-            </span>
-          ))}
-        </div>
+        {g.teams.length > 0 ? (
+          <div className="flex max-w-5xl flex-wrap justify-center gap-6">
+            {g.teams.map((tname) => (
+              <div key={tname} className="min-w-[10rem] rounded-xl bg-white/5 p-3">
+                <p className="mb-2 text-center font-bold text-indigo-300">
+                  {tname} ({g.players.filter((p) => p.team === tname).length})
+                </p>
+                <div className="flex flex-col gap-1">
+                  {g.players.filter((p) => p.team === tname).map((p) => (
+                    <span key={p.nickname} className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
+                      <span className="text-lg">{p.avatar}</span>
+                      {p.nickname}
+                      <button onClick={() => g.kick(p.nickname)} title="Remover" className="ml-auto text-white/30 hover:text-red-400">✕</button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex max-w-4xl flex-wrap justify-center gap-2">
+            {g.players.map((p) => (
+              <span key={p.nickname} className="group flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-lg">
+                <span className="text-xl">{p.avatar}</span>
+                {p.nickname}
+                <button
+                  onClick={() => g.kick(p.nickname)}
+                  title="Remover jogador"
+                  className="ml-1 text-white/30 hover:text-red-400"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <button
           onClick={g.start}
           disabled={g.players.length === 0}
@@ -211,7 +251,21 @@ export function App() {
           </div>
         )}
 
-        <h2 className="mb-4 text-center text-3xl font-bold">Placar</h2>
+        {g.reveal.teamLeaderboard && g.reveal.teamLeaderboard.length > 0 && (
+          <div className="mx-auto mb-6 max-w-2xl">
+            <h2 className="mb-3 text-center text-3xl font-bold">Placar por equipe</h2>
+            <ol className="space-y-2">
+              {g.reveal.teamLeaderboard.map((t) => (
+                <li key={t.name} className="flex justify-between rounded-lg bg-indigo-500/20 px-6 py-3 text-2xl">
+                  <span>{t.rank}. {t.name} <span className="text-base text-white/50">({t.players})</span></span>
+                  <span className="font-bold">{t.score}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        <h2 className="mb-4 text-center text-3xl font-bold">{g.reveal.teamLeaderboard ? 'Individual' : 'Placar'}</h2>
         <Leaderboard rows={g.reveal.leaderboard} />
 
         <button
@@ -234,6 +288,19 @@ export function App() {
     return (
       <div className="flex min-h-screen flex-col items-center gap-8 bg-slate-900 py-10 text-white">
         <h1 className="text-5xl font-black">🏆 Pódio</h1>
+        {g.teamPodium.length > 0 && (
+          <div className="w-full max-w-md">
+            <ol className="space-y-2">
+              {g.teamPodium.map((t) => (
+                <li key={t.name} className="flex justify-between rounded-lg bg-indigo-500/20 px-6 py-3 text-2xl">
+                  <span>{['🥇', '🥈', '🥉'][t.rank - 1] ?? `${t.rank}.`} {t.name}</span>
+                  <span className="font-bold">{t.score}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-2 text-center text-sm text-white/50">Ranking individual abaixo</p>
+          </div>
+        )}
         <Podium top={g.podium} />
 
         {g.stats.length > 0 && (

@@ -1,5 +1,23 @@
 import type { QuizDraft } from './types.js';
-import { MIN_OPTIONS, MAX_OPTIONS, MIN_TIME_LIMIT, MAX_TIME_LIMIT, MAX_TAGS, MAX_TAG_LENGTH } from './constants.js';
+import { MIN_OPTIONS, MAX_OPTIONS, MIN_TIME_LIMIT, MAX_TIME_LIMIT, MAX_TAGS, MAX_TAG_LENGTH, MAX_TEAMS, MAX_TEAM_NAME_LENGTH } from './constants.js';
+
+/** Normaliza nomes de equipes: apara, remove vazias/duplicadas, limita. */
+export function normalizeTeams(input: unknown): string[] {
+  const raw = Array.isArray(input) ? input : [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') continue;
+    const t = item.trim().slice(0, MAX_TEAM_NAME_LENGTH);
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+    if (out.length >= MAX_TEAMS) break;
+  }
+  return out;
+}
 
 /**
  * Normaliza tags: aceita array ou string separada por vírgula; apara, remove

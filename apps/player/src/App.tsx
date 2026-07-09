@@ -46,11 +46,12 @@ function ReactionBar({ onReact }: { onReact: (emoji: string) => void }) {
 }
 
 export function App() {
-  const { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react } = usePlayerSocket();
+  const { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, team } = usePlayerSocket();
   const [pin, setPin] = useState(() => new URLSearchParams(window.location.search).get('pin') ?? '');
   const [nickname, setNickname] = useState('');
   const [avatar, setAvatar] = useState(randomAvatar);
   const [expired, setExpired] = useState(false);
+  const [teamOptions, setTeamOptions] = useState<string[] | null>(null);
 
   // Reinicia o "expirado" a cada nova pergunta ou quando o tempo é estendido.
   useEffect(() => {
@@ -73,9 +74,10 @@ export function App() {
     return (
       <form
         className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-3 p-6"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          join(pin, nickname, avatar);
+          const res = await join(pin, nickname, avatar);
+          if (res.needTeam) setTeamOptions(res.teams ?? []);
         }}
       >
         <h1 className="mb-4 text-center text-4xl font-black text-indigo-600">Karick</h1>
@@ -118,9 +120,27 @@ export function App() {
           ))}
         </div>
 
-        <button className="rounded-lg bg-indigo-600 p-4 text-lg font-bold text-white active:scale-95">
-          Entrar como {avatar}
-        </button>
+        {teamOptions ? (
+          <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+            <p className="mb-2 text-center text-sm font-bold text-indigo-700">Escolha sua equipe</p>
+            <div className="grid grid-cols-2 gap-2">
+              {teamOptions.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => join(pin, nickname, avatar, t)}
+                  className="rounded-lg bg-indigo-600 p-3 font-bold text-white active:scale-95"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <button className="rounded-lg bg-indigo-600 p-4 text-lg font-bold text-white active:scale-95">
+            Entrar como {avatar}
+          </button>
+        )}
         {error && <p className="text-center text-red-600">{error}</p>}
       </form>
     );
@@ -128,7 +148,15 @@ export function App() {
 
   if (error) return <Center>⚠️ {error}</Center>;
 
-  if (screen === 'LOBBY') return <Center>✅ Você entrou! Aguarde o apresentador iniciar…</Center>;
+  if (screen === 'LOBBY')
+    return (
+      <Center>
+        <div>
+          ✅ Você entrou! Aguarde o apresentador iniciar…
+          {team && <p className="mt-3 text-lg font-bold text-indigo-600">Equipe: {team}</p>}
+        </div>
+      </Center>
+    );
 
   if (screen === 'QUESTION' && question) {
     return (
