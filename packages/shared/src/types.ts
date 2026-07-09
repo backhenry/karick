@@ -15,6 +15,8 @@ export interface Question {
   points: number;
   /** URL http(s) de uma imagem opcional exibida com a pergunta. */
   imageUrl?: string;
+  /** Explicação da resposta certa, mostrada no reveal (opcional). */
+  explanation?: string;
 }
 
 export interface Quiz {
@@ -63,6 +65,7 @@ export interface GameHistoryEntry {
   pin: string;
   playedAt: string; // ISO
   players: LeaderboardRow[];
+  stats?: QuestionStat[];
 }
 
 export interface PlayerAnswer {
@@ -104,7 +107,7 @@ export interface GameRoom {
   /** Timestamp (ms) em que a pergunta atual expira (pode ser estendido pelo host). */
   questionEndsAt: number | null;
   /** Última revelação (para re-sincronizar quem reconecta durante o REVEAL). */
-  lastReveal?: { correctIndex: number; correctText: string; distribution: number[]; leaderboard: LeaderboardRow[] };
+  lastReveal?: { correctIndex: number; correctText: string; distribution: number[]; leaderboard: LeaderboardRow[]; explanation?: string };
   /** Estatística acumulada por pergunta revelada. */
   stats: QuestionStat[];
   players: Record<string, Player>;

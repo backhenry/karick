@@ -33,9 +33,11 @@ export function useHostSocket() {
     correctText: string;
     distribution: number[];
     leaderboard: LeaderboardRow[];
+    explanation?: string;
   } | null>(null);
   const [podium, setPodium] = useState<LeaderboardRow[]>([]);
   const [stats, setStats] = useState<QuestionStat[]>([]);
+  const [reactions, setReactions] = useState<{ id: number; emoji: string; x: number }[]>([]);
 
   useEffect(() => {
     const socket: ClientSocket = io(SERVER_URL);
@@ -53,6 +55,11 @@ export function useHostSocket() {
       sfx.questionStart();
     });
     socket.on('game:answerCount', ({ answered }) => setAnsweredCount(answered));
+    socket.on('game:reaction', ({ emoji }) => {
+      const id = Date.now() + Math.random();
+      setReactions((rs) => [...rs, { id, emoji, x: 5 + Math.random() * 85 }]);
+      setTimeout(() => setReactions((rs) => rs.filter((r) => r.id !== id)), 2700);
+    });
     socket.on('game:timer', ({ remainingSec }) =>
       setTimer({ durationSec: remainingSec, key: `t${Date.now()}` }),
     );
@@ -99,6 +106,7 @@ export function useHostSocket() {
     reveal,
     podium,
     stats,
+    reactions,
     createRoom,
     start: () => socketRef.current?.emit('host:startGame'),
     next: () => socketRef.current?.emit('host:nextQuestion'),

@@ -6,10 +6,11 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from '@karick/shared';
-import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS } from '@karick/shared';
+import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS, REACTIONS } from '@karick/shared';
 import { generatePin, type RoomStore } from '../store/roomStore.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
 import { RateLimiter } from '../util/rateLimiter.js';
+import { isOffensive } from '../util/nickname.js';
 import { userIdFromCookieHeader } from '../auth/session.js';
 import {
   allPlayersAnswered,
@@ -31,6 +32,7 @@ const timers = new Map<string, NodeJS.Timeout>();
 const createRoomLimiter = new RateLimiter(15, 60_000);
 const joinLimiter = new RateLimiter(40, 60_000);
 const answerLimiter = new RateLimiter(120, 60_000);
+const reactionLimiter = new RateLimiter(20, 60_000);
 
 function clearRoomTimer(pin: string) {
   const t = timers.get(pin);
@@ -82,6 +84,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
           rank: row?.rank,
           gained: row?.gained,
           score: row?.score,
+          explanation: room.lastReveal.explanation,
         },
         answered: player.currentAnswer ? { isCorrect: player.currentAnswer.isCorrect } : undefined,
       });
@@ -129,7 +132,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
 
   async function revealAnswer(pin: string) {
     clearRoomTimer(pin);
-    let payload: { correctIndex: number; correctText: string; distribution: number[]; leaderboard: ReturnType<typeof buildRevealLeaderboard> } | null = null;
+    let payload: { correctIndex: number; correctText: string; distribution: number[]; leaderboard: ReturnType<typeof buildRevealLeaderboard>; explanation?: string } | null = null;
     let transitioned = false;
     const room = await store.update(pin, (r) => {
       payload = null;
@@ -144,6 +147,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         correctText: q ? q.options[q.correctIndex] : '',
         distribution,
         leaderboard: buildRevealLeaderboard(r),
+        explanation: q?.explanation,
       };
       r.lastReveal = payload;
       if (q) {
@@ -179,7 +183,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     io.to(room.pin).emit('game:over', { podium: leaderboard.slice(0, 3), stats });
     if (leaderboard.length > 0) {
       history
-        .record({ quizTitle, pin, players: leaderboard, ownerId })
+        .record({ quizTitle, pin, players: leaderboard, ownerId, stats })
         .catch((err) => console.error('Falha ao gravar histórico:', err));
     }
   }
@@ -222,7 +226,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       }
       if (!playerId) return ack?.({ ok: false, error: 'Identificador ausente' });
 
-      let outcome = 'new' as 'reconnect' | 'new' | 'inprogress' | 'badnick' | 'taken';
+      let outcome = 'new' as 'reconnect' | 'new' | 'inprogress' | 'badnick' | 'taken' | 'offensive';
       const clean = nickname?.trim().slice(0, MAX_NICKNAME_LENGTH);
       const room = await store.update(pin, (r) => {
         const existing = r.players[playerId];
@@ -234,6 +238,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         }
         if (r.status !== 'LOBBY') return void (outcome = 'inprogress');
         if (!clean) return void (outcome = 'badnick');
+        if (isOffensive(clean)) return void (outcome = 'offensive');
         if (Object.values(r.players).some((p) => p.nickname === clean)) return void (outcome = 'taken');
         const chosenAvatar =
           avatar && AVATARS.includes(avatar as (typeof AVATARS)[number])
@@ -255,6 +260,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       if (!room) return ack?.({ ok: false, error: 'Sala não encontrada' });
       if (outcome === 'inprogress') return ack?.({ ok: false, error: 'Jogo já iniciado' });
       if (outcome === 'badnick') return ack?.({ ok: false, error: 'Apelido inválido' });
+      if (outcome === 'offensive') return ack?.({ ok: false, error: 'Apelido não permitido' });
       if (outcome === 'taken') return ack?.({ ok: false, error: 'Apelido já em uso' });
 
       socket.join(pin);
@@ -368,6 +374,15 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       const answered = connected.filter((p) => p.currentAnswer !== null).length;
       io.to(room.hostSocketId).emit('game:answerCount', { answered, total: connected.length });
       if (allPlayersAnswered(room)) await revealAnswer(pin);
+    });
+
+    // ─── PLAYER: reação (emoji) ──────────────────────────
+    socket.on('player:react', ({ emoji }) => {
+      const pin = socket.data.pin;
+      if (!pin || socket.data.role !== 'player') return;
+      if (!reactionLimiter.allow(socket.handshake.address)) return;
+      if (!REACTIONS.includes(emoji as (typeof REACTIONS)[number])) return;
+      io.to(pin).emit('game:reaction', { emoji });
     });
 
     // ─── Desconexão ──────────────────────────────────────

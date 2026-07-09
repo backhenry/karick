@@ -9,6 +9,7 @@ import { TimerBar } from './TimerBar.js';
 import { Leaderboard } from './Leaderboard.js';
 import { QRCodeView } from './QRCode.js';
 import { Podium } from './Podium.js';
+import { FloatingReactions } from './FloatingReactions.js';
 import { emptyDraft } from './lib/quizStorage.js';
 
 const pct = (s: QuestionStat) => (s.answered > 0 ? Math.round((s.correctCount / s.answered) * 100) : 0);
@@ -110,6 +111,7 @@ export function App() {
   if (g.phase === 'QUESTION' && g.question)
     return (
       <div className="flex min-h-screen flex-col bg-white">
+        <FloatingReactions items={g.reactions} />
         <div className="flex items-center justify-between p-6 text-slate-500">
           <span className="text-xl">
             Pergunta {g.question.index + 1} de {g.question.total}
@@ -163,6 +165,7 @@ export function App() {
     const isLast = g.question ? g.question.index >= g.question.total - 1 : false;
     return (
       <div className="min-h-screen bg-slate-900 p-10 text-white">
+        <FloatingReactions items={g.reactions} />
         <div className="mx-auto mb-6 max-w-2xl text-center">
           <p className="mb-2 text-lg text-white/50">Resposta certa</p>
           <div
@@ -172,6 +175,11 @@ export function App() {
             <span className="text-4xl">{OPTION_SHAPES[g.reveal.correctIndex]}</span>
             {g.reveal.correctText}
           </div>
+          {g.reveal.explanation && (
+            <p className="mx-auto mt-3 max-w-xl rounded-lg bg-white/10 px-4 py-2 text-lg text-white/80">
+              💡 {g.reveal.explanation}
+            </p>
+          )}
         </div>
 
         {g.question && (
@@ -230,7 +238,11 @@ export function App() {
 
         {g.stats.length > 0 && (
           <div className="w-full max-w-2xl px-6">
-            <h2 className="mb-3 text-center text-2xl font-bold text-white/80">Desempenho por pergunta</h2>
+            <h2 className="mb-2 text-center text-2xl font-bold text-white/80">Desempenho por pergunta</h2>
+            <p className="mb-3 text-center text-white/60">
+              Média de acerto: <b>{Math.round(g.stats.reduce((a, s) => a + pct(s), 0) / g.stats.length)}%</b>
+              {hardest && <> · Mais difícil: “{hardest.text}” ({pct(hardest)}%)</>}
+            </p>
             <ul className="space-y-2">
               {g.stats.map((s, i) => {
                 const p = pct(s);

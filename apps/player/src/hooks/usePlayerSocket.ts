@@ -50,6 +50,7 @@ export interface RevealInfo {
   rank?: number;
   gained?: number;
   score?: number;
+  explanation?: string;
 }
 
 type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -106,9 +107,9 @@ export function usePlayerSocket() {
       setSavedJoin(null);
       setError('Você foi removido pelo apresentador.');
     });
-    socket.on('game:reveal', ({ correctIndex, correctText, leaderboard }) => {
+    socket.on('game:reveal', ({ correctIndex, correctText, leaderboard, explanation }) => {
       const mine = leaderboard.find((r) => r.nickname === nicknameRef.current);
-      setReveal({ correctIndex, correctText, rank: mine?.rank, gained: mine?.gained, score: mine?.score });
+      setReveal({ correctIndex, correctText, rank: mine?.rank, gained: mine?.gained, score: mine?.score, explanation });
       setScreen('FEEDBACK');
     });
     socket.on('game:over', () => {
@@ -162,6 +163,8 @@ export function usePlayerSocket() {
       });
     });
 
+  const react = (emoji: string) => socketRef.current?.emit('player:react', { emoji });
+
   const answer = (optionIndex: number) => {
     setScreen('ANSWERED');
     socketRef.current?.emit('player:submitAnswer', { optionIndex }, (res) => {
@@ -177,5 +180,5 @@ export function usePlayerSocket() {
     });
   };
 
-  return { screen, error, reconnecting, question, timer, feedback, reveal, join, answer };
+  return { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react };
 }

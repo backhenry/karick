@@ -22,6 +22,7 @@ Regras: "correctIndex" é o índice 0-based da opção correta; use 2 a 4 opçõ
 Para imagens, NÃO invente URLs: use "imageQuery" com 1 a 3 palavras-chave (de preferência
 em inglês) que descrevam uma imagem relevante — o app gera a imagem a partir disso.
 (Se você tiver uma URL de imagem real e pública, pode usar "imageUrl" no lugar.)
+Inclua também "explanation": uma frase curta explicando por que a resposta certa está certa.
 Tema do quiz: [DESCREVA O TEMA] com [N] perguntas.
 
 {
@@ -31,6 +32,7 @@ Tema do quiz: [DESCREVA O TEMA] com [N] perguntas.
       "text": "Qual planeta é conhecido como Planeta Vermelho?",
       "options": ["Vênus", "Marte", "Júpiter", "Saturno"],
       "correctIndex": 1,
+      "explanation": "Marte parece vermelho por causa do óxido de ferro na superfície.",
       "imageQuery": "mars planet",
       "timeLimitSec": 20,
       "points": 1000
@@ -303,6 +305,13 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                 />
               )}
             </div>
+
+            <input
+              value={q.explanation ?? ''}
+              onChange={(e) => patchQuestion(qi, (qq) => (qq.explanation = e.target.value || undefined))}
+              placeholder="Explicação da resposta (opcional) — aparece no reveal"
+              className="mb-3 w-full rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
+            />
 
             <div className="grid gap-2 sm:grid-cols-2">
               {q.options.map((opt, oi) => (

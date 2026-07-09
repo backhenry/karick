@@ -1,10 +1,17 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { OPTION_COLORS, OPTION_SHAPES, MAX_NICKNAME_LENGTH, AVATARS } from '@karick/shared';
+import { OPTION_COLORS, OPTION_SHAPES, MAX_NICKNAME_LENGTH, AVATARS, REACTIONS } from '@karick/shared';
 import { usePlayerSocket } from './hooks/usePlayerSocket.js';
 import { TimerBar } from './TimerBar.js';
 import { sfx } from './lib/sound.js';
 
 const randomAvatar = () => AVATARS[Math.floor(Math.random() * AVATARS.length)];
+
+const NICK_ADJ = ['Veloz', 'Ninja', 'Turbo', 'Astuto', 'Épico', 'Feroz', 'Radiante', 'Cósmico', 'Mestre', 'Bravo'];
+const NICK_NOUN = ['Raposa', 'Panda', 'Tigre', 'Falcão', 'Dragão', 'Foguete', 'Golfinho', 'Coruja', 'Lobo', 'Pinguim'];
+const randomNickname = () => {
+  const n = `${NICK_NOUN[Math.floor(Math.random() * NICK_NOUN.length)]} ${NICK_ADJ[Math.floor(Math.random() * NICK_ADJ.length)]}`;
+  return n.slice(0, MAX_NICKNAME_LENGTH);
+};
 
 function Center({ children }: { children: ReactNode }) {
   return (
@@ -22,8 +29,24 @@ function ReconnectBanner() {
   );
 }
 
+function ReactionBar({ onReact }: { onReact: (emoji: string) => void }) {
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center gap-1 bg-black/30 p-1 backdrop-blur">
+      {REACTIONS.map((e) => (
+        <button
+          key={e}
+          onClick={() => onReact(e)}
+          className="rounded-full px-2 py-1 text-2xl transition active:scale-125"
+        >
+          {e}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function App() {
-  const { screen, error, reconnecting, question, timer, feedback, reveal, join, answer } = usePlayerSocket();
+  const { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react } = usePlayerSocket();
   const [pin, setPin] = useState(() => new URLSearchParams(window.location.search).get('pin') ?? '');
   const [nickname, setNickname] = useState('');
   const [avatar, setAvatar] = useState(randomAvatar);
@@ -63,13 +86,23 @@ export function App() {
           inputMode="numeric"
           className="rounded-lg border p-4 text-center text-xl"
         />
-        <input
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
-          placeholder="Seu apelido"
-          maxLength={MAX_NICKNAME_LENGTH}
-          className="rounded-lg border p-4 text-center text-xl"
-        />
+        <div className="flex gap-2">
+          <input
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder="Seu apelido"
+            maxLength={MAX_NICKNAME_LENGTH}
+            className="flex-1 rounded-lg border p-4 text-center text-xl"
+          />
+          <button
+            type="button"
+            onClick={() => setNickname(randomNickname())}
+            title="Surpreenda-me"
+            className="rounded-lg border px-4 text-2xl"
+          >
+            🎲
+          </button>
+        </div>
 
         <p className="text-center text-sm text-slate-500">Escolha seu avatar</p>
         <div className="grid grid-cols-8 gap-1">
@@ -99,8 +132,9 @@ export function App() {
 
   if (screen === 'QUESTION' && question) {
     return (
-      <div className="flex h-screen flex-col">
+      <div className="flex h-screen flex-col pb-12">
         {reconnecting && <ReconnectBanner />}
+        <ReactionBar onReact={react} />
         <TimerBar
           durationSec={timer.durationSec || question.timeLimitSec}
           resetKey={timer.key}
@@ -143,6 +177,7 @@ export function App() {
       <>
         {reconnecting && <ReconnectBanner />}
         <Center>Resposta enviada! Aguardando os outros… ⏳</Center>
+        <ReactionBar onReact={react} />
       </>
     );
 
@@ -181,6 +216,10 @@ export function App() {
             {reveal?.rank !== undefined && <> · Você está em <b>{reveal.rank}º</b></>}
           </p>
         )}
+        {reveal?.explanation && (
+          <p className="mt-2 max-w-md rounded-lg bg-black/20 px-4 py-2 text-base">💡 {reveal.explanation}</p>
+        )}
+        <ReactionBar onReact={react} />
       </div>
     );
   }

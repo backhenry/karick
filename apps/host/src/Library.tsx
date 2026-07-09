@@ -77,11 +77,27 @@ export function Library({ onNew, onEdit, onHost, userEmail, onLogout }: Props) {
 
   const exportCsv = () => {
     const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
-    const header = ['Quiz', 'PIN', 'Data', 'Posição', 'Jogador', 'Pontos'];
-    const rows = history.flatMap((h) =>
-      h.players.map((p) => [h.quizTitle, h.pin, fmt(h.playedAt), p.rank, p.nickname, p.score].map(esc).join(',')),
+    const line = (cells: (string | number)[]) => cells.map(esc).join(',');
+
+    const playerRows = history.flatMap((h) =>
+      h.players.map((p) => line([h.quizTitle, h.pin, fmt(h.playedAt), p.rank, p.nickname, p.score])),
     );
-    const csv = '﻿' + [header.map(esc).join(','), ...rows].join('\r\n'); // BOM p/ acentos no Excel
+
+    // Seção 2: desempenho por pergunta (resumo pós-jogo).
+    const statRows = history.flatMap((h) =>
+      (h.stats ?? []).map((s, i) =>
+        line([h.quizTitle, h.pin, fmt(h.playedAt), `P${i + 1}: ${s.text}`, `${s.answered > 0 ? Math.round((s.correctCount / s.answered) * 100) : 0}%`, s.correctCount, s.answered]),
+      ),
+    );
+
+    const parts = [
+      line(['Quiz', 'PIN', 'Data', 'Posição', 'Jogador', 'Pontos']),
+      ...playerRows,
+    ];
+    if (statRows.length) {
+      parts.push('', line(['Quiz', 'PIN', 'Data', 'Pergunta', '% acerto', 'Acertos', 'Respostas']), ...statRows);
+    }
+    const csv = '﻿' + parts.join('\r\n'); // BOM p/ acentos no Excel
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
