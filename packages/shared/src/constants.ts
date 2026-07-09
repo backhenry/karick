@@ -24,3 +24,7 @@ export const STREAK_BONUS_MAX = 500;
 
 /** Quantos segundos o botão "+tempo" do host adiciona à pergunta atual. */
 export const ADD_TIME_SECONDS = 20;
+
+/** Limites de tags por quiz. */
+export const MAX_TAGS = 8;
+export const MAX_TAG_LENGTH = 24;

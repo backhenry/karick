@@ -27,6 +27,7 @@ export interface Quiz {
 export interface QuizDraft {
   title: string;
   questions: Question[];
+  tags?: string[];
 }
 
 /** Quiz salvo na biblioteca (banco de dados). */
@@ -34,6 +35,7 @@ export interface SavedQuiz {
   id: string;
   title: string;
   questions: Question[];
+  tags: string[];
   updatedAt: string; // ISO
 }
 
@@ -42,6 +44,7 @@ export interface QuizSummary {
   id: string;
   title: string;
   questionCount: number;
+  tags: string[];
   updatedAt: string; // ISO
 }
 

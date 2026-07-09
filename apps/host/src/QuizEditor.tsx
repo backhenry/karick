@@ -9,6 +9,7 @@ import {
   MAX_TIME_LIMIT,
   validateQuiz,
   parseQuizImport,
+  normalizeTags,
 } from '@karick/shared';
 import { emptyQuestion, exampleQuiz } from './lib/quizStorage.js';
 import { api } from './lib/api.js';
@@ -42,6 +43,7 @@ interface Props {
 
 export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, onSavedId }: Props) {
   const [draft, setDraft] = useState<QuizDraft>(initialDraft);
+  const [tagsInput, setTagsInput] = useState((initialDraft.tags ?? []).join(', '));
   const [id, setId] = useState<string | null>(quizId);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -60,6 +62,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
       return;
     }
     setDraft(result.draft);
+    setTagsInput((result.draft.tags ?? []).join(', '));
     setImportError(null);
     setShowImport(false);
     setImportText('');
@@ -81,14 +84,25 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
       return next;
     });
   const patchQuestion = (qi: number, fn: (q: Question) => void) => update((d) => fn(d.questions[qi]));
+  const moveQuestion = (qi: number, dir: -1 | 1) =>
+    update((d) => {
+      const j = qi + dir;
+      if (j < 0 || j >= d.questions.length) return;
+      [d.questions[qi], d.questions[j]] = [d.questions[j], d.questions[qi]];
+    });
+  const duplicateQuestion = (qi: number) =>
+    update((d) => d.questions.splice(qi + 1, 0, structuredClone(d.questions[qi])));
+
+  const effectiveDraft = (): QuizDraft => ({ ...draft, tags: normalizeTags(tagsInput) });
 
   const save = async () => {
-    const err = validateQuiz(draft);
+    const payload = effectiveDraft();
+    const err = validateQuiz(payload);
     if (err) return setError(err);
     setError(null);
     setSaving(true);
     try {
-      const saved = id ? await api.updateQuiz(id, draft) : await api.createQuiz(draft);
+      const saved = id ? await api.updateQuiz(id, payload) : await api.createQuiz(payload);
       setId(saved.id);
       onSavedId(saved.id);
       setSavedMsg('Salvo na biblioteca ✓');
@@ -101,11 +115,12 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
   };
 
   const start = async () => {
-    const err = validateQuiz(draft);
+    const payload = effectiveDraft();
+    const err = validateQuiz(payload);
     if (err) return setError(err);
     setError(null);
     setStarting(true);
-    const serverErr = await onStart(draft);
+    const serverErr = await onStart(payload);
     setStarting(false);
     if (serverErr) setError(serverErr);
   };
@@ -196,7 +211,13 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
         value={draft.title}
         onChange={(e) => update((d) => (d.title = e.target.value))}
         placeholder="Título do quiz"
-        className="mb-6 w-full rounded-lg bg-white/10 p-4 text-2xl font-bold outline-none placeholder:text-white/40"
+        className="mb-3 w-full rounded-lg bg-white/10 p-4 text-2xl font-bold outline-none placeholder:text-white/40"
+      />
+      <input
+        value={tagsInput}
+        onChange={(e) => setTagsInput(e.target.value)}
+        placeholder="Tags (separadas por vírgula) — ex.: geografia, fácil"
+        className="mb-6 w-full rounded-lg bg-white/10 p-3 text-sm outline-none placeholder:text-white/40"
       />
 
       <div className="space-y-6">
@@ -205,7 +226,30 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
             <div className="mb-3 flex items-center justify-between">
               <span className="text-lg font-bold text-white/70">Pergunta {qi + 1}</span>
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-white/40">{q.timeLimitSec}s · {q.points} pts</span>
+                <span className="mr-1 text-white/40">{q.timeLimitSec}s · {q.points} pts</span>
+                <button
+                  onClick={() => moveQuestion(qi, -1)}
+                  disabled={qi === 0}
+                  title="Mover para cima"
+                  className="rounded bg-white/10 px-2 py-1 hover:bg-white/20 disabled:opacity-30"
+                >
+                  ↑
+                </button>
+                <button
+                  onClick={() => moveQuestion(qi, 1)}
+                  disabled={qi === draft.questions.length - 1}
+                  title="Mover para baixo"
+                  className="rounded bg-white/10 px-2 py-1 hover:bg-white/20 disabled:opacity-30"
+                >
+                  ↓
+                </button>
+                <button
+                  onClick={() => duplicateQuestion(qi)}
+                  title="Duplicar pergunta"
+                  className="rounded bg-white/10 px-2 py-1 hover:bg-white/20"
+                >
+                  Duplicar
+                </button>
                 {draft.questions.length > 1 && (
                   <button
                     onClick={() => update((d) => d.questions.splice(qi, 1))}

@@ -1,5 +1,30 @@
 import type { QuizDraft } from './types.js';
-import { MIN_OPTIONS, MAX_OPTIONS, MIN_TIME_LIMIT, MAX_TIME_LIMIT } from './constants.js';
+import { MIN_OPTIONS, MAX_OPTIONS, MIN_TIME_LIMIT, MAX_TIME_LIMIT, MAX_TAGS, MAX_TAG_LENGTH } from './constants.js';
+
+/**
+ * Normaliza tags: aceita array ou string separada por vírgula; apara, remove
+ * vazias/duplicadas (case-insensitive), limita tamanho e quantidade.
+ */
+export function normalizeTags(input: unknown): string[] {
+  const raw = Array.isArray(input)
+    ? input
+    : typeof input === 'string'
+      ? input.split(',')
+      : [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') continue;
+    const tag = item.trim().slice(0, MAX_TAG_LENGTH);
+    if (!tag) continue;
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(tag);
+    if (out.length >= MAX_TAGS) break;
+  }
+  return out;
+}
 
 /**
  * Valida um quiz montado pelo Host. Retorna uma mensagem de erro (string)

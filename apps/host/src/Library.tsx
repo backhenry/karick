@@ -14,6 +14,7 @@ export function Library({ onNew, onEdit, onHost }: Props) {
   const [dbEnabled, setDbEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
 
   const refresh = async () => {
     try {
@@ -36,7 +37,20 @@ export function Library({ onNew, onEdit, onHost }: Props) {
     setBusyId(id);
     try {
       const quiz = await api.getQuiz(id);
-      fn({ title: quiz.title, questions: quiz.questions });
+      fn({ title: quiz.title, questions: quiz.questions, tags: quiz.tags });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const duplicate = async (id: string) => {
+    setBusyId(id);
+    try {
+      const quiz = await api.getQuiz(id);
+      await api.createQuiz({ title: `Cópia de ${quiz.title}`, questions: quiz.questions, tags: quiz.tags });
+      await refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -53,6 +67,9 @@ export function Library({ onNew, onEdit, onHost }: Props) {
       setError((e as Error).message);
     }
   };
+
+  const allTags = [...new Set((quizzes ?? []).flatMap((q) => q.tags))].sort();
+  const shown = (quizzes ?? []).filter((q) => !activeTag || q.tags.includes(activeTag));
 
   const fmt = (iso: string) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -89,23 +106,57 @@ export function Library({ onNew, onEdit, onHost }: Props) {
       {error && <p className="mb-4 rounded-lg bg-red-500/20 p-3 text-red-300">{error}</p>}
 
       <h2 className="mb-3 text-lg font-bold text-white/70">Meus quizzes</h2>
+
+      {allTags.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          <button
+            onClick={() => setActiveTag(null)}
+            className={`rounded-full px-3 py-1 text-sm ${activeTag === null ? 'bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}
+          >
+            Todos
+          </button>
+          {allTags.map((t) => (
+            <button
+              key={t}
+              onClick={() => setActiveTag(t)}
+              className={`rounded-full px-3 py-1 text-sm ${activeTag === t ? 'bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}
+            >
+              #{t}
+            </button>
+          ))}
+        </div>
+      )}
+
       {quizzes === null ? (
         <p className="text-white/50">Carregando…</p>
-      ) : quizzes.length === 0 ? (
+      ) : shown.length === 0 ? (
         <p className="rounded-lg bg-white/5 p-6 text-center text-white/50">
-          Nenhum quiz salvo ainda. Clique em <b>Novo quiz</b> para começar.
+          {quizzes.length === 0 ? (
+            <>Nenhum quiz salvo ainda. Clique em <b>Novo quiz</b> para começar.</>
+          ) : (
+            <>Nenhum quiz com a tag <b>#{activeTag}</b>.</>
+          )}
         </p>
       ) : (
         <ul className="space-y-2">
-          {quizzes.map((q) => (
+          {shown.map((q) => (
             <li key={q.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/5 p-4">
               <div className="min-w-0">
                 <p className="truncate text-lg font-bold">{q.title}</p>
                 <p className="text-sm text-white/40">
                   {q.questionCount} pergunta{q.questionCount !== 1 ? 's' : ''} · {fmt(q.updatedAt)}
                 </p>
+                {q.tags.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {q.tags.map((t) => (
+                      <span key={t} className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-200">
+                        #{t}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="flex shrink-0 gap-2 text-sm">
+              <div className="flex shrink-0 flex-wrap justify-end gap-2 text-sm">
                 <button
                   onClick={() => withQuiz(q.id, onHost)}
                   disabled={busyId === q.id}
@@ -119,6 +170,13 @@ export function Library({ onNew, onEdit, onHost }: Props) {
                   className="rounded bg-white/10 px-3 py-2 hover:bg-white/20 disabled:opacity-50"
                 >
                   Editar
+                </button>
+                <button
+                  onClick={() => duplicate(q.id)}
+                  disabled={busyId === q.id}
+                  className="rounded bg-white/10 px-3 py-2 hover:bg-white/20 disabled:opacity-50"
+                >
+                  Duplicar
                 </button>
                 <button
                   onClick={() => remove(q.id)}

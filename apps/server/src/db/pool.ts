@@ -25,8 +25,10 @@ export async function initSchema(pool: pg.Pool): Promise<void> {
       id         TEXT PRIMARY KEY,
       title      TEXT NOT NULL,
       questions  JSONB NOT NULL,
+      tags       JSONB NOT NULL DEFAULT '[]'::jsonb,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS tags JSONB NOT NULL DEFAULT '[]'::jsonb;
     CREATE TABLE IF NOT EXISTS game_history (
       id         TEXT PRIMARY KEY,
       quiz_title TEXT NOT NULL,

@@ -1,6 +1,6 @@
 import type { QuizDraft, Question } from './types.js';
 import { DEFAULT_TIME_LIMIT, DEFAULT_POINTS } from './constants.js';
-import { validateQuiz } from './validation.js';
+import { validateQuiz, normalizeTags } from './validation.js';
 
 export type ImportResult = { ok: true; draft: QuizDraft } | { ok: false; error: string };
 
@@ -39,6 +39,7 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
 
   let title: unknown = 'Quiz importado';
   let list: unknown;
+  let tags: string[] = [];
 
   if (Array.isArray(data)) {
     list = data;
@@ -46,6 +47,7 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
     const o = data as Record<string, unknown>;
     title = o.title ?? o.titulo ?? 'Quiz importado';
     list = o.questions ?? o.perguntas;
+    tags = normalizeTags(o.tags);
   } else {
     return { ok: false, error: 'O JSON deve ser um objeto { title, questions } ou uma lista de perguntas.' };
   }
@@ -96,7 +98,7 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
     });
   }
 
-  const draft: QuizDraft = { title: String(title).trim() || 'Quiz importado', questions };
+  const draft: QuizDraft = { title: String(title).trim() || 'Quiz importado', questions, tags };
   const vErr = validateQuiz(draft);
   if (vErr) return { ok: false, error: vErr };
   return { ok: true, draft };
