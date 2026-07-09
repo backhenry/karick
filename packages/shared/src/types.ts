@@ -62,6 +62,8 @@ export interface PlayerAnswer {
 }
 
 export interface Player {
+  /** Identidade persistente do jogador (gerada no cliente, sobrevive a reconexões). */
+  id: string;
   socketId: string;
   nickname: string;
   score: number;
@@ -69,6 +71,8 @@ export interface Player {
   avatar: string;
   /** Acertos consecutivos (para o bônus de sequência). */
   streak: number;
+  /** Se o jogador está conectado agora (false enquanto caído, mantendo a pontuação). */
+  connected: boolean;
   /** Resposta da pergunta atual; resetada a cada nova pergunta. */
   currentAnswer: PlayerAnswer | null;
   /** Posição no ranking na última revelação (para calcular a variação). */
@@ -86,6 +90,8 @@ export interface GameRoom {
   questionStartedAt: number | null;
   /** Timestamp (ms) em que a pergunta atual expira (pode ser estendido pelo host). */
   questionEndsAt: number | null;
+  /** Última revelação (para re-sincronizar quem reconecta durante o REVEAL). */
+  lastReveal?: { correctIndex: number; correctText: string; distribution: number[]; leaderboard: LeaderboardRow[] };
   players: Record<string, Player>;
 }
 

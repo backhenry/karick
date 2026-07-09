@@ -38,6 +38,14 @@ export interface ServerToClientEvents {
   'game:timer': (data: { remainingSec: number }) => void;
   /** Este jogador foi removido pelo host. */
   'player:kicked': () => void;
+  /** Re-sincroniza o estado do jogador ao (re)conectar no meio do jogo. */
+  'game:sync': (data: {
+    screen: 'LOBBY' | 'QUESTION' | 'ANSWERED' | 'FEEDBACK' | 'OVER';
+    question?: PlayerQuestionPayload;
+    remainingSec?: number;
+    reveal?: { correctIndex: number; correctText: string; rank?: number; gained?: number; score?: number };
+    answered?: { isCorrect: boolean };
+  }) => void;
   'error:msg': (data: { message: string }) => void;
 }
 
@@ -51,7 +59,7 @@ export interface ClientToServerEvents {
   'host:addTime': () => void;
   /** Remove um jogador da sala (pelo apelido). */
   'host:kickPlayer': (payload: { nickname: string }) => void;
-  'player:join': (payload: { pin: string; nickname: string; avatar?: string }, ack: Ack) => void;
+  'player:join': (payload: { pin: string; nickname: string; avatar?: string; playerId: string }, ack: Ack) => void;
   'player:submitAnswer': (payload: { optionIndex: number }, ack: Ack<AnswerResult>) => void;
 }
 
@@ -59,4 +67,5 @@ export interface ClientToServerEvents {
 export interface SocketData {
   pin?: string;
   role?: 'host' | 'player';
+  playerId?: string;
 }

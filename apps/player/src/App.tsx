@@ -14,8 +14,16 @@ function Center({ children }: { children: ReactNode }) {
   );
 }
 
+function ReconnectBanner() {
+  return (
+    <div className="fixed inset-x-0 top-0 z-50 bg-amber-500 py-1 text-center text-sm font-bold text-white">
+      Reconectando… ⏳
+    </div>
+  );
+}
+
 export function App() {
-  const { screen, error, question, timer, feedback, reveal, join, answer } = usePlayerSocket();
+  const { screen, error, reconnecting, question, timer, feedback, reveal, join, answer } = usePlayerSocket();
   const [pin, setPin] = useState(() => new URLSearchParams(window.location.search).get('pin') ?? '');
   const [nickname, setNickname] = useState('');
   const [avatar, setAvatar] = useState(randomAvatar);
@@ -92,6 +100,7 @@ export function App() {
   if (screen === 'QUESTION' && question) {
     return (
       <div className="flex h-screen flex-col">
+        {reconnecting && <ReconnectBanner />}
         <TimerBar
           durationSec={timer.durationSec || question.timeLimitSec}
           resetKey={timer.key}
@@ -129,7 +138,13 @@ export function App() {
     );
   }
 
-  if (screen === 'ANSWERED') return <Center>Resposta enviada! Aguardando os outros… ⏳</Center>;
+  if (screen === 'ANSWERED')
+    return (
+      <>
+        {reconnecting && <ReconnectBanner />}
+        <Center>Resposta enviada! Aguardando os outros… ⏳</Center>
+      </>
+    );
 
   if (screen === 'FEEDBACK') {
     const answered = !!feedback;

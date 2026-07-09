@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io';
 import type {
   ClientToServerEvents,
   GameRoom,
+  Player,
   ServerToClientEvents,
   SocketData,
 } from '@karick/shared';
@@ -47,6 +48,47 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     io.to(room.pin).emit('lobby:updated', { players, count: players.length });
   }
 
+  /** Envia ao jogador (re)conectado o estado atual, para cair na tela certa. */
+  function sendSync(room: GameRoom, player: Player, socket: IOSocket) {
+    if (room.status === 'FINISHED') return socket.emit('game:sync', { screen: 'OVER' });
+    const q = currentQuestion(room);
+
+    if (room.status === 'QUESTION' && q) {
+      const remainingSec = room.questionEndsAt
+        ? Math.max(0, Math.round((room.questionEndsAt - Date.now()) / 1000))
+        : q.timeLimitSec;
+      const question = {
+        index: room.currentQuestionIndex,
+        total: room.quiz.questions.length,
+        optionsCount: q.options.length,
+        timeLimitSec: q.timeLimitSec,
+        imageUrl: q.imageUrl,
+      };
+      return socket.emit('game:sync', {
+        screen: player.currentAnswer ? 'ANSWERED' : 'QUESTION',
+        question,
+        remainingSec,
+      });
+    }
+
+    if (room.status === 'REVEAL' && room.lastReveal) {
+      const row = room.lastReveal.leaderboard.find((r) => r.nickname === player.nickname);
+      return socket.emit('game:sync', {
+        screen: 'FEEDBACK',
+        reveal: {
+          correctIndex: room.lastReveal.correctIndex,
+          correctText: room.lastReveal.correctText,
+          rank: row?.rank,
+          gained: row?.gained,
+          score: row?.score,
+        },
+        answered: player.currentAnswer ? { isCorrect: player.currentAnswer.isCorrect } : undefined,
+      });
+    }
+
+    return socket.emit('game:sync', { screen: 'LOBBY' });
+  }
+
   function sendQuestion(room: GameRoom) {
     const q = currentQuestion(room);
     if (!q) return endGame(room);
@@ -85,12 +127,14 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     if (room.status !== 'QUESTION') return; // já revelada
     room.status = 'REVEAL';
     const q = currentQuestion(room);
-    io.to(room.pin).emit('game:reveal', {
+    const payload = {
       correctIndex: q ? q.correctIndex : -1,
       correctText: q ? q.options[q.correctIndex] : '',
       distribution: q ? buildDistribution(room, q.options.length) : [],
       leaderboard: buildRevealLeaderboard(room),
-    });
+    };
+    room.lastReveal = payload;
+    io.to(room.pin).emit('game:reveal', payload);
   }
 
   function endGame(room: GameRoom) {
@@ -131,12 +175,30 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       ack?.({ ok: true, pin });
     });
 
-    // ─── PLAYER: entra na sala ───────────────────────────
-    socket.on('player:join', ({ pin, nickname, avatar }, ack) => {
+    // ─── PLAYER: entra na sala (ou reconecta) ────────────
+    socket.on('player:join', ({ pin, nickname, avatar, playerId }, ack) => {
       const room = store.get(pin);
-      const clean = nickname?.trim().slice(0, MAX_NICKNAME_LENGTH);
       if (!room) return ack?.({ ok: false, error: 'Sala não encontrada' });
+      if (!playerId) return ack?.({ ok: false, error: 'Identificador ausente' });
+
+      const existing = room.players[playerId];
+      if (existing) {
+        // Reconexão: religa o socket e re-sincroniza o estado atual.
+        existing.socketId = socket.id;
+        existing.connected = true;
+        socket.join(pin);
+        socket.data.pin = pin;
+        socket.data.role = 'player';
+        socket.data.playerId = playerId;
+        ack?.({ ok: true });
+        sendSync(room, existing, socket);
+        broadcastLobby(room);
+        return;
+      }
+
+      // Novo jogador só entra no lobby.
       if (room.status !== 'LOBBY') return ack?.({ ok: false, error: 'Jogo já iniciado' });
+      const clean = nickname?.trim().slice(0, MAX_NICKNAME_LENGTH);
       if (!clean) return ack?.({ ok: false, error: 'Apelido inválido' });
       const taken = Object.values(room.players).some((p) => p.nickname === clean);
       if (taken) return ack?.({ ok: false, error: 'Apelido já em uso' });
@@ -144,10 +206,20 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       const chosenAvatar = (avatar && AVATARS.includes(avatar as (typeof AVATARS)[number]))
         ? avatar
         : AVATARS[Math.floor(Math.random() * AVATARS.length)];
-      room.players[socket.id] = { socketId: socket.id, nickname: clean, score: 0, avatar: chosenAvatar, streak: 0, currentAnswer: null };
+      room.players[playerId] = {
+        id: playerId,
+        socketId: socket.id,
+        nickname: clean,
+        score: 0,
+        avatar: chosenAvatar,
+        streak: 0,
+        connected: true,
+        currentAnswer: null,
+      };
       socket.join(pin);
       socket.data.pin = pin;
       socket.data.role = 'player';
+      socket.data.playerId = playerId;
       ack?.({ ok: true });
       broadcastLobby(room);
     });
@@ -210,7 +282,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       if (!room || room.status !== 'QUESTION' || room.questionStartedAt === null) {
         return ack?.({ ok: false, error: 'Fora de uma pergunta ativa' });
       }
-      const player = room.players[socket.id];
+      const player = socket.data.playerId ? room.players[socket.data.playerId] : undefined;
       if (!player) return ack?.({ ok: false, error: 'Jogador não está na sala' });
       if (player.currentAnswer) return ack?.({ ok: false, error: 'Você já respondeu' });
 
@@ -232,9 +304,9 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
 
       ack?.({ ok: true, isCorrect, pointsAwarded, totalScore: player.score, streak: player.streak, streakBonus: bonus });
 
-      const players = Object.values(room.players);
-      const answered = players.filter((p) => p.currentAnswer !== null).length;
-      io.to(room.hostSocketId).emit('game:answerCount', { answered, total: players.length });
+      const connected = Object.values(room.players).filter((p) => p.connected);
+      const answered = connected.filter((p) => p.currentAnswer !== null).length;
+      io.to(room.hostSocketId).emit('game:answerCount', { answered, total: connected.length });
 
       if (allPlayersAnswered(room)) revealAnswer(room);
     });
@@ -248,10 +320,20 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         io.to(room.pin).emit('game:hostLeft');
         clearRoomTimer(room.pin);
         store.delete(room.pin);
-      } else if (room.players[socket.id]) {
-        delete room.players[socket.id];
-        broadcastLobby(room);
+        return;
       }
+
+      const pid = socket.data.playerId;
+      const player = pid ? room.players[pid] : undefined;
+      // Ignora desconexão "velha" (o jogador já reconectou com outro socket).
+      if (!player || player.socketId !== socket.id) return;
+
+      if (room.status === 'LOBBY') {
+        delete room.players[pid!]; // antes do jogo, sair = deixar a sala
+      } else {
+        player.connected = false; // durante o jogo, mantém a pontuação
+      }
+      broadcastLobby(room);
     });
   });
 }
