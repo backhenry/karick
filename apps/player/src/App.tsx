@@ -269,10 +269,11 @@ export function App() {
                 <button
                   key={i}
                   onClick={() => handleAnswer(i)}
-                  className="flex items-center justify-center rounded-xl text-6xl text-white transition active:scale-95"
+                  className={`flex items-center justify-center gap-2 rounded-xl px-3 text-white transition active:scale-95 ${question.options ? 'text-xl font-bold' : 'text-6xl'}`}
                   style={{ background: OPTION_COLORS[i] }}
                 >
-                  {OPTION_SHAPES[i]}
+                  <span className={question.options ? 'text-3xl' : ''}>{OPTION_SHAPES[i]}</span>
+                  {question.options && <span>{question.options[i]}</span>}
                 </button>
               ))}
             </div>

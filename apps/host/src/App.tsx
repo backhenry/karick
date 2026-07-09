@@ -43,10 +43,10 @@ export function App() {
     const setup = setupDraft && (
       <GameSetup
         onCancel={() => setSetupDraft(null)}
-        onConfirm={async (mode, teams) => {
+        onConfirm={async (mode, teams, shuffle) => {
           const draft = setupDraft;
           setSetupDraft(null);
-          const err = await g.createRoom(draft, teams, mode);
+          const err = await g.createRoom(draft, teams, mode, shuffle);
           if (err) alert(err);
         }}
       />

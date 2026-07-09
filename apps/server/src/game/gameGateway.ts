@@ -6,8 +6,11 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from '@karick/shared';
-import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS, REACTIONS, normalizeTeams, STARTING_BANK } from '@karick/shared';
+import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS, REACTIONS, normalizeTeams, STARTING_BANK, optionPermutation } from '@karick/shared';
 import type { GameMode } from '@karick/shared';
+
+/** Permutação determinística das opções para um jogador numa pergunta (perm[exibida]=original). */
+const permFor = (playerId: string, qIndex: number, n: number) => optionPermutation(`${playerId}:${qIndex}`, n);
 import { generatePin, type RoomStore } from '../store/roomStore.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
 import { RateLimiter } from '../util/rateLimiter.js';
@@ -74,6 +77,9 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
           imageUrl: q.imageUrl,
           mode: room.mode,
           ...(room.mode === 'betting' ? { bank: player.score } : {}),
+          ...(room.shuffle
+            ? { options: permFor(player.id, room.currentQuestionIndex, q.options.length).map((orig) => q.options[orig]) }
+            : {}),
         },
         remainingSec,
       });
@@ -135,6 +141,9 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         imageUrl: q.imageUrl,
         mode: room.mode,
         ...(room.mode === 'betting' ? { bank: p.score } : {}),
+        ...(room.shuffle
+          ? { options: permFor(p.id, room.currentQuestionIndex, q.options.length).map((orig) => q.options[orig]) }
+          : {}),
       });
     });
 
@@ -219,7 +228,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
 
   io.on('connection', (socket: IOSocket) => {
     // ─── HOST: cria a sala ───────────────────────────────
-    socket.on('host:createRoom', async ({ quiz, teams, mode }, ack) => {
+    socket.on('host:createRoom', async ({ quiz, teams, mode, shuffle }, ack) => {
       if (!createRoomLimiter.allow(socket.handshake.address)) {
         return ack?.({ ok: false, error: 'Muitas salas criadas, aguarde um instante.' });
       }
@@ -239,6 +248,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         status: 'LOBBY',
         currentQuestionIndex: -1,
         mode: gameMode,
+        shuffle: !!shuffle,
         teams: gameMode === 'teams' ? normTeams : [],
         questionStartedAt: null,
         questionEndsAt: null,
@@ -390,7 +400,11 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         if (p.currentAnswer) return void (outcome = 'answered');
         const q = currentQuestion(r)!;
         const elapsedSec = (Date.now() - r.questionStartedAt) / 1000;
-        const isCorrect = optionIndex === q.correctIndex;
+        // Anti-cola: o jogador envia a posição EXIBIDA; mapeamos para a opção original.
+        const originalIndex = r.shuffle
+          ? (permFor(p.id, r.currentQuestionIndex, q.options.length)[optionIndex] ?? optionIndex)
+          : optionIndex;
+        const isCorrect = originalIndex === q.correctIndex;
 
         let pointsAwarded: number;
         let bonus = 0;
@@ -412,7 +426,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
           if (isCorrect && p.scoringPowerupQ === 'double') pointsAwarded *= 2;
           p.score += pointsAwarded;
         }
-        p.currentAnswer = { optionIndex, answeredAt: Date.now(), isCorrect, pointsAwarded };
+        p.currentAnswer = { optionIndex: originalIndex, answeredAt: Date.now(), isCorrect, pointsAwarded };
         result = { isCorrect, pointsAwarded, totalScore: p.score, streak: p.streak, streakBonus: bonus };
       });
       if (!room || outcome === 'inactive') return ack?.({ ok: false, error: 'Fora de uma pergunta ativa' });
@@ -458,7 +472,12 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
           p.fiftyUsedQ = true;
           const wrong = q.options.map((_, i) => i).filter((i) => i !== q.correctIndex);
           const keepWrong = wrong[Math.floor(Math.random() * wrong.length)];
-          keep = [q.correctIndex, keepWrong].sort((a, b) => a - b);
+          let kept = [q.correctIndex, keepWrong]; // índices originais
+          if (r.shuffle) {
+            const perm = permFor(p.id, r.currentQuestionIndex, q.options.length);
+            kept = kept.map((orig) => perm.indexOf(orig)); // → posições exibidas
+          }
+          keep = kept.sort((a, b) => a - b);
         } else {
           if (p.scoringPowerupQ) return void (outcome = 'already'); // um power-up de pontuação por pergunta
           p.powerups[type] = false;

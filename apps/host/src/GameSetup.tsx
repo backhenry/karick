@@ -9,9 +9,10 @@ const MODES: { id: GameMode; label: string; desc: string }[] = [
 ];
 
 /** Modal de opções ao iniciar a partida: escolha do modo de jogo. */
-export function GameSetup({ onConfirm, onCancel }: { onConfirm: (mode: GameMode, teams: string[]) => void; onCancel: () => void }) {
+export function GameSetup({ onConfirm, onCancel }: { onConfirm: (mode: GameMode, teams: string[], shuffle: boolean) => void; onCancel: () => void }) {
   const [mode, setMode] = useState<GameMode>('individual');
   const [names, setNames] = useState<string[]>(['Time A', 'Time B']);
+  const [shuffle, setShuffle] = useState(false);
 
   const setName = (i: number, v: string) => setNames((n) => n.map((x, j) => (j === i ? v : x)));
   const valid = mode !== 'teams' || normalizeTeams(names).length >= MIN_TEAMS;
@@ -60,12 +61,17 @@ export function GameSetup({ onConfirm, onCancel }: { onConfirm: (mode: GameMode,
           </div>
         )}
 
+        <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm text-white/80">
+          <input type="checkbox" checked={shuffle} onChange={(e) => setShuffle(e.target.checked)} />
+          Anti-cola: embaralhar as opções por jogador (mostra o texto no celular)
+        </label>
+
         <div className="flex gap-2">
           <button onClick={onCancel} className="flex-1 rounded-lg bg-white/10 p-3 hover:bg-white/20">
             Cancelar
           </button>
           <button
-            onClick={() => onConfirm(mode, mode === 'teams' ? normalizeTeams(names) : [])}
+            onClick={() => onConfirm(mode, mode === 'teams' ? normalizeTeams(names) : [], shuffle)}
             disabled={!valid}
             className="flex-1 rounded-lg bg-green-500 p-3 font-bold text-white hover:bg-green-400 disabled:opacity-40"
           >

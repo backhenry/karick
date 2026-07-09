@@ -90,11 +90,11 @@ export function useHostSocket() {
     };
   }, []);
 
-  const createRoom = (quiz: QuizDraft, teams?: string[], gameMode: GameMode = 'individual'): Promise<string | null> =>
+  const createRoom = (quiz: QuizDraft, teams?: string[], gameMode: GameMode = 'individual', shuffle = false): Promise<string | null> =>
     new Promise((resolve) => {
       const socket = socketRef.current;
       if (!socket) return resolve('Sem conexão com o servidor.');
-      socket.emit('host:createRoom', { quiz, teams, mode: gameMode }, (res) => {
+      socket.emit('host:createRoom', { quiz, teams, mode: gameMode, shuffle }, (res) => {
         if (res.ok && res.pin) {
           setPin(res.pin);
           setMode(gameMode);

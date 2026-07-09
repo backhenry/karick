@@ -118,6 +118,8 @@ export interface GameRoom {
   currentQuestionIndex: number;
   /** Modo de jogo. */
   mode: GameMode;
+  /** Embaralhar as opções por jogador (anti-cola). */
+  shuffle: boolean;
   /** Equipes do jogo (só quando mode === 'teams'). */
   teams: string[];
   /** Timestamp (ms) em que a pergunta atual começou — base do cálculo de velocidade. */
@@ -181,6 +183,8 @@ export interface PlayerQuestionPayload {
   mode: GameMode;
   /** Banco atual do jogador (modo aposta). */
   bank?: number;
+  /** Textos das opções, embaralhados por jogador (anti-cola). Ausente = modo cor. */
+  options?: string[];
 }
 
 export interface AnswerResult {

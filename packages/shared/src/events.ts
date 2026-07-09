@@ -58,7 +58,7 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  'host:createRoom': (payload: { quiz: QuizDraft; teams?: string[]; mode?: GameMode }, ack: Ack<{ pin: string }>) => void;
+  'host:createRoom': (payload: { quiz: QuizDraft; teams?: string[]; mode?: GameMode; shuffle?: boolean }, ack: Ack<{ pin: string }>) => void;
   'host:startGame': () => void;
   'host:nextQuestion': () => void;
   /** Revela a resposta imediatamente, sem esperar o tempo. */
