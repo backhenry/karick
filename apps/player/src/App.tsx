@@ -15,16 +15,16 @@ function Center({ children }: { children: ReactNode }) {
 }
 
 export function App() {
-  const { screen, error, question, feedback, reveal, join, answer } = usePlayerSocket();
+  const { screen, error, question, timer, feedback, reveal, join, answer } = usePlayerSocket();
   const [pin, setPin] = useState(() => new URLSearchParams(window.location.search).get('pin') ?? '');
   const [nickname, setNickname] = useState('');
   const [avatar, setAvatar] = useState(randomAvatar);
   const [expired, setExpired] = useState(false);
 
-  // Reinicia o "expirado" a cada nova pergunta.
+  // Reinicia o "expirado" a cada nova pergunta ou quando o tempo é estendido.
   useEffect(() => {
     if (screen === 'QUESTION') setExpired(false);
-  }, [screen, question?.index]);
+  }, [screen, question?.index, timer.key]);
 
   // Som de acerto/erro ao receber o feedback.
   useEffect(() => {
@@ -93,8 +93,8 @@ export function App() {
     return (
       <div className="flex h-screen flex-col">
         <TimerBar
-          durationSec={question.timeLimitSec}
-          resetKey={question.index}
+          durationSec={timer.durationSec || question.timeLimitSec}
+          resetKey={timer.key}
           onExpire={() => setExpired(true)}
         />
         {question.imageUrl && (

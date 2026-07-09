@@ -61,9 +61,16 @@ export function App() {
 
         <div className="flex max-w-4xl flex-wrap justify-center gap-2">
           {g.players.map((p) => (
-            <span key={p.nickname} className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-lg">
+            <span key={p.nickname} className="group flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-lg">
               <span className="text-xl">{p.avatar}</span>
               {p.nickname}
+              <button
+                onClick={() => g.kick(p.nickname)}
+                title="Remover jogador"
+                className="ml-1 text-white/30 hover:text-red-400"
+              >
+                ✕
+              </button>
             </span>
           ))}
         </div>
@@ -86,13 +93,21 @@ export function App() {
           <span className="text-xl">
             Pergunta {g.question.index + 1} de {g.question.total}
           </span>
-          <span className="rounded-full bg-slate-100 px-4 py-1 text-xl font-bold text-slate-700">
-            {g.answeredCount}/{g.players.length} responderam
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="rounded-full bg-slate-100 px-4 py-1 text-xl font-bold text-slate-700">
+              {g.answeredCount}/{g.players.length} responderam
+            </span>
+            <button onClick={g.addTime} className="rounded-lg bg-slate-200 px-3 py-1 font-bold text-slate-700 hover:bg-slate-300">
+              +20s
+            </button>
+            <button onClick={g.revealNow} className="rounded-lg bg-indigo-600 px-3 py-1 font-bold text-white hover:bg-indigo-500">
+              Revelar agora ⏭
+            </button>
+          </div>
         </div>
 
         <div className="px-10">
-          <TimerBar durationSec={g.question.timeLimitSec} resetKey={g.question.index} />
+          <TimerBar durationSec={g.timer.durationSec} resetKey={g.timer.key} />
         </div>
 
         <h2 className="px-10 pt-8 text-center text-5xl font-bold text-slate-800">{g.question.text}</h2>

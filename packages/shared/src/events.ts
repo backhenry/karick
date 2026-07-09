@@ -34,6 +34,10 @@ export interface ServerToClientEvents {
   }) => void;
   'game:over': (data: { podium: LeaderboardRow[] }) => void;
   'game:hostLeft': () => void;
+  /** Tempo restante mudou (ex.: host adicionou tempo) — clientes re-sincronizam o cronômetro. */
+  'game:timer': (data: { remainingSec: number }) => void;
+  /** Este jogador foi removido pelo host. */
+  'player:kicked': () => void;
   'error:msg': (data: { message: string }) => void;
 }
 
@@ -41,6 +45,12 @@ export interface ClientToServerEvents {
   'host:createRoom': (payload: { quiz: QuizDraft }, ack: Ack<{ pin: string }>) => void;
   'host:startGame': () => void;
   'host:nextQuestion': () => void;
+  /** Revela a resposta imediatamente, sem esperar o tempo. */
+  'host:revealNow': () => void;
+  /** Adiciona tempo à pergunta atual. */
+  'host:addTime': () => void;
+  /** Remove um jogador da sala (pelo apelido). */
+  'host:kickPlayer': (payload: { nickname: string }) => void;
   'player:join': (payload: { pin: string; nickname: string; avatar?: string }, ack: Ack) => void;
   'player:submitAnswer': (payload: { optionIndex: number }, ack: Ack<AnswerResult>) => void;
 }

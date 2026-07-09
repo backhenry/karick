@@ -30,6 +30,7 @@ export function usePlayerSocket() {
   const [screen, setScreen] = useState<PlayerScreen>('JOIN');
   const [error, setError] = useState<string | null>(null);
   const [question, setQuestion] = useState<PlayerQuestionPayload | null>(null);
+  const [timer, setTimer] = useState<{ durationSec: number; key: string }>({ durationSec: 0, key: 'init' });
   const [feedback, setFeedback] = useState<AnswerResult | null>(null);
   const [reveal, setReveal] = useState<RevealInfo | null>(null);
 
@@ -39,10 +40,15 @@ export function usePlayerSocket() {
 
     socket.on('game:question:player', (q) => {
       setQuestion(q);
+      setTimer({ durationSec: q.timeLimitSec, key: `q${q.index}` });
       setFeedback(null);
       setReveal(null);
       setScreen('QUESTION');
     });
+    socket.on('game:timer', ({ remainingSec }) =>
+      setTimer({ durationSec: remainingSec, key: `t${Date.now()}` }),
+    );
+    socket.on('player:kicked', () => setError('Você foi removido pelo apresentador.'));
     socket.on('game:reveal', ({ correctIndex, correctText, leaderboard }) => {
       const mine = leaderboard.find((r) => r.nickname === nicknameRef.current);
       setReveal({ correctIndex, correctText, rank: mine?.rank, gained: mine?.gained, score: mine?.score });
@@ -85,5 +91,5 @@ export function usePlayerSocket() {
     });
   };
 
-  return { screen, error, question, feedback, reveal, join, answer };
+  return { screen, error, question, timer, feedback, reveal, join, answer };
 }

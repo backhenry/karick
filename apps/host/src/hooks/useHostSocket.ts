@@ -26,6 +26,7 @@ export function useHostSocket() {
   const [players, setPlayers] = useState<PublicPlayer[]>([]);
   const [question, setQuestion] = useState<HostQuestionPayload | null>(null);
   const [answeredCount, setAnsweredCount] = useState(0);
+  const [timer, setTimer] = useState<{ durationSec: number; key: string }>({ durationSec: 0, key: 'init' });
   const [reveal, setReveal] = useState<{
     correctIndex: number;
     correctText: string;
@@ -45,10 +46,14 @@ export function useHostSocket() {
     socket.on('game:question:host', (q) => {
       setQuestion(q);
       setAnsweredCount(0);
+      setTimer({ durationSec: q.timeLimitSec, key: `q${q.index}` });
       setPhase('QUESTION');
       sfx.questionStart();
     });
     socket.on('game:answerCount', ({ answered }) => setAnsweredCount(answered));
+    socket.on('game:timer', ({ remainingSec }) =>
+      setTimer({ durationSec: remainingSec, key: `t${Date.now()}` }),
+    );
     socket.on('game:reveal', (data) => {
       setReveal(data);
       setPhase('REVEAL');
@@ -87,10 +92,14 @@ export function useHostSocket() {
     players,
     question,
     answeredCount,
+    timer,
     reveal,
     podium,
     createRoom,
     start: () => socketRef.current?.emit('host:startGame'),
     next: () => socketRef.current?.emit('host:nextQuestion'),
+    revealNow: () => socketRef.current?.emit('host:revealNow'),
+    addTime: () => socketRef.current?.emit('host:addTime'),
+    kick: (nickname: string) => socketRef.current?.emit('host:kickPlayer', { nickname }),
   };
 }

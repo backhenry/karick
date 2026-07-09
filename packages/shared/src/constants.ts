@@ -21,3 +21,6 @@ export const AVATARS = ['🦊', '🐼', '🐸', '🦉', '🐙', '🦄', '🐝', 
 /** Bônus de sequência: cada acerto consecutivo (a partir do 2º) soma este valor, com teto. */
 export const STREAK_BONUS_STEP = 100;
 export const STREAK_BONUS_MAX = 500;
+
+/** Quantos segundos o botão "+tempo" do host adiciona à pergunta atual. */
+export const ADD_TIME_SECONDS = 20;

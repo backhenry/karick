@@ -18,7 +18,7 @@ import {
   hasMoreQuestions,
   streakBonus,
 } from './gameService.js';
-import { AVATARS } from '@karick/shared';
+import { AVATARS, ADD_TIME_SECONDS } from '@karick/shared';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type IOSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -53,6 +53,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
 
     room.status = 'QUESTION';
     room.questionStartedAt = Date.now();
+    room.questionEndsAt = Date.now() + q.timeLimitSec * 1000;
     Object.values(room.players).forEach((p) => (p.currentAnswer = null));
 
     io.to(room.hostSocketId).emit('game:question:host', {
@@ -120,6 +121,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         status: 'LOBBY',
         currentQuestionIndex: -1,
         questionStartedAt: null,
+        questionEndsAt: null,
         players: {},
       };
       store.create(room);
@@ -165,6 +167,41 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       if (!hasMoreQuestions(room)) return endGame(room);
       room.currentQuestionIndex += 1;
       sendQuestion(room);
+    });
+
+    // ─── HOST: revelar agora (pular o tempo restante) ────
+    socket.on('host:revealNow', () => {
+      const room = store.get(socket.data.pin ?? '');
+      if (!room || room.hostSocketId !== socket.id || room.status !== 'QUESTION') return;
+      revealAnswer(room);
+    });
+
+    // ─── HOST: adicionar tempo ───────────────────────────
+    socket.on('host:addTime', () => {
+      const room = store.get(socket.data.pin ?? '');
+      if (!room || room.hostSocketId !== socket.id || room.status !== 'QUESTION' || room.questionEndsAt === null) return;
+      room.questionEndsAt += ADD_TIME_SECONDS * 1000;
+      const remainingMs = Math.max(0, room.questionEndsAt - Date.now());
+      clearRoomTimer(room.pin);
+      timers.set(room.pin, setTimeout(() => revealAnswer(room), remainingMs));
+      io.to(room.pin).emit('game:timer', { remainingSec: Math.round(remainingMs / 1000) });
+    });
+
+    // ─── HOST: remover jogador ───────────────────────────
+    socket.on('host:kickPlayer', ({ nickname }) => {
+      const room = store.get(socket.data.pin ?? '');
+      if (!room || room.hostSocketId !== socket.id) return;
+      const entry = Object.entries(room.players).find(([, p]) => p.nickname === nickname);
+      if (!entry) return;
+      const [key, player] = entry;
+      delete room.players[key];
+      const target = io.sockets.sockets.get(player.socketId);
+      if (target) {
+        target.emit('player:kicked');
+        target.leave(room.pin);
+        target.data.pin = undefined;
+      }
+      broadcastLobby(room);
     });
 
     // ─── PLAYER: responde ────────────────────────────────

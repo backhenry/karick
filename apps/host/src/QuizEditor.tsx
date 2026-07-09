@@ -12,6 +12,7 @@ import {
 } from '@karick/shared';
 import { emptyQuestion, exampleQuiz } from './lib/quizStorage.js';
 import { api } from './lib/api.js';
+import { QuizPreview } from './QuizPreview.js';
 
 const AI_PROMPT = `Crie um quiz no formato JSON EXATO abaixo (responda só com o JSON, sem texto extra).
 Regras: "correctIndex" é o índice 0-based da opção correta; use 2 a 4 opções por pergunta;
@@ -46,6 +47,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
   const [starting, setStarting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
@@ -115,6 +117,13 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
           ← Biblioteca
         </button>
         <div className="flex gap-2 text-sm">
+          <button
+            onClick={() => setShowPreview(true)}
+            disabled={draft.questions.length === 0}
+            className="rounded bg-white/10 px-3 py-2 hover:bg-white/20 disabled:opacity-40"
+          >
+            👁 Prévia
+          </button>
           <button
             onClick={() => setShowImport((s) => !s)}
             className="rounded bg-indigo-500/80 px-3 py-2 font-semibold hover:bg-indigo-500"
@@ -330,6 +339,8 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
           {!connected ? 'Conectando…' : starting ? 'Criando sala…' : 'Iniciar hospedagem →'}
         </button>
       </div>
+
+      {showPreview && <QuizPreview draft={draft} onClose={() => setShowPreview(false)} />}
     </div>
   );
 }

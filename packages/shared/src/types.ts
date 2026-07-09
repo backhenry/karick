@@ -84,6 +84,8 @@ export interface GameRoom {
   currentQuestionIndex: number;
   /** Timestamp (ms) em que a pergunta atual começou — base do cálculo de velocidade. */
   questionStartedAt: number | null;
+  /** Timestamp (ms) em que a pergunta atual expira (pode ser estendido pelo host). */
+  questionEndsAt: number | null;
   players: Record<string, Player>;
 }
 
