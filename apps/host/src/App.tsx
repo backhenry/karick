@@ -5,6 +5,7 @@ import { QuizEditor } from './QuizEditor.js';
 import { Library } from './Library.js';
 import { TimerBar } from './TimerBar.js';
 import { Leaderboard } from './Leaderboard.js';
+import { QRCodeView } from './QRCode.js';
 import { emptyDraft } from './lib/quizStorage.js';
 
 type PreGameView =
@@ -41,15 +42,27 @@ export function App() {
     );
   }
 
-  // ─── LOBBY: PIN gigante + jogadores entrando ───
-  if (g.phase === 'LOBBY')
+  // ─── LOBBY: PIN + QR code + jogadores entrando ───
+  if (g.phase === 'LOBBY') {
+    const joinUrl = `${window.location.origin}/?pin=${g.pin}`;
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-slate-900 text-white">
-        <p className="text-2xl opacity-70">Entre no app do jogador com o PIN</p>
-        <h1 className="text-8xl font-black tracking-[0.2em]">{g.pin || '…'}</h1>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-slate-900 p-6 text-white">
+        <div className="flex flex-wrap items-center justify-center gap-10">
+          <div className="text-center">
+            <p className="mb-2 text-xl opacity-70">Acesse e use o PIN</p>
+            <p className="text-lg opacity-50">{window.location.host}</p>
+            <h1 className="text-7xl font-black tracking-[0.15em]">{g.pin || '…'}</h1>
+          </div>
+          <div className="text-center">
+            {g.pin && <QRCodeView text={joinUrl} size={200} />}
+            <p className="mt-2 text-sm opacity-60">ou aponte a câmera</p>
+          </div>
+        </div>
+
         <div className="flex max-w-4xl flex-wrap justify-center gap-2">
           {g.players.map((p) => (
-            <span key={p.nickname} className="rounded-full bg-white/10 px-4 py-2 text-lg">
+            <span key={p.nickname} className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-lg">
+              <span className="text-xl">{p.avatar}</span>
               {p.nickname}
             </span>
           ))}
@@ -63,6 +76,7 @@ export function App() {
         </button>
       </div>
     );
+  }
 
   // ─── QUESTION: pergunta + opções + tempo + progresso ───
   if (g.phase === 'QUESTION' && g.question)
@@ -113,7 +127,7 @@ export function App() {
     const isLast = g.question ? g.question.index >= g.question.total - 1 : false;
     return (
       <div className="min-h-screen bg-slate-900 p-10 text-white">
-        <div className="mx-auto mb-8 max-w-2xl text-center">
+        <div className="mx-auto mb-6 max-w-2xl text-center">
           <p className="mb-2 text-lg text-white/50">Resposta certa</p>
           <div
             className="inline-flex items-center gap-3 rounded-xl px-8 py-4 text-3xl font-bold"
@@ -123,6 +137,35 @@ export function App() {
             {g.reveal.correctText}
           </div>
         </div>
+
+        {g.question && (
+          <div className="mx-auto mb-8 flex max-w-2xl items-end justify-center gap-4" style={{ height: 140 }}>
+            {g.question.options.map((_, i) => {
+              const count = g.reveal!.distribution[i] ?? 0;
+              const max = Math.max(1, ...g.reveal!.distribution);
+              const isCorrect = i === g.reveal!.correctIndex;
+              return (
+                <div key={i} className="flex flex-1 flex-col items-center justify-end">
+                  <span className="mb-1 text-sm font-bold">{count}</span>
+                  <div
+                    className="w-full rounded-t"
+                    style={{
+                      height: `${(count / max) * 100}%`,
+                      minHeight: 4,
+                      background: OPTION_COLORS[i],
+                      opacity: isCorrect ? 1 : 0.45,
+                      transition: 'height 700ms ease-out',
+                    }}
+                  />
+                  <span className="mt-1 text-2xl" style={{ color: OPTION_COLORS[i] }}>
+                    {OPTION_SHAPES[i]}
+                    {isCorrect && ' ✓'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <h2 className="mb-4 text-center text-3xl font-bold">Placar</h2>
         <Leaderboard rows={g.reveal.leaderboard} />

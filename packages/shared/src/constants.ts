@@ -14,3 +14,10 @@ export const DEFAULT_POINTS = 1000;
 /** Cores/formas das opções — devem ser idênticas em Host e Player. */
 export const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'] as const;
 export const OPTION_SHAPES = ['▲', '◆', '●', '■'] as const;
+
+/** Emojis disponíveis como avatar do jogador. */
+export const AVATARS = ['🦊', '🐼', '🐸', '🦉', '🐙', '🦄', '🐝', '🐧', '🦁', '🐢', '🐺', '🐨', '🦖', '🐬', '🦋', '🐹'] as const;
+
+/** Bônus de sequência: cada acerto consecutivo (a partir do 2º) soma este valor, com teto. */
+export const STREAK_BONUS_STEP = 100;
+export const STREAK_BONUS_MAX = 500;

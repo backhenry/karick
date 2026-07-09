@@ -25,7 +25,13 @@ export interface ServerToClientEvents {
   'game:question:player': (data: PlayerQuestionPayload) => void;
   /** Quantos jogadores já responderam a pergunta atual (para o Host mostrar progresso). */
   'game:answerCount': (data: { answered: number; total: number }) => void;
-  'game:reveal': (data: { correctIndex: number; correctText: string; leaderboard: LeaderboardRow[] }) => void;
+  'game:reveal': (data: {
+    correctIndex: number;
+    correctText: string;
+    /** Quantos jogadores escolheram cada opção (mesmo índice das opções). */
+    distribution: number[];
+    leaderboard: LeaderboardRow[];
+  }) => void;
   'game:over': (data: { podium: LeaderboardRow[] }) => void;
   'game:hostLeft': () => void;
   'error:msg': (data: { message: string }) => void;
@@ -35,7 +41,7 @@ export interface ClientToServerEvents {
   'host:createRoom': (payload: { quiz: QuizDraft }, ack: Ack<{ pin: string }>) => void;
   'host:startGame': () => void;
   'host:nextQuestion': () => void;
-  'player:join': (payload: { pin: string; nickname: string }, ack: Ack) => void;
+  'player:join': (payload: { pin: string; nickname: string; avatar?: string }, ack: Ack) => void;
   'player:submitAnswer': (payload: { optionIndex: number }, ack: Ack<AnswerResult>) => void;
 }
 

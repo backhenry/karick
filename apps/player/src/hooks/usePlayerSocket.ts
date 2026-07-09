@@ -56,10 +56,10 @@ export function usePlayerSocket() {
     };
   }, []);
 
-  const join = (pin: string, nickname: string) =>
+  const join = (pin: string, nickname: string, avatar: string) =>
     new Promise<boolean>((resolve) => {
       setError(null);
-      socketRef.current?.emit('player:join', { pin, nickname }, (res) => {
+      socketRef.current?.emit('player:join', { pin, nickname, avatar }, (res) => {
         if (res.ok) {
           nicknameRef.current = nickname.trim().slice(0, MAX_NICKNAME_LENGTH);
           setScreen('LOBBY');
@@ -78,6 +78,8 @@ export function usePlayerSocket() {
           isCorrect: !!res.isCorrect,
           pointsAwarded: res.pointsAwarded ?? 0,
           totalScore: res.totalScore,
+          streak: res.streak ?? 0,
+          streakBonus: res.streakBonus ?? 0,
         });
       }
     });

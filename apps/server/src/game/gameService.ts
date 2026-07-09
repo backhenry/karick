@@ -1,4 +1,5 @@
 import type { GameRoom, LeaderboardRow, Question } from '@karick/shared';
+import { STREAK_BONUS_STEP, STREAK_BONUS_MAX } from '@karick/shared';
 
 /**
  * Lógica de jogo PURA (sem I/O nem sockets) — fácil de testar isoladamente.
@@ -12,6 +13,24 @@ import type { GameRoom, LeaderboardRow, Question } from '@karick/shared';
 export function computeScore(question: Question, elapsedSec: number): number {
   const ratio = Math.min(elapsedSec / question.timeLimitSec, 1);
   return Math.round(question.points * (1 - ratio / 2));
+}
+
+/**
+ * Bônus de sequência: dado o nº de acertos consecutivos (incluindo o atual),
+ * o 2º acerto seguido vale +STEP, o 3º +2*STEP, etc., até o teto.
+ */
+export function streakBonus(newStreak: number): number {
+  return Math.min((newStreak - 1) * STREAK_BONUS_STEP, STREAK_BONUS_MAX);
+}
+
+/** Quantos jogadores escolheram cada opção da pergunta atual. */
+export function buildDistribution(room: GameRoom, optionCount: number): number[] {
+  const dist = new Array<number>(optionCount).fill(0);
+  for (const p of Object.values(room.players)) {
+    const idx = p.currentAnswer?.optionIndex;
+    if (idx !== undefined && idx >= 0 && idx < optionCount) dist[idx]++;
+  }
+  return dist;
 }
 
 export function currentQuestion(room: GameRoom): Question | undefined {
@@ -30,7 +49,7 @@ export function allPlayersAnswered(room: GameRoom): boolean {
 export function buildLeaderboard(room: GameRoom): LeaderboardRow[] {
   return Object.values(room.players)
     .sort((a, b) => b.score - a.score)
-    .map((p, i) => ({ rank: i + 1, nickname: p.nickname, score: p.score }));
+    .map((p, i) => ({ rank: i + 1, nickname: p.nickname, score: p.score, avatar: p.avatar }));
 }
 
 /**
@@ -48,6 +67,7 @@ export function buildRevealLeaderboard(room: GameRoom): LeaderboardRow[] {
       rank,
       nickname: p.nickname,
       score: p.score,
+      avatar: p.avatar,
       gained: p.currentAnswer?.pointsAwarded ?? 0,
       rankDelta,
     };

@@ -10,12 +10,15 @@ import { generatePin, type RoomStore } from '../store/roomStore.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
 import {
   allPlayersAnswered,
+  buildDistribution,
   buildLeaderboard,
   buildRevealLeaderboard,
   computeScore,
   currentQuestion,
   hasMoreQuestions,
+  streakBonus,
 } from './gameService.js';
+import { AVATARS } from '@karick/shared';
 
 type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 type IOSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -39,6 +42,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     const players = Object.values(room.players).map((p) => ({
       nickname: p.nickname,
       score: p.score,
+      avatar: p.avatar,
     }));
     io.to(room.pin).emit('lobby:updated', { players, count: players.length });
   }
@@ -83,6 +87,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     io.to(room.pin).emit('game:reveal', {
       correctIndex: q ? q.correctIndex : -1,
       correctText: q ? q.options[q.correctIndex] : '',
+      distribution: q ? buildDistribution(room, q.options.length) : [],
       leaderboard: buildRevealLeaderboard(room),
     });
   }
@@ -125,7 +130,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     });
 
     // ─── PLAYER: entra na sala ───────────────────────────
-    socket.on('player:join', ({ pin, nickname }, ack) => {
+    socket.on('player:join', ({ pin, nickname, avatar }, ack) => {
       const room = store.get(pin);
       const clean = nickname?.trim().slice(0, MAX_NICKNAME_LENGTH);
       if (!room) return ack?.({ ok: false, error: 'Sala não encontrada' });
@@ -134,7 +139,10 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       const taken = Object.values(room.players).some((p) => p.nickname === clean);
       if (taken) return ack?.({ ok: false, error: 'Apelido já em uso' });
 
-      room.players[socket.id] = { socketId: socket.id, nickname: clean, score: 0, currentAnswer: null };
+      const chosenAvatar = (avatar && AVATARS.includes(avatar as (typeof AVATARS)[number]))
+        ? avatar
+        : AVATARS[Math.floor(Math.random() * AVATARS.length)];
+      room.players[socket.id] = { socketId: socket.id, nickname: clean, score: 0, avatar: chosenAvatar, streak: 0, currentAnswer: null };
       socket.join(pin);
       socket.data.pin = pin;
       socket.data.role = 'player';
@@ -172,12 +180,20 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       const q = currentQuestion(room)!;
       const elapsedSec = (Date.now() - room.questionStartedAt) / 1000;
       const isCorrect = optionIndex === q.correctIndex;
-      const pointsAwarded = isCorrect ? computeScore(q, elapsedSec) : 0;
+
+      let bonus = 0;
+      if (isCorrect) {
+        player.streak += 1;
+        bonus = streakBonus(player.streak);
+      } else {
+        player.streak = 0;
+      }
+      const pointsAwarded = isCorrect ? computeScore(q, elapsedSec) + bonus : 0;
 
       player.currentAnswer = { optionIndex, answeredAt: Date.now(), isCorrect, pointsAwarded };
       player.score += pointsAwarded;
 
-      ack?.({ ok: true, isCorrect, pointsAwarded, totalScore: player.score });
+      ack?.({ ok: true, isCorrect, pointsAwarded, totalScore: player.score, streak: player.streak, streakBonus: bonus });
 
       const players = Object.values(room.players);
       const answered = players.filter((p) => p.currentAnswer !== null).length;

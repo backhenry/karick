@@ -29,6 +29,7 @@ export function useHostSocket() {
   const [reveal, setReveal] = useState<{
     correctIndex: number;
     correctText: string;
+    distribution: number[];
     leaderboard: LeaderboardRow[];
   } | null>(null);
   const [podium, setPodium] = useState<LeaderboardRow[]>([]);

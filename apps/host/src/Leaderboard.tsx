@@ -24,7 +24,7 @@ function Bar({ row, pct }: { row: LeaderboardRow; pct: number }) {
       <div className="relative flex items-center justify-between">
         <span className="flex items-center gap-3">
           <RankDelta delta={row.rankDelta} />
-          {row.rank}. {row.nickname}
+          {row.rank}. <span className="text-2xl">{row.avatar}</span> {row.nickname}
         </span>
         <span className="flex items-baseline gap-3">
           {row.gained ? (

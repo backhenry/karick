@@ -1,8 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { OPTION_COLORS, OPTION_SHAPES, MAX_NICKNAME_LENGTH } from '@karick/shared';
+import { OPTION_COLORS, OPTION_SHAPES, MAX_NICKNAME_LENGTH, AVATARS } from '@karick/shared';
 import { usePlayerSocket } from './hooks/usePlayerSocket.js';
 import { TimerBar } from './TimerBar.js';
 import { sfx } from './lib/sound.js';
+
+const randomAvatar = () => AVATARS[Math.floor(Math.random() * AVATARS.length)];
 
 function Center({ children }: { children: ReactNode }) {
   return (
@@ -14,8 +16,9 @@ function Center({ children }: { children: ReactNode }) {
 
 export function App() {
   const { screen, error, question, feedback, reveal, join, answer } = usePlayerSocket();
-  const [pin, setPin] = useState('');
+  const [pin, setPin] = useState(() => new URLSearchParams(window.location.search).get('pin') ?? '');
   const [nickname, setNickname] = useState('');
+  const [avatar, setAvatar] = useState(randomAvatar);
   const [expired, setExpired] = useState(false);
 
   // Reinicia o "expirado" a cada nova pergunta.
@@ -41,7 +44,7 @@ export function App() {
         className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-3 p-6"
         onSubmit={(e) => {
           e.preventDefault();
-          join(pin, nickname);
+          join(pin, nickname, avatar);
         }}
       >
         <h1 className="mb-4 text-center text-4xl font-black text-indigo-600">Karick</h1>
@@ -59,8 +62,23 @@ export function App() {
           maxLength={MAX_NICKNAME_LENGTH}
           className="rounded-lg border p-4 text-center text-xl"
         />
+
+        <p className="text-center text-sm text-slate-500">Escolha seu avatar</p>
+        <div className="grid grid-cols-8 gap-1">
+          {AVATARS.map((a) => (
+            <button
+              type="button"
+              key={a}
+              onClick={() => setAvatar(a)}
+              className={`rounded-lg p-1 text-2xl ${a === avatar ? 'bg-indigo-100 ring-2 ring-indigo-500' : 'bg-slate-100'}`}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+
         <button className="rounded-lg bg-indigo-600 p-4 text-lg font-bold text-white active:scale-95">
-          Entrar
+          Entrar como {avatar}
         </button>
         {error && <p className="text-center text-red-600">{error}</p>}
       </form>
@@ -136,6 +154,12 @@ export function App() {
         )}
 
         <p className="text-2xl font-bold">{gained > 0 ? `+${gained} pontos` : 'sem pontos'}</p>
+        {feedback && feedback.streak > 1 && (
+          <p className="rounded-full bg-black/20 px-4 py-1 text-lg font-bold">
+            🔥 {feedback.streak} seguidas!
+            {feedback.streakBonus > 0 && <span className="opacity-90"> (+{feedback.streakBonus} bônus)</span>}
+          </p>
+        )}
         {total !== undefined && (
           <p className="text-lg opacity-90">
             Total: <b>{total} pts</b>

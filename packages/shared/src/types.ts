@@ -65,6 +65,10 @@ export interface Player {
   socketId: string;
   nickname: string;
   score: number;
+  /** Emoji escolhido pelo jogador. */
+  avatar: string;
+  /** Acertos consecutivos (para o bônus de sequência). */
+  streak: number;
   /** Resposta da pergunta atual; resetada a cada nova pergunta. */
   currentAnswer: PlayerAnswer | null;
   /** Posição no ranking na última revelação (para calcular a variação). */
@@ -88,12 +92,14 @@ export interface GameRoom {
 export interface PublicPlayer {
   nickname: string;
   score: number;
+  avatar?: string;
 }
 
 export interface LeaderboardRow {
   rank: number;
   nickname: string;
   score: number;
+  avatar?: string;
   /** Pontos ganhos na pergunta que acabou de ser revelada. */
   gained?: number;
   /** Variação de posição vs. rodada anterior (positivo = subiu; undefined = 1ª rodada). */
@@ -124,4 +130,8 @@ export interface AnswerResult {
   isCorrect: boolean;
   pointsAwarded: number;
   totalScore: number;
+  /** Acertos consecutivos após esta resposta (0 se errou). */
+  streak: number;
+  /** Parte de `pointsAwarded` que veio do bônus de sequência. */
+  streakBonus: number;
 }
