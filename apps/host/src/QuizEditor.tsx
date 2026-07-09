@@ -11,7 +11,7 @@ import {
   parseQuizImport,
   normalizeTags,
 } from '@karick/shared';
-import { emptyQuestion, exampleQuiz } from './lib/quizStorage.js';
+import { emptyQuestion, exampleQuiz, trueFalseQuestion } from './lib/quizStorage.js';
 import { api } from './lib/api.js';
 import { QuizPreview } from './QuizPreview.js';
 
@@ -357,12 +357,20 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
         ))}
       </div>
 
-      <button
-        onClick={() => update((d) => d.questions.push(emptyQuestion()))}
-        className="mt-6 w-full rounded-xl border-2 border-dashed border-white/20 py-4 text-white/60 hover:border-white/40 hover:text-white"
-      >
-        + Adicionar pergunta
-      </button>
+      <div className="mt-6 flex gap-3">
+        <button
+          onClick={() => update((d) => d.questions.push(emptyQuestion()))}
+          className="flex-1 rounded-xl border-2 border-dashed border-white/20 py-4 text-white/60 hover:border-white/40 hover:text-white"
+        >
+          + Adicionar pergunta
+        </button>
+        <button
+          onClick={() => update((d) => d.questions.push(trueFalseQuestion()))}
+          className="flex-1 rounded-xl border-2 border-dashed border-white/20 py-4 text-white/60 hover:border-white/40 hover:text-white"
+        >
+          + Verdadeiro / Falso
+        </button>
+      </div>
 
       {error && <p className="mt-4 rounded-lg bg-red-500/20 p-3 text-center text-red-300">{error}</p>}
       {savedMsg && <p className="mt-4 rounded-lg bg-green-500/20 p-3 text-center text-green-300">{savedMsg}</p>}

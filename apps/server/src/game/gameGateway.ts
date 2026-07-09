@@ -127,13 +127,22 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     if (room.status !== 'QUESTION') return; // já revelada
     room.status = 'REVEAL';
     const q = currentQuestion(room);
+    const distribution = q ? buildDistribution(room, q.options.length) : [];
     const payload = {
       correctIndex: q ? q.correctIndex : -1,
       correctText: q ? q.options[q.correctIndex] : '',
-      distribution: q ? buildDistribution(room, q.options.length) : [],
+      distribution,
       leaderboard: buildRevealLeaderboard(room),
     };
     room.lastReveal = payload;
+    if (q) {
+      room.stats.push({
+        text: q.text,
+        correctCount: distribution[q.correctIndex] ?? 0,
+        answered: distribution.reduce((a, b) => a + b, 0),
+        total: Object.keys(room.players).length,
+      });
+    }
     io.to(room.pin).emit('game:reveal', payload);
   }
 
@@ -141,7 +150,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     clearRoomTimer(room.pin);
     room.status = 'FINISHED';
     const leaderboard = buildLeaderboard(room);
-    io.to(room.pin).emit('game:over', { podium: leaderboard.slice(0, 3) });
+    io.to(room.pin).emit('game:over', { podium: leaderboard.slice(0, 3), stats: room.stats });
 
     // Registra a partida no histórico (best-effort — não derruba o jogo se falhar).
     if (leaderboard.length > 0) {
@@ -166,6 +175,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         currentQuestionIndex: -1,
         questionStartedAt: null,
         questionEndsAt: null,
+        stats: [],
         players: {},
       };
       store.create(room);

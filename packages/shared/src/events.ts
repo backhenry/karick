@@ -10,6 +10,7 @@ import type {
   LeaderboardRow,
   AnswerResult,
   QuizDraft,
+  QuestionStat,
 } from './types.js';
 
 /** Callback de confirmação (ACK) padrão dos eventos cliente→servidor. */
@@ -32,7 +33,7 @@ export interface ServerToClientEvents {
     distribution: number[];
     leaderboard: LeaderboardRow[];
   }) => void;
-  'game:over': (data: { podium: LeaderboardRow[] }) => void;
+  'game:over': (data: { podium: LeaderboardRow[]; stats: QuestionStat[] }) => void;
   'game:hostLeft': () => void;
   /** Tempo restante mudou (ex.: host adicionou tempo) — clientes re-sincronizam o cronômetro. */
   'game:timer': (data: { remainingSec: number }) => void;

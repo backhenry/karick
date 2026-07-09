@@ -1,11 +1,14 @@
 import { useState, type ReactNode } from 'react';
-import { OPTION_COLORS, OPTION_SHAPES, type QuizDraft } from '@karick/shared';
+import { OPTION_COLORS, OPTION_SHAPES, type QuizDraft, type QuestionStat } from '@karick/shared';
+
+const pct = (s: QuestionStat) => (s.answered > 0 ? Math.round((s.correctCount / s.answered) * 100) : 0);
 import { useHostSocket } from './hooks/useHostSocket.js';
 import { QuizEditor } from './QuizEditor.js';
 import { Library } from './Library.js';
 import { TimerBar } from './TimerBar.js';
 import { Leaderboard } from './Leaderboard.js';
 import { QRCodeView } from './QRCode.js';
+import { Podium } from './Podium.js';
 import { emptyDraft } from './lib/quizStorage.js';
 
 type PreGameView =
@@ -195,24 +198,53 @@ export function App() {
     );
   }
 
-  // ─── OVER: pódio final ───
-  if (g.phase === 'OVER')
+  // ─── OVER: pódio animado + estatísticas ───
+  if (g.phase === 'OVER') {
+    const hardest = g.stats.length
+      ? g.stats.reduce((worst, s) =>
+          pct(s) < pct(worst) ? s : worst,
+        )
+      : null;
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-slate-900 text-white">
-        <h1 className="text-6xl font-black">🏆 Pódio</h1>
-        {g.podium.map((r) => (
-          <div key={r.rank} className="text-3xl">
-            {['🥇', '🥈', '🥉'][r.rank - 1]} {r.nickname} — {r.score} pts
+      <div className="flex min-h-screen flex-col items-center gap-8 bg-slate-900 py-10 text-white">
+        <h1 className="text-5xl font-black">🏆 Pódio</h1>
+        <Podium top={g.podium} />
+
+        {g.stats.length > 0 && (
+          <div className="w-full max-w-2xl px-6">
+            <h2 className="mb-3 text-center text-2xl font-bold text-white/80">Desempenho por pergunta</h2>
+            <ul className="space-y-2">
+              {g.stats.map((s, i) => {
+                const p = pct(s);
+                return (
+                  <li key={i} className="rounded-lg bg-white/5 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="truncate">
+                        {i + 1}. {s.text}
+                        {s === hardest && <span className="ml-2 rounded bg-red-500/30 px-2 py-0.5 text-xs text-red-200">mais difícil</span>}
+                      </span>
+                      <span className="shrink-0 font-bold">{p}%</span>
+                    </div>
+                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                      <div className="h-full bg-green-500" style={{ width: `${p}%` }} />
+                    </div>
+                    <p className="mt-1 text-xs text-white/40">{s.correctCount} de {s.answered} acertaram</p>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-        ))}
+        )}
+
         <button
           onClick={() => location.reload()}
-          className="mt-6 rounded-xl bg-white/10 px-8 py-3 text-xl hover:bg-white/20"
+          className="rounded-xl bg-white/10 px-8 py-3 text-xl hover:bg-white/20"
         >
           Novo jogo
         </button>
       </div>
     );
+  }
 
   return <Screen dark>Carregando…</Screen>;
 }

@@ -7,6 +7,7 @@ import type {
   LeaderboardRow,
   PublicPlayer,
   QuizDraft,
+  QuestionStat,
 } from '@karick/shared';
 import { sfx } from '../lib/sound.js';
 
@@ -34,6 +35,7 @@ export function useHostSocket() {
     leaderboard: LeaderboardRow[];
   } | null>(null);
   const [podium, setPodium] = useState<LeaderboardRow[]>([]);
+  const [stats, setStats] = useState<QuestionStat[]>([]);
 
   useEffect(() => {
     const socket: ClientSocket = io(SERVER_URL);
@@ -59,8 +61,9 @@ export function useHostSocket() {
       setPhase('REVEAL');
       sfx.reveal();
     });
-    socket.on('game:over', ({ podium }) => {
+    socket.on('game:over', ({ podium, stats }) => {
       setPodium(podium);
+      setStats(stats);
       setPhase('OVER');
       sfx.over();
     });
@@ -95,6 +98,7 @@ export function useHostSocket() {
     timer,
     reveal,
     podium,
+    stats,
     createRoom,
     start: () => socketRef.current?.emit('host:startGame'),
     next: () => socketRef.current?.emit('host:nextQuestion'),

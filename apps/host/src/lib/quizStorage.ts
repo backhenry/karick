@@ -11,6 +11,16 @@ export function emptyQuestion(): Question {
   };
 }
 
+export function trueFalseQuestion(): Question {
+  return {
+    text: '',
+    options: ['Verdadeiro', 'Falso'],
+    correctIndex: 0,
+    timeLimitSec: DEFAULT_TIME_LIMIT,
+    points: DEFAULT_POINTS,
+  };
+}
+
 export function emptyDraft(): QuizDraft {
   return { title: '', questions: [emptyQuestion()] };
 }

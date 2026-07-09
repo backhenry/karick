@@ -48,6 +48,14 @@ export interface QuizSummary {
   updatedAt: string; // ISO
 }
 
+/** Estatística de uma pergunta (mostrada ao fim do jogo). */
+export interface QuestionStat {
+  text: string;
+  correctCount: number;
+  answered: number;
+  total: number;
+}
+
 /** Uma partida registrada no histórico. */
 export interface GameHistoryEntry {
   id: string;
@@ -95,6 +103,8 @@ export interface GameRoom {
   questionEndsAt: number | null;
   /** Última revelação (para re-sincronizar quem reconecta durante o REVEAL). */
   lastReveal?: { correctIndex: number; correctText: string; distribution: number[]; leaderboard: LeaderboardRow[] };
+  /** Estatística acumulada por pergunta revelada. */
+  stats: QuestionStat[];
   players: Record<string, Player>;
 }
 
