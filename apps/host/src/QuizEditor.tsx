@@ -10,6 +10,7 @@ import {
   validateQuiz,
   parseQuizImport,
   normalizeTags,
+  imageUrlFromQuery,
 } from '@karick/shared';
 import { emptyQuestion, exampleQuiz, trueFalseQuestion } from './lib/quizStorage.js';
 import { api } from './lib/api.js';
@@ -17,15 +18,20 @@ import { QuizPreview } from './QuizPreview.js';
 
 const AI_PROMPT = `Crie um quiz no formato JSON EXATO abaixo (responda só com o JSON, sem texto extra).
 Regras: "correctIndex" é o índice 0-based da opção correta; use 2 a 4 opções por pergunta;
-"timeLimitSec" e "points" são opcionais. Tema do quiz: [DESCREVA O TEMA] com [N] perguntas.
+"timeLimitSec" e "points" são opcionais.
+Para imagens, NÃO invente URLs: use "imageQuery" com 1 a 3 palavras-chave (de preferência
+em inglês) que descrevam uma imagem relevante — o app gera a imagem a partir disso.
+(Se você tiver uma URL de imagem real e pública, pode usar "imageUrl" no lugar.)
+Tema do quiz: [DESCREVA O TEMA] com [N] perguntas.
 
 {
   "title": "Título do quiz",
   "questions": [
     {
-      "text": "Enunciado?",
-      "options": ["Opção A", "Opção B", "Opção C", "Opção D"],
+      "text": "Qual planeta é conhecido como Planeta Vermelho?",
+      "options": ["Vênus", "Marte", "Júpiter", "Saturno"],
       "correctIndex": 1,
+      "imageQuery": "mars planet",
       "timeLimitSec": 20,
       "points": 1000
     }
@@ -276,6 +282,17 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                 placeholder="URL de imagem (opcional) — https://…"
                 className="flex-1 rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
               />
+              <button
+                type="button"
+                title="Gerar imagem a partir de palavras-chave"
+                onClick={() => {
+                  const kw = window.prompt('Palavras-chave da imagem (ex.: mars planet):');
+                  if (kw && kw.trim()) patchQuestion(qi, (qq) => (qq.imageUrl = imageUrlFromQuery(kw)));
+                }}
+                className="shrink-0 rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20"
+              >
+                🔎 por palavra-chave
+              </button>
               {q.imageUrl && /^https?:\/\//i.test(q.imageUrl) && (
                 <img
                   src={q.imageUrl}

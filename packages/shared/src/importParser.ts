@@ -87,14 +87,23 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
       return err(n, 'informe a resposta certa via "correctIndex" (0-based) ou "correctAnswer" (texto da opção).');
     }
 
-    const image = q.imageUrl ?? q.image ?? q.imagem;
+    // Imagem: URL direta tem prioridade; senão, palavras-chave viram uma URL real.
+    const explicitImage = q.imageUrl ?? q.image ?? q.imagem;
+    const imageQuery = q.imageQuery ?? q.imagemBusca ?? q.imageKeywords ?? q.busca;
+    let imageUrl: string | undefined;
+    if (typeof explicitImage === 'string' && explicitImage.trim()) {
+      imageUrl = explicitImage.trim();
+    } else if (typeof imageQuery === 'string' && imageQuery.trim()) {
+      imageUrl = imageUrlFromQuery(imageQuery);
+    }
+
     questions.push({
       text: text.trim(),
       options: opts.map((o) => o.trim()),
       correctIndex,
       timeLimitSec: toNum(q.timeLimitSec ?? q.tempo ?? q.time, DEFAULT_TIME_LIMIT),
       points: toNum(q.points ?? q.pontos, DEFAULT_POINTS),
-      ...(typeof image === 'string' && image.trim() ? { imageUrl: image.trim() } : {}),
+      ...(imageUrl ? { imageUrl } : {}),
     });
   }
 
@@ -108,4 +117,22 @@ function toNum(v: unknown, fallback: number): number {
   if (typeof v === 'number' && Number.isFinite(v)) return v;
   if (typeof v === 'string' && v.trim() && Number.isFinite(Number(v))) return Number(v);
   return fallback;
+}
+
+/**
+ * Constrói uma URL de imagem REAL a partir de palavras-chave, via LoremFlickr
+ * (imagens Creative Commons do Flickr). O `lock` deriva das palavras para que a
+ * imagem seja a MESMA em todas as telas (Host, Player, reveal).
+ */
+export function imageUrlFromQuery(query: string): string {
+  const keywords = query
+    .trim()
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(',');
+  let hash = 0;
+  for (let i = 0; i < query.length; i++) hash = (hash * 31 + query.charCodeAt(i)) | 0;
+  const lock = Math.abs(hash) % 100000;
+  return `https://loremflickr.com/800/600/${encodeURIComponent(keywords)}?lock=${lock}`;
 }
