@@ -107,6 +107,22 @@ gerar perguntas com uma IA. Formato canônico:
 - O botão **Copiar prompt para IA** no editor coloca um prompt pronto na área
   de transferência.
 
+## Contas e login
+
+O painel do apresentador (`/host`) exige **login** (e-mail + senha). Cada usuário
+vê apenas a **própria** biblioteca de quizzes e histórico.
+
+- Senhas com hash **scrypt** (nativo do Node); sessão via **cookie HttpOnly
+  assinado (HMAC)**, `Secure` em produção, expira em 7 dias.
+- Requer `DATABASE_URL` (tabela `users`) para persistir contas; sem banco, roda
+  em memória (contas somem no restart).
+- Defina **`SESSION_SECRET`** (o `render.yaml` gera automaticamente). Sem ele,
+  um segredo efêmero é usado e as sessões caem a cada restart.
+- Login/cadastro têm rate limit (10/min por IP) contra força-bruta.
+
+> Quizzes criados antes do login ficam sem dono (`owner_id` nulo) e não
+> aparecem para nenhuma conta.
+
 ## Arquitetura
 
 - **Servidor autoritativo**: clientes só emitem intenções; o servidor valida,

@@ -10,6 +10,7 @@ import { MAX_NICKNAME_LENGTH, validateQuiz } from '@karick/shared';
 import { generatePin, type RoomStore } from '../store/roomStore.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
 import { RateLimiter } from '../util/rateLimiter.js';
+import { userIdFromCookieHeader } from '../auth/session.js';
 import {
   allPlayersAnswered,
   buildDistribution,
@@ -161,7 +162,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     // Registra a partida no histórico (best-effort — não derruba o jogo se falhar).
     if (leaderboard.length > 0) {
       history
-        .record({ quizTitle: room.quiz.title, pin: room.pin, players: leaderboard })
+        .record({ quizTitle: room.quiz.title, pin: room.pin, players: leaderboard, ownerId: room.hostUserId })
         .catch((err) => console.error('Falha ao gravar histórico:', err));
     }
   }
@@ -179,6 +180,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       const room: GameRoom = {
         pin,
         hostSocketId: socket.id,
+        hostUserId: userIdFromCookieHeader(socket.handshake.headers.cookie),
         quiz: { id: pin, title: quiz.title.trim(), questions: quiz.questions },
         status: 'LOBBY',
         currentQuestionIndex: -1,

@@ -1,12 +1,12 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { validateQuiz } from '@karick/shared';
 import type { QuizRepository } from '../store/quizRepository.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
+import { requireAuth } from '../auth/authMiddleware.js';
 
 /**
- * API REST da biblioteca de quizzes e do histórico de partidas.
- * `dbEnabled` indica se há Postgres real por trás (senão, é em memória e não
- * persiste entre reinícios) — o front usa isso para avisar o usuário.
+ * API REST da biblioteca de quizzes e do histórico — tudo escopado ao usuário
+ * autenticado (res.locals.userId, injetado por requireAuth).
  */
 export function createApiRouter(
   quizzes: QuizRepository,
@@ -17,10 +17,13 @@ export function createApiRouter(
 
   r.get('/status', (_req, res) => res.json({ dbEnabled }));
 
-  // ─── Biblioteca de quizzes ───
+  // Daqui em diante exige login.
+  r.use(requireAuth);
+  const uid = (res: Response): string => res.locals.userId;
+
   r.get('/quizzes', async (_req, res, next) => {
     try {
-      res.json(await quizzes.list());
+      res.json(await quizzes.list(uid(res)));
     } catch (e) {
       next(e);
     }
@@ -28,7 +31,7 @@ export function createApiRouter(
 
   r.get('/quizzes/:id', async (req, res, next) => {
     try {
-      const quiz = await quizzes.get(req.params.id);
+      const quiz = await quizzes.get(req.params.id, uid(res));
       if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado' });
       res.json(quiz);
     } catch (e) {
@@ -40,7 +43,7 @@ export function createApiRouter(
     try {
       const err = validateQuiz(req.body);
       if (err) return res.status(400).json({ error: err });
-      res.status(201).json(await quizzes.create(req.body));
+      res.status(201).json(await quizzes.create(req.body, uid(res)));
     } catch (e) {
       next(e);
     }
@@ -50,7 +53,7 @@ export function createApiRouter(
     try {
       const err = validateQuiz(req.body);
       if (err) return res.status(400).json({ error: err });
-      const updated = await quizzes.update(req.params.id, req.body);
+      const updated = await quizzes.update(req.params.id, req.body, uid(res));
       if (!updated) return res.status(404).json({ error: 'Quiz não encontrado' });
       res.json(updated);
     } catch (e) {
@@ -60,7 +63,7 @@ export function createApiRouter(
 
   r.delete('/quizzes/:id', async (req, res, next) => {
     try {
-      const ok = await quizzes.remove(req.params.id);
+      const ok = await quizzes.remove(req.params.id, uid(res));
       if (!ok) return res.status(404).json({ error: 'Quiz não encontrado' });
       res.status(204).end();
     } catch (e) {
@@ -68,10 +71,9 @@ export function createApiRouter(
     }
   });
 
-  // ─── Histórico ───
   r.get('/history', async (_req, res, next) => {
     try {
-      res.json(await history.recent());
+      res.json(await history.recent(uid(res)));
     } catch (e) {
       next(e);
     }

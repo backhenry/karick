@@ -6,9 +6,11 @@ interface Props {
   onNew: () => void;
   onEdit: (id: string, draft: QuizDraft) => void;
   onHost: (draft: QuizDraft) => void;
+  userEmail?: string;
+  onLogout?: () => void;
 }
 
-export function Library({ onNew, onEdit, onHost }: Props) {
+export function Library({ onNew, onEdit, onHost, userEmail, onLogout }: Props) {
   const [quizzes, setQuizzes] = useState<QuizSummary[] | null>(null);
   const [history, setHistory] = useState<GameHistoryEntry[]>([]);
   const [dbEnabled, setDbEnabled] = useState(true);
@@ -90,11 +92,23 @@ export function Library({ onNew, onEdit, onHost }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl p-6 text-slate-100">
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-4xl font-black text-indigo-400">Karick</h1>
-        <button onClick={onNew} className="rounded-lg bg-green-500 px-5 py-3 font-bold text-white hover:bg-green-400">
-          + Novo quiz
-        </button>
+        <div className="flex items-center gap-3">
+          {userEmail && (
+            <span className="hidden text-sm text-white/50 sm:inline" title={userEmail}>
+              {userEmail}
+            </span>
+          )}
+          {onLogout && (
+            <button onClick={onLogout} className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
+              Sair
+            </button>
+          )}
+          <button onClick={onNew} className="rounded-lg bg-green-500 px-5 py-3 font-bold text-white hover:bg-green-400">
+            + Novo quiz
+          </button>
+        </div>
       </header>
 
       {!dbEnabled && (

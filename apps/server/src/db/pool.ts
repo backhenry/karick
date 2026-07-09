@@ -37,5 +37,16 @@ export async function initSchema(pool: pg.Pool): Promise<void> {
       played_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_game_history_played_at ON game_history (played_at DESC);
+
+    CREATE TABLE IF NOT EXISTS users (
+      id            TEXT PRIMARY KEY,
+      email         TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    ALTER TABLE quizzes      ADD COLUMN IF NOT EXISTS owner_id TEXT;
+    ALTER TABLE game_history ADD COLUMN IF NOT EXISTS owner_id TEXT;
+    CREATE INDEX IF NOT EXISTS idx_quizzes_owner ON quizzes (owner_id);
   `);
 }

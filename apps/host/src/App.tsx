@@ -1,15 +1,17 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { OPTION_COLORS, OPTION_SHAPES, type QuizDraft, type QuestionStat } from '@karick/shared';
-
-const pct = (s: QuestionStat) => (s.answered > 0 ? Math.round((s.correctCount / s.answered) * 100) : 0);
 import { useHostSocket } from './hooks/useHostSocket.js';
 import { QuizEditor } from './QuizEditor.js';
 import { Library } from './Library.js';
+import { Auth } from './Auth.js';
+import { api, type AuthUser } from './lib/api.js';
 import { TimerBar } from './TimerBar.js';
 import { Leaderboard } from './Leaderboard.js';
 import { QRCodeView } from './QRCode.js';
 import { Podium } from './Podium.js';
 import { emptyDraft } from './lib/quizStorage.js';
+
+const pct = (s: QuestionStat) => (s.answered > 0 ? Math.round((s.correctCount / s.answered) * 100) : 0);
 
 type PreGameView =
   | { screen: 'LIBRARY' }
@@ -18,9 +20,23 @@ type PreGameView =
 export function App() {
   const g = useHostSocket();
   const [view, setView] = useState<PreGameView>({ screen: 'LIBRARY' });
+  const [authUser, setAuthUser] = useState<AuthUser | null | 'loading'>('loading');
 
-  // ─── PRÉ-JOGO: biblioteca ou editor ───
+  useEffect(() => {
+    api.me().then(setAuthUser).catch(() => setAuthUser(null));
+  }, []);
+
+  const logout = async () => {
+    await api.logout().catch(() => {});
+    setAuthUser(null);
+    setView({ screen: 'LIBRARY' });
+  };
+
+  // ─── PRÉ-JOGO: exige login, depois biblioteca ou editor ───
   if (g.phase === 'PREGAME') {
+    if (authUser === 'loading')
+      return <Screen dark>Carregando…</Screen>;
+    if (authUser === null) return <Auth onAuthed={setAuthUser} />;
     if (view.screen === 'EDITOR')
       return (
         <div className="min-h-screen bg-slate-900">
@@ -37,6 +53,8 @@ export function App() {
     return (
       <div className="min-h-screen bg-slate-900">
         <Library
+          userEmail={authUser.email}
+          onLogout={logout}
           onNew={() => setView({ screen: 'EDITOR', draft: emptyDraft(), quizId: null })}
           onEdit={(quizId, draft) => setView({ screen: 'EDITOR', draft, quizId })}
           onHost={(draft) => g.createRoom(draft)}

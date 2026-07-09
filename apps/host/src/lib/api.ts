@@ -4,19 +4,36 @@ const API_BASE =
   (import.meta.env.VITE_SERVER_URL ??
     (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin)) + '/api';
 
+export class AuthError extends Error {}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(API_BASE + path, {
     ...init,
+    credentials: 'include', // envia/recebe o cookie de sessão
     headers: { 'content-type': 'application/json', ...init?.headers },
   });
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? `Erro ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 401) throw new AuthError(body.error ?? 'Não autenticado');
+    throw new Error(body.error ?? `Erro ${res.status}`);
+  }
   return body as T;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
 }
 
 export const api = {
   status: () => req<{ dbEnabled: boolean }>('/status'),
+  me: () => req<AuthUser>('/auth/me'),
+  signup: (email: string, password: string) =>
+    req<AuthUser>('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  login: (email: string, password: string) =>
+    req<AuthUser>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  logout: () => req<void>('/auth/logout', { method: 'POST' }),
   listQuizzes: () => req<QuizSummary[]>('/quizzes'),
   getQuiz: (id: string) => req<SavedQuiz>(`/quizzes/${id}`),
   createQuiz: (draft: QuizDraft) => req<SavedQuiz>('/quizzes', { method: 'POST', body: JSON.stringify(draft) }),

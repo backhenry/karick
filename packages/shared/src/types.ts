@@ -94,6 +94,8 @@ export interface Player {
 export interface GameRoom {
   pin: string;
   hostSocketId: string;
+  /** Usuário dono da sala (do cookie de sessão do host), para o histórico. */
+  hostUserId: string | null;
   quiz: Quiz;
   status: GameStatus;
   currentQuestionIndex: number;

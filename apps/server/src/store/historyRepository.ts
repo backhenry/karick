@@ -1,9 +1,16 @@
 import type pg from 'pg';
 import type { GameHistoryEntry, LeaderboardRow } from '@karick/shared';
 
+interface RecordInput {
+  quizTitle: string;
+  pin: string;
+  players: LeaderboardRow[];
+  ownerId: string | null;
+}
+
 export interface HistoryRepository {
-  record(entry: { quizTitle: string; pin: string; players: LeaderboardRow[] }): Promise<void>;
-  recent(limit?: number): Promise<GameHistoryEntry[]>;
+  record(entry: RecordInput): Promise<void>;
+  recent(ownerId: string, limit?: number): Promise<GameHistoryEntry[]>;
 }
 
 const genId = () => 'gh_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -11,19 +18,19 @@ const genId = () => 'gh_' + Math.random().toString(36).slice(2, 10) + Date.now()
 export class PostgresHistoryRepository implements HistoryRepository {
   constructor(private pool: pg.Pool) {}
 
-  async record(entry: { quizTitle: string; pin: string; players: LeaderboardRow[] }): Promise<void> {
+  async record(entry: RecordInput): Promise<void> {
     await this.pool.query(
-      `INSERT INTO game_history (id, quiz_title, pin, players, played_at)
-       VALUES ($1, $2, $3, $4, now())`,
-      [genId(), entry.quizTitle, entry.pin, JSON.stringify(entry.players)],
+      `INSERT INTO game_history (id, quiz_title, pin, players, owner_id, played_at)
+       VALUES ($1, $2, $3, $4, $5, now())`,
+      [genId(), entry.quizTitle, entry.pin, JSON.stringify(entry.players), entry.ownerId],
     );
   }
 
-  async recent(limit = 20): Promise<GameHistoryEntry[]> {
+  async recent(ownerId: string, limit = 20): Promise<GameHistoryEntry[]> {
     const { rows } = await this.pool.query(
       `SELECT id, quiz_title, pin, players, played_at
-       FROM game_history ORDER BY played_at DESC LIMIT $1`,
-      [limit],
+       FROM game_history WHERE owner_id = $1 ORDER BY played_at DESC LIMIT $2`,
+      [ownerId, limit],
     );
     return rows.map((r) => ({
       id: r.id,
@@ -36,13 +43,20 @@ export class PostgresHistoryRepository implements HistoryRepository {
 }
 
 export class InMemoryHistoryRepository implements HistoryRepository {
-  private entries: GameHistoryEntry[] = [];
+  private entries: (GameHistoryEntry & { ownerId: string | null })[] = [];
 
-  async record(entry: { quizTitle: string; pin: string; players: LeaderboardRow[] }): Promise<void> {
-    this.entries.unshift({ id: genId(), ...entry, playedAt: new Date().toISOString() });
-    this.entries = this.entries.slice(0, 100);
+  async record(entry: RecordInput): Promise<void> {
+    this.entries.unshift({
+      id: genId(),
+      quizTitle: entry.quizTitle,
+      pin: entry.pin,
+      players: entry.players,
+      ownerId: entry.ownerId,
+      playedAt: new Date().toISOString(),
+    });
+    this.entries = this.entries.slice(0, 200);
   }
-  async recent(limit = 20): Promise<GameHistoryEntry[]> {
-    return this.entries.slice(0, limit);
+  async recent(ownerId: string, limit = 20): Promise<GameHistoryEntry[]> {
+    return this.entries.filter((e) => e.ownerId === ownerId).slice(0, limit);
   }
 }

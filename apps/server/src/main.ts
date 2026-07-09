@@ -20,6 +20,8 @@ import {
 } from './store/historyRepository.js';
 import { createApiRouter } from './api/apiRouter.js';
 import { RateLimiter } from './util/rateLimiter.js';
+import { InMemoryUserRepository, PostgresUserRepository, type UserRepository } from './store/userRepository.js';
+import { createAuthRouter } from './auth/authRouter.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? '*';
@@ -34,24 +36,29 @@ const FRONTENDS_BUILT = existsSync(PLAYER_DIST) && existsSync(HOST_DIST);
 const pool = createPool();
 let quizRepo: QuizRepository;
 let historyRepo: HistoryRepository;
+let userRepo: UserRepository;
+let dbEnabled = false;
 
 if (pool) {
   try {
     await initSchema(pool);
     quizRepo = new PostgresQuizRepository(pool);
     historyRepo = new PostgresHistoryRepository(pool);
-    console.log('🗄️  Postgres conectado (biblioteca e histórico persistentes)');
+    userRepo = new PostgresUserRepository(pool);
+    dbEnabled = true;
+    console.log('🗄️  Postgres conectado (biblioteca, histórico e contas persistentes)');
   } catch (err) {
     console.error('⚠️  Falha ao conectar no Postgres, caindo para memória:', err);
     quizRepo = new InMemoryQuizRepository();
     historyRepo = new InMemoryHistoryRepository();
+    userRepo = new InMemoryUserRepository();
   }
 } else {
   quizRepo = new InMemoryQuizRepository();
   historyRepo = new InMemoryHistoryRepository();
+  userRepo = new InMemoryUserRepository();
   console.log('💾 Sem DATABASE_URL — usando repositório em memória (não persiste)');
 }
-const dbEnabled = !!pool;
 
 // ─── HTTP / Express ───
 const app = express();
@@ -67,6 +74,7 @@ app.use('/api', (req, res, next) => {
   if (!apiLimiter.allow(ip)) return res.status(429).json({ error: 'Muitas requisições, tente novamente em instantes.' });
   next();
 });
+app.use('/api/auth', createAuthRouter(userRepo));
 app.use('/api', createApiRouter(quizRepo, historyRepo, dbEnabled));
 
 if (FRONTENDS_BUILT) {
