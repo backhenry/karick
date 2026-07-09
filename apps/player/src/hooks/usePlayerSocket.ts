@@ -165,6 +165,11 @@ export function usePlayerSocket() {
 
   const react = (emoji: string) => socketRef.current?.emit('player:react', { emoji });
 
+  const usePowerup = (type: 'fiftyFifty' | 'double' | 'freeze') =>
+    new Promise<{ ok: boolean; keep?: number[] }>((resolve) => {
+      socketRef.current?.emit('player:usePowerup', { type }, (res) => resolve({ ok: res.ok, keep: res.keep }));
+    });
+
   const answer = (optionIndex: number) => {
     setScreen('ANSWERED');
     socketRef.current?.emit('player:submitAnswer', { optionIndex }, (res) => {
@@ -180,5 +185,5 @@ export function usePlayerSocket() {
     });
   };
 
-  return { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, team: joinParamsRef.current?.team };
+  return { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, usePowerup, team: joinParamsRef.current?.team };
 }

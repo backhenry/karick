@@ -5,6 +5,8 @@
 
 export type GameStatus = 'LOBBY' | 'QUESTION' | 'REVEAL' | 'FINISHED';
 
+export type PowerupType = 'fiftyFifty' | 'double' | 'freeze';
+
 export interface Question {
   text: string;
   options: string[];
@@ -89,6 +91,12 @@ export interface Player {
   connected: boolean;
   /** Equipe do jogador (só no modo em equipes). */
   team?: string;
+  /** Power-ups ainda disponíveis (um uso cada por partida). */
+  powerups: { fiftyFifty: boolean; double: boolean; freeze: boolean };
+  /** 50/50 acionado na pergunta atual (apenas exibição). */
+  fiftyUsedQ?: boolean;
+  /** Power-up de pontuação ativo na pergunta atual. */
+  scoringPowerupQ?: 'double' | 'freeze' | null;
   /** Resposta da pergunta atual; resetada a cada nova pergunta. */
   currentAnswer: PlayerAnswer | null;
   /** Posição no ranking na última revelação (para calcular a variação). */

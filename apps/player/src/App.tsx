@@ -46,12 +46,33 @@ function ReactionBar({ onReact }: { onReact: (emoji: string) => void }) {
 }
 
 export function App() {
-  const { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, team } = usePlayerSocket();
+  const { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, usePowerup, team } = usePlayerSocket();
   const [pin, setPin] = useState(() => new URLSearchParams(window.location.search).get('pin') ?? '');
   const [nickname, setNickname] = useState('');
   const [avatar, setAvatar] = useState(randomAvatar);
   const [expired, setExpired] = useState(false);
   const [teamOptions, setTeamOptions] = useState<string[] | null>(null);
+  const [powerups, setPowerups] = useState({ fiftyFifty: true, double: true, freeze: true });
+  const [keep, setKeep] = useState<number[] | null>(null); // 50/50: opções a manter
+  const [activeScoring, setActiveScoring] = useState<'double' | 'freeze' | null>(null);
+
+  // Power-ups: disponibilidade reinicia por partida; efeitos reiniciam por pergunta.
+  useEffect(() => {
+    if (screen === 'LOBBY') setPowerups({ fiftyFifty: true, double: true, freeze: true });
+  }, [screen]);
+  useEffect(() => {
+    setKeep(null);
+    setActiveScoring(null);
+  }, [question?.index]);
+
+  const doPowerup = async (type: 'fiftyFifty' | 'double' | 'freeze') => {
+    const res = await usePowerup(type);
+    if (res.ok) {
+      setPowerups((p) => ({ ...p, [type]: false }));
+      if (type === 'fiftyFifty') setKeep(res.keep ?? null);
+      else setActiveScoring(type);
+    }
+  };
 
   // Reinicia o "expirado" a cada nova pergunta ou quando o tempo é estendido.
   useEffect(() => {
@@ -183,18 +204,43 @@ export function App() {
             Tempo esgotado ⏰
           </div>
         ) : (
-          <div className="grid flex-1 grid-cols-2 gap-3 p-3">
-            {Array.from({ length: question.optionsCount }).map((_, i) => (
+          <>
+            <div className="flex justify-center gap-2 px-3 pb-1">
               <button
-                key={i}
-                onClick={() => handleAnswer(i)}
-                className="flex items-center justify-center rounded-xl text-6xl text-white transition active:scale-95"
-                style={{ background: OPTION_COLORS[i] }}
+                onClick={() => doPowerup('fiftyFifty')}
+                disabled={!powerups.fiftyFifty || !!keep}
+                className="rounded-lg bg-slate-200 px-3 py-1 text-sm font-bold text-slate-700 disabled:opacity-40"
               >
-                {OPTION_SHAPES[i]}
+                50/50
               </button>
-            ))}
-          </div>
+              <button
+                onClick={() => doPowerup('double')}
+                disabled={!powerups.double || !!activeScoring}
+                className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'double' ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-700'}`}
+              >
+                2× pontos
+              </button>
+              <button
+                onClick={() => doPowerup('freeze')}
+                disabled={!powerups.freeze || !!activeScoring}
+                className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'freeze' ? 'bg-cyan-500 text-white' : 'bg-slate-200 text-slate-700'}`}
+              >
+                ⏱ congelar
+              </button>
+            </div>
+            <div className="grid flex-1 grid-cols-2 gap-3 p-3">
+              {(keep ?? Array.from({ length: question.optionsCount }, (_, i) => i)).map((i) => (
+                <button
+                  key={i}
+                  onClick={() => handleAnswer(i)}
+                  className="flex items-center justify-center rounded-xl text-6xl text-white transition active:scale-95"
+                  style={{ background: OPTION_COLORS[i] }}
+                >
+                  {OPTION_SHAPES[i]}
+                </button>
+              ))}
+            </div>
+          </>
         )}
       </div>
     );

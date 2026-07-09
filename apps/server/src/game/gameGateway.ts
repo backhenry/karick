@@ -103,7 +103,11 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       r.status = 'QUESTION';
       r.questionStartedAt = Date.now();
       r.questionEndsAt = Date.now() + q.timeLimitSec * 1000;
-      Object.values(r.players).forEach((p) => (p.currentAnswer = null));
+      Object.values(r.players).forEach((p) => {
+        p.currentAnswer = null;
+        p.fiftyUsedQ = false;
+        p.scoringPowerupQ = null;
+      });
     });
     if (!room) return;
     const q = currentQuestion(room);
@@ -265,8 +269,9 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
           avatar: chosenAvatar,
           streak: 0,
           connected: true,
-          currentAnswer: null,
+          powerups: { fiftyFifty: true, double: true, freeze: true },
           ...(r.teams.length > 0 ? { team } : {}),
+          currentAnswer: null,
         };
         outcome = 'new';
       });
@@ -375,7 +380,10 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         } else {
           p.streak = 0;
         }
-        const pointsAwarded = isCorrect ? computeScore(q, elapsedSec) + bonus : 0;
+        // Power-ups: freeze = pontuação de velocidade máxima; double = dobra o total.
+        const base = p.scoringPowerupQ === 'freeze' ? q.points : computeScore(q, elapsedSec);
+        let pointsAwarded = isCorrect ? base + bonus : 0;
+        if (isCorrect && p.scoringPowerupQ === 'double') pointsAwarded *= 2;
         p.currentAnswer = { optionIndex, answeredAt: Date.now(), isCorrect, pointsAwarded };
         p.score += pointsAwarded;
         result = { isCorrect, pointsAwarded, totalScore: p.score, streak: p.streak, streakBonus: bonus };
@@ -398,6 +406,42 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       if (!reactionLimiter.allow(socket.handshake.address)) return;
       if (!REACTIONS.includes(emoji as (typeof REACTIONS)[number])) return;
       io.to(pin).emit('game:reaction', { emoji });
+    });
+
+    // ─── PLAYER: usar power-up na pergunta atual ─────────
+    socket.on('player:usePowerup', async ({ type }, ack) => {
+      const pin = socket.data.pin ?? '';
+      const playerId = socket.data.playerId;
+      let outcome = 'ok' as 'ok' | 'invalid' | 'unavailable' | 'already' | 'answered';
+      let keep: number[] = [];
+      await store.update(pin, (r) => {
+        outcome = 'ok';
+        keep = [];
+        if (r.status !== 'QUESTION') return void (outcome = 'invalid');
+        const p = playerId ? r.players[playerId] : undefined;
+        if (!p) return void (outcome = 'invalid');
+        if (p.currentAnswer) return void (outcome = 'answered');
+        if (!p.powerups[type]) return void (outcome = 'unavailable');
+        const q = currentQuestion(r);
+        if (!q) return void (outcome = 'invalid');
+
+        if (type === 'fiftyFifty') {
+          p.powerups.fiftyFifty = false;
+          p.fiftyUsedQ = true;
+          const wrong = q.options.map((_, i) => i).filter((i) => i !== q.correctIndex);
+          const keepWrong = wrong[Math.floor(Math.random() * wrong.length)];
+          keep = [q.correctIndex, keepWrong].sort((a, b) => a - b);
+        } else {
+          if (p.scoringPowerupQ) return void (outcome = 'already'); // um power-up de pontuação por pergunta
+          p.powerups[type] = false;
+          p.scoringPowerupQ = type;
+        }
+      });
+      if (outcome === 'ok') ack?.({ ok: true, keep });
+      else if (outcome === 'unavailable') ack?.({ ok: false, error: 'Power-up já usado' });
+      else if (outcome === 'already') ack?.({ ok: false, error: 'Você já usou um power-up de pontuação nesta pergunta' });
+      else if (outcome === 'answered') ack?.({ ok: false, error: 'Você já respondeu' });
+      else ack?.({ ok: false, error: 'Indisponível agora' });
     });
 
     // ─── Desconexão ──────────────────────────────────────

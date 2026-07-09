@@ -12,6 +12,7 @@ import type {
   QuizDraft,
   QuestionStat,
   TeamRow,
+  PowerupType,
 } from './types.js';
 
 /** Callback de confirmação (ACK) padrão dos eventos cliente→servidor. */
@@ -72,6 +73,8 @@ export interface ClientToServerEvents {
   'player:submitAnswer': (payload: { optionIndex: number }, ack: Ack<AnswerResult>) => void;
   /** Jogador envia uma reação (emoji) que aparece na tela do Host. */
   'player:react': (payload: { emoji: string }) => void;
+  /** Jogador aciona um power-up na pergunta atual (50/50 devolve as opções a manter). */
+  'player:usePowerup': (payload: { type: PowerupType }, ack: Ack<{ keep: number[] }>) => void;
 }
 
 /** Dados anexados a cada socket no servidor. */
