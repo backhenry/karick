@@ -79,6 +79,16 @@ export function App() {
           resetKey={question.index}
           onExpire={() => setExpired(true)}
         />
+        {question.imageUrl && (
+          <div className="flex justify-center px-3 pb-1">
+            <img
+              src={question.imageUrl}
+              alt=""
+              className="max-h-[28vh] rounded-lg object-contain"
+              onError={(e) => (e.currentTarget.style.display = 'none')}
+            />
+          </div>
+        )}
         {expired ? (
           <div className="flex flex-1 items-center justify-center text-2xl text-slate-500">
             Tempo esgotado ⏰

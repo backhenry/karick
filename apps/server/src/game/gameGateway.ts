@@ -58,6 +58,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       options: q.options,
       timeLimitSec: q.timeLimitSec,
       correctIndex: q.correctIndex,
+      imageUrl: q.imageUrl,
     });
 
     Object.values(room.players).forEach((p) => {
@@ -66,6 +67,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         total: room.quiz.questions.length,
         optionsCount: q.options.length,
         timeLimitSec: q.timeLimitSec,
+        imageUrl: q.imageUrl,
       });
     });
 

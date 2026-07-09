@@ -13,6 +13,8 @@ export interface Question {
   timeLimitSec: number;
   /** Pontuação-base da pergunta; o valor final varia com a velocidade da resposta. */
   points: number;
+  /** URL http(s) de uma imagem opcional exibida com a pergunta. */
+  imageUrl?: string;
 }
 
 export interface Quiz {
@@ -106,6 +108,7 @@ export interface HostQuestionPayload {
   options: string[];
   timeLimitSec: number;
   correctIndex: number;
+  imageUrl?: string;
 }
 
 /** Pergunta como o PLAYER a vê (sem texto nem resposta — só os botões). */
@@ -114,6 +117,7 @@ export interface PlayerQuestionPayload {
   total: number;
   optionsCount: number;
   timeLimitSec: number;
+  imageUrl?: string;
 }
 
 export interface AnswerResult {

@@ -56,6 +56,21 @@ export function Library({ onNew, onEdit, onHost }: Props) {
 
   const fmt = (iso: string) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
+  const exportCsv = () => {
+    const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+    const header = ['Quiz', 'PIN', 'Data', 'Posição', 'Jogador', 'Pontos'];
+    const rows = history.flatMap((h) =>
+      h.players.map((p) => [h.quizTitle, h.pin, fmt(h.playedAt), p.rank, p.nickname, p.score].map(esc).join(',')),
+    );
+    const csv = '﻿' + [header.map(esc).join(','), ...rows].join('\r\n'); // BOM p/ acentos no Excel
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `karick-historico-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="mx-auto max-w-3xl p-6 text-slate-100">
       <header className="mb-6 flex items-center justify-between">
@@ -119,7 +134,12 @@ export function Library({ onNew, onEdit, onHost }: Props) {
 
       {history.length > 0 && (
         <>
-          <h2 className="mb-3 mt-8 text-lg font-bold text-white/70">Últimas partidas</h2>
+          <div className="mb-3 mt-8 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white/70">Últimas partidas</h2>
+            <button onClick={exportCsv} className="rounded bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
+              ⬇ Exportar CSV
+            </button>
+          </div>
           <ul className="space-y-2">
             {history.map((h) => (
               <li key={h.id} className="flex items-center justify-between rounded-lg bg-white/5 p-3 text-sm">

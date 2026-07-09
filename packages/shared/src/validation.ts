@@ -30,6 +30,11 @@ export function validateQuiz(quiz: QuizDraft): string | null {
     if (typeof q.points !== 'number' || q.points <= 0) {
       return `Pergunta ${n}: pontuação inválida.`;
     }
+    if (q.imageUrl !== undefined && q.imageUrl !== '') {
+      if (typeof q.imageUrl !== 'string' || !/^https?:\/\//i.test(q.imageUrl.trim())) {
+        return `Pergunta ${n}: a imagem deve ser uma URL começando com http(s).`;
+      }
+    }
   }
   return null;
 }

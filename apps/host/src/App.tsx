@@ -4,6 +4,7 @@ import { useHostSocket } from './hooks/useHostSocket.js';
 import { QuizEditor } from './QuizEditor.js';
 import { Library } from './Library.js';
 import { TimerBar } from './TimerBar.js';
+import { Leaderboard } from './Leaderboard.js';
 import { emptyDraft } from './lib/quizStorage.js';
 
 type PreGameView =
@@ -80,7 +81,18 @@ export function App() {
           <TimerBar durationSec={g.question.timeLimitSec} resetKey={g.question.index} />
         </div>
 
-        <h2 className="px-10 py-8 text-center text-5xl font-bold text-slate-800">{g.question.text}</h2>
+        <h2 className="px-10 pt-8 text-center text-5xl font-bold text-slate-800">{g.question.text}</h2>
+
+        {g.question.imageUrl && (
+          <div className="flex justify-center px-10 py-4">
+            <img
+              src={g.question.imageUrl}
+              alt=""
+              className="max-h-[32vh] rounded-xl object-contain"
+              onError={(e) => (e.currentTarget.style.display = 'none')}
+            />
+          </div>
+        )}
 
         <div className="grid flex-1 grid-cols-2 gap-4 p-6">
           {g.question.options.map((opt, i) => (
@@ -113,20 +125,7 @@ export function App() {
         </div>
 
         <h2 className="mb-4 text-center text-3xl font-bold">Placar</h2>
-        <ol className="mx-auto max-w-2xl space-y-3">
-          {g.reveal.leaderboard.slice(0, 8).map((r) => (
-            <li key={r.nickname} className="flex items-center justify-between rounded-lg bg-white/10 px-6 py-3 text-2xl">
-              <span className="flex items-center gap-3">
-                <RankDelta delta={r.rankDelta} />
-                {r.rank}. {r.nickname}
-              </span>
-              <span className="flex items-baseline gap-3">
-                {r.gained ? <span className="text-lg font-bold text-green-400">+{r.gained}</span> : <span className="text-lg text-white/30">+0</span>}
-                <span className="font-bold">{r.score}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
+        <Leaderboard rows={g.reveal.leaderboard} />
 
         <button
           onClick={g.next}
@@ -158,13 +157,6 @@ export function App() {
     );
 
   return <Screen dark>Carregando…</Screen>;
-}
-
-function RankDelta({ delta }: { delta?: number }) {
-  if (delta === undefined) return <span className="w-8 text-center text-sm text-white/30">•</span>;
-  if (delta > 0) return <span className="w-8 text-center text-sm font-bold text-green-400">▲{delta}</span>;
-  if (delta < 0) return <span className="w-8 text-center text-sm font-bold text-red-400">▼{-delta}</span>;
-  return <span className="w-8 text-center text-sm text-white/30">—</span>;
 }
 
 function Screen({ children, dark }: { children: ReactNode; dark?: boolean }) {

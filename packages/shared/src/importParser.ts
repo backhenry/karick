@@ -85,12 +85,14 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
       return err(n, 'informe a resposta certa via "correctIndex" (0-based) ou "correctAnswer" (texto da opção).');
     }
 
+    const image = q.imageUrl ?? q.image ?? q.imagem;
     questions.push({
       text: text.trim(),
       options: opts.map((o) => o.trim()),
       correctIndex,
       timeLimitSec: toNum(q.timeLimitSec ?? q.tempo ?? q.time, DEFAULT_TIME_LIMIT),
       points: toNum(q.points ?? q.pontos, DEFAULT_POINTS),
+      ...(typeof image === 'string' && image.trim() ? { imageUrl: image.trim() } : {}),
     });
   }
 

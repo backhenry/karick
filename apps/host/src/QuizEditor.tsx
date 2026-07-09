@@ -216,6 +216,24 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               className="mb-3 w-full resize-none rounded-lg bg-white/10 p-3 outline-none placeholder:text-white/40"
             />
 
+            <div className="mb-3 flex items-center gap-3">
+              <input
+                value={q.imageUrl ?? ''}
+                onChange={(e) => patchQuestion(qi, (qq) => (qq.imageUrl = e.target.value || undefined))}
+                placeholder="URL de imagem (opcional) — https://…"
+                className="flex-1 rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
+              />
+              {q.imageUrl && /^https?:\/\//i.test(q.imageUrl) && (
+                <img
+                  src={q.imageUrl}
+                  alt="prévia"
+                  className="h-12 w-12 rounded object-cover"
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                  onLoad={(e) => (e.currentTarget.style.display = '')}
+                />
+              )}
+            </div>
+
             <div className="grid gap-2 sm:grid-cols-2">
               {q.options.map((opt, oi) => (
                 <div key={oi} className="flex items-center gap-2 rounded-lg p-2" style={{ background: OPTION_COLORS[oi] + '33' }}>
