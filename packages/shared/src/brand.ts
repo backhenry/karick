@@ -94,6 +94,11 @@ export function parseBrandImport(raw: string): { ok: true; brand: Brand } | { ok
     return { ok: false, error: 'JSON inválido — verifique o texto colado.' };
   }
   if (!obj || typeof obj !== 'object') return { ok: false, error: 'O JSON precisa ser um objeto.' };
+  // Achata objetos aninhados comuns (ex.: { "colors": { "primary": … } }).
+  for (const key of ['colors', 'cores', 'theme', 'tema', 'identity', 'identidade', 'branding']) {
+    const nested = obj[key];
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) obj = { ...(nested as Record<string, unknown>), ...obj };
+  }
   const pick = (...keys: string[]): unknown => {
     for (const k of keys) if (obj[k] != null) return obj[k];
     return undefined;

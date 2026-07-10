@@ -69,7 +69,7 @@ export function App() {
   if (g.phase === 'PREGAME') {
     if (authUser === 'loading')
       return <Screen dark>Carregando…</Screen>;
-    if (authUser === null) return <Auth onAuthed={setAuthUser} />;
+    if (authUser === null) return <Auth onAuthed={setAuthUser} brand={branding} />;
     const setup = setupDraft && (
       <GameSetup
         onCancel={() => setSetupDraft(null)}
@@ -84,7 +84,7 @@ export function App() {
 
     if (view.screen === 'EDITOR')
       return (
-        <div className="min-h-screen bg-slate-900">
+        <div className="min-h-screen" style={{ background: branding.bg }}>
           <QuizEditor
             connected={g.connected}
             initialDraft={view.draft}
@@ -100,9 +100,10 @@ export function App() {
         </div>
       );
     return (
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen" style={{ background: branding.bg }}>
         <Library
           key={libKey}
+          brand={branding}
           userEmail={authUser.email}
           onLogout={logout}
           onBranding={() => setShowBranding(true)}
