@@ -1,21 +1,25 @@
 import type { GameRoom, LeaderboardRow, Question, TeamRow } from '@karick/shared';
 import { STREAK_BONUS_STEP, STREAK_BONUS_MAX } from '@karick/shared';
 
-/** Placar por equipe: soma das pontuações dos membros, ordenado. Vazio se individual. */
+/**
+ * Placar por equipe pela MÉDIA por integrante (soma ÷ nº de membros), para ser
+ * justo entre times de tamanhos diferentes. `score` = média arredondada.
+ * Vazio se individual.
+ */
 export function buildTeamLeaderboard(room: GameRoom): TeamRow[] {
   if (room.teams.length === 0) return [];
-  const totals = new Map<string, { score: number; players: number }>();
-  for (const name of room.teams) totals.set(name, { score: 0, players: 0 });
+  const totals = new Map<string, { sum: number; players: number }>();
+  for (const name of room.teams) totals.set(name, { sum: 0, players: 0 });
   for (const p of Object.values(room.players)) {
     if (!p.team) continue;
     const t = totals.get(p.team);
     if (t) {
-      t.score += p.score;
+      t.sum += p.score;
       t.players += 1;
     }
   }
   return [...totals.entries()]
-    .map(([name, t]) => ({ name, score: t.score, players: t.players }))
+    .map(([name, t]) => ({ name, score: t.players > 0 ? Math.round(t.sum / t.players) : 0, players: t.players }))
     .sort((a, b) => b.score - a.score)
     .map((t, i) => ({ rank: i + 1, ...t }));
 }

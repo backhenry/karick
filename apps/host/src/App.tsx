@@ -292,7 +292,7 @@ export function App() {
 
         {g.reveal.teamLeaderboard && g.reveal.teamLeaderboard.length > 0 && (
           <div className="mx-auto mb-6 max-w-2xl">
-            <h2 className="mb-3 text-center text-3xl font-bold">Placar por equipe</h2>
+            <h2 className="mb-3 text-center text-3xl font-bold">Placar por equipe <span className="text-lg font-normal text-white/50">(média por integrante)</span></h2>
             <ol className="space-y-2">
               {g.reveal.teamLeaderboard.map((t) => (
                 <li key={t.name} className="flex justify-between rounded-lg bg-indigo-500/20 px-6 py-3 text-2xl">
