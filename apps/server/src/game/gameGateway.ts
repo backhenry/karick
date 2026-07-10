@@ -459,7 +459,9 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
 
       const connected = Object.values(room.players).filter((p) => p.connected && !p.eliminated);
       const answered = connected.filter((p) => p.currentAnswer !== null).length;
-      io.to(room.hostSocketId).emit('game:answerCount', { answered, total: connected.length });
+      // Inclui quem respondeu (sem a opção) para o feed de avatares no telão.
+      const who = playerId ? room.players[playerId] : undefined;
+      io.to(room.hostSocketId).emit('game:answerCount', { answered, total: connected.length, nickname: who?.nickname, avatar: who?.avatar });
       if (allPlayersAnswered(room)) await revealAnswer(pin);
     });
 

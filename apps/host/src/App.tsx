@@ -257,7 +257,14 @@ export function App() {
           <TimerBar durationSec={g.timer.durationSec} resetKey={g.timer.key} />
         </div>
 
-        <h2 className="px-10 pt-8 text-center text-5xl font-bold text-white">{g.question.text}</h2>
+        {/* Feed ao vivo: avatares de quem já respondeu (altura fixa para não pular o layout). */}
+        <div className="flex min-h-[3rem] flex-wrap items-center justify-center gap-2 px-10 pt-2">
+          {g.answeredWho.map((w) => (
+            <PopAvatar key={w.nickname} avatar={w.avatar} nickname={w.nickname} />
+          ))}
+        </div>
+
+        <h2 className="px-10 pt-4 text-center text-5xl font-bold text-white">{g.question.text}</h2>
 
         {g.question.imageUrl && (
           <div className="flex justify-center px-10 py-4">
@@ -437,6 +444,28 @@ export function App() {
   }
 
   return <Screen dark>Carregando…</Screen>;
+}
+
+/** Avatar que "pipoca" no telão quando o jogador responde (sem revelar a opção). */
+function PopAvatar({ avatar, nickname }: { avatar?: string; nickname: string }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return (
+    <span
+      title={nickname}
+      className="rounded-full bg-white/10 px-2 py-1 text-2xl"
+      style={{
+        transform: shown ? 'scale(1)' : 'scale(0.2)',
+        opacity: shown ? 1 : 0,
+        transition: 'transform 350ms cubic-bezier(.34,1.56,.64,1), opacity 250ms',
+      }}
+    >
+      {avatar ?? '👤'}
+    </span>
+  );
 }
 
 function Screen({ children, dark }: { children: ReactNode; dark?: boolean }) {

@@ -32,6 +32,7 @@ export function useHostSocket() {
   const [mode, setMode] = useState<GameMode>('individual');
   const [question, setQuestion] = useState<HostQuestionPayload | null>(null);
   const [answeredCount, setAnsweredCount] = useState(0);
+  const [answeredWho, setAnsweredWho] = useState<{ nickname: string; avatar?: string }[]>([]);
   const [timer, setTimer] = useState<{ durationSec: number; key: string }>({ durationSec: 0, key: 'init' });
   const [reveal, setReveal] = useState<{
     correctIndex: number;
@@ -60,11 +61,17 @@ export function useHostSocket() {
     socket.on('game:question:host', (q) => {
       setQuestion(q);
       setAnsweredCount(0);
+      setAnsweredWho([]);
       setTimer({ durationSec: q.timeLimitSec, key: `q${q.index}` });
       setPhase('QUESTION');
       sfx.questionStart();
     });
-    socket.on('game:answerCount', ({ answered }) => setAnsweredCount(answered));
+    socket.on('game:answerCount', ({ answered, nickname, avatar }) => {
+      setAnsweredCount(answered);
+      if (nickname) {
+        setAnsweredWho((ws) => (ws.some((w) => w.nickname === nickname) ? ws : [...ws, { nickname, avatar }]));
+      }
+    });
     socket.on('game:reaction', ({ emoji }) => {
       const id = Date.now() + Math.random();
       setReactions((rs) => [...rs, { id, emoji, x: 5 + Math.random() * 85 }]);
@@ -116,6 +123,7 @@ export function useHostSocket() {
     mode,
     question,
     answeredCount,
+    answeredWho,
     timer,
     reveal,
     podium,

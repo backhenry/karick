@@ -16,7 +16,7 @@ function Bar({ row, pct }: { row: LeaderboardRow; pct: number }) {
   }, [pct]);
 
   return (
-    <li className="relative overflow-hidden rounded-lg bg-white/10 px-6 py-3 text-2xl">
+    <div className="relative overflow-hidden rounded-lg bg-white/10 px-6 py-3 text-2xl">
       <div
         className="absolute inset-y-0 left-0 bg-indigo-500/40"
         style={{ width, transition: 'width 900ms ease-out' }}
@@ -35,17 +35,45 @@ function Bar({ row, pct }: { row: LeaderboardRow; pct: number }) {
           <span className="font-bold">{row.score}</span>
         </span>
       </div>
-    </li>
+    </div>
   );
 }
 
-/** Placar com barras proporcionais à pontuação, animadas ao aparecer. */
+/** Altura de cada linha do placar: 56px de barra + 12px de vão. */
+const ROW_H = 68;
+
+/**
+ * Placar em "corrida": cada linha entra na posição da rodada anterior
+ * e desliza até a atual — as trocas de posição viram animação.
+ */
 export function Leaderboard({ rows }: { rows: LeaderboardRow[] }) {
-  const max = Math.max(1, ...rows.map((r) => r.score));
+  const shown = rows.slice(0, 8);
+  const max = Math.max(1, ...shown.map((r) => r.score));
+  const [settled, setSettled] = useState(false);
+
+  useEffect(() => {
+    setSettled(false);
+    const id = setTimeout(() => setSettled(true), 350);
+    return () => clearTimeout(id);
+  }, [rows]);
+
+  const yOf = (r: LeaderboardRow) => {
+    // rankDelta positivo = subiu; a posição anterior era rank + delta.
+    const prevRank = r.rankDelta === undefined ? r.rank : r.rank + r.rankDelta;
+    const rank = settled ? r.rank : prevRank;
+    return (Math.min(Math.max(rank, 1), shown.length) - 1) * ROW_H;
+  };
+
   return (
-    <ol className="mx-auto max-w-2xl space-y-3">
-      {rows.slice(0, 8).map((r) => (
-        <Bar key={r.nickname} row={r} pct={(r.score / max) * 100} />
+    <ol className="relative mx-auto max-w-2xl" style={{ height: Math.max(0, shown.length * ROW_H - 12) }}>
+      {shown.map((r) => (
+        <li
+          key={r.nickname}
+          className="absolute inset-x-0"
+          style={{ transform: `translateY(${yOf(r)}px)`, transition: 'transform 900ms cubic-bezier(.22,1,.36,1)' }}
+        >
+          <Bar row={r} pct={(r.score / max) * 100} />
+        </li>
       ))}
     </ol>
   );
