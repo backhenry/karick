@@ -122,6 +122,20 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
     }
   };
 
+  const sendToBank = async () => {
+    const payload = effectiveDraft();
+    const err = validateQuiz(payload);
+    if (err) return setError(err);
+    setError(null);
+    try {
+      await api.addBank(payload.questions, payload.tags ?? []);
+      setSavedMsg(`${payload.questions.length} pergunta(s) enviada(s) ao banco ✓`);
+      setTimeout(() => setSavedMsg(null), 3000);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
   const start = async () => {
     const payload = effectiveDraft();
     const err = validateQuiz(payload);
@@ -152,6 +166,9 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
             className="rounded bg-indigo-500/80 px-3 py-2 font-semibold hover:bg-indigo-500"
           >
             Importar JSON
+          </button>
+          <button onClick={sendToBank} className="rounded bg-white/10 px-3 py-2 hover:bg-white/20">
+            Enviar ao banco
           </button>
           <button onClick={() => setDraft(exampleQuiz())} className="rounded bg-white/10 px-3 py-2 hover:bg-white/20">
             Carregar exemplo

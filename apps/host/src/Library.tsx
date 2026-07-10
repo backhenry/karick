@@ -9,9 +9,10 @@ interface Props {
   userEmail?: string;
   onLogout?: () => void;
   onBranding?: () => void;
+  onBank?: () => void;
 }
 
-export function Library({ onNew, onEdit, onHost, userEmail, onLogout, onBranding }: Props) {
+export function Library({ onNew, onEdit, onHost, userEmail, onLogout, onBranding, onBank }: Props) {
   const [quizzes, setQuizzes] = useState<QuizSummary[] | null>(null);
   const [history, setHistory] = useState<GameHistoryEntry[]>([]);
   const [dbEnabled, setDbEnabled] = useState(true);
@@ -116,6 +117,11 @@ export function Library({ onNew, onEdit, onHost, userEmail, onLogout, onBranding
             <span className="hidden text-sm text-white/50 sm:inline" title={userEmail}>
               {userEmail}
             </span>
+          )}
+          {onBank && (
+            <button onClick={onBank} title="Banco de perguntas" className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
+              🎲 Banco
+            </button>
           )}
           {onBranding && (
             <button onClick={onBranding} title="Personalizar (logo e cor)" className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20">

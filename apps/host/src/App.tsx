@@ -13,6 +13,7 @@ import { Podium } from './Podium.js';
 import { FloatingReactions } from './FloatingReactions.js';
 import { QuestionMedia } from './QuestionMedia.js';
 import { BrandingModal } from './BrandingModal.js';
+import { BankModal } from './BankModal.js';
 import { loadBranding, saveBranding } from './lib/branding.js';
 import { scheduleTension } from './lib/sound.js';
 import { emptyDraft } from './lib/quizStorage.js';
@@ -30,6 +31,7 @@ export function App() {
   const [setupDraft, setSetupDraft] = useState<QuizDraft | null>(null);
   const [branding, setBranding] = useState(loadBranding);
   const [showBranding, setShowBranding] = useState(false);
+  const [showBank, setShowBank] = useState(false);
 
   useEffect(() => {
     api.me().then(setAuthUser).catch(() => setAuthUser(null));
@@ -92,6 +94,7 @@ export function App() {
           userEmail={authUser.email}
           onLogout={logout}
           onBranding={() => setShowBranding(true)}
+          onBank={() => setShowBank(true)}
           onNew={() => setView({ screen: 'EDITOR', draft: emptyDraft(), quizId: null })}
           onEdit={(quizId, draft) => setView({ screen: 'EDITOR', draft, quizId })}
           onHost={(draft) => setSetupDraft(draft)}
@@ -105,6 +108,15 @@ export function App() {
               saveBranding(b);
               setBranding(b);
               setShowBranding(false);
+            }}
+          />
+        )}
+        {showBank && (
+          <BankModal
+            onClose={() => setShowBank(false)}
+            onDraw={(draft) => {
+              setShowBank(false);
+              setView({ screen: 'EDITOR', draft, quizId: null });
             }}
           />
         )}
