@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { OPTION_COLORS, OPTION_SHAPES, applyBrandVars, brandName, type QuizDraft, type QuestionStat } from '@karick/shared';
+import { OPTION_COLORS, OPTION_SHAPES, applyBrandVars, type QuizDraft, type QuestionStat } from '@karick/shared';
+import { BrandMark } from './BrandMark.js';
 import { useHostSocket } from './hooks/useHostSocket.js';
 import { QuizEditor } from './QuizEditor.js';
 import { Library } from './Library.js';
@@ -152,11 +153,7 @@ export function App() {
         <button onClick={toggleFullscreen} title="Tela cheia" className="absolute right-4 top-4 rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
           ⛶
         </button>
-        {branding.logo && /^https?:\/\//i.test(branding.logo) ? (
-          <img src={branding.logo} alt="" className="max-h-20" onError={(e) => (e.currentTarget.style.display = 'none')} />
-        ) : (
-          <h1 className="text-4xl font-black tracking-wide" style={{ color: branding.primary }}>{brandName(branding)}</h1>
-        )}
+        <BrandMark brand={branding} imgClass="max-h-20" nameClass="text-4xl font-black tracking-wide" />
         {g.mode !== 'individual' && (
           <span className="rounded-full px-4 py-1 text-sm font-bold" style={{ background: `${branding.primary}33`, color: branding.primary }}>
             Modo: {g.mode === 'teams' ? 'Equipes' : g.mode === 'betting' ? 'Aposta' : 'Sobrevivência'}
@@ -368,9 +365,7 @@ export function App() {
       : null;
     return (
       <div className="flex min-h-screen flex-col items-center gap-8 py-10 text-white" style={{ background: branding.bg }}>
-        {branding.logo && /^https?:\/\//i.test(branding.logo) && (
-          <img src={branding.logo} alt="" className="max-h-16" onError={(e) => (e.currentTarget.style.display = 'none')} />
-        )}
+        <BrandMark brand={branding} imgClass="max-h-16" nameClass="text-3xl font-black" />
         <h1 className="text-5xl font-black">🏆 Pódio</h1>
         {g.teamPodium.length > 0 && (
           <div className="w-full max-w-md">

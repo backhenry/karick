@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { type Brand, brandName } from '@karick/shared';
+import type { Brand } from '@karick/shared';
+import { BrandMark } from './BrandMark.js';
 import { api, type AuthUser } from './lib/api.js';
 
 /** Tela de login/cadastro do apresentador. */
@@ -27,11 +28,7 @@ export function Auth({ onAuthed, brand }: { onAuthed: (user: AuthUser) => void; 
   return (
     <div className="flex min-h-screen items-center justify-center p-6 text-slate-100" style={{ background: brand?.bg }}>
       <form onSubmit={submit} className="w-full max-w-sm space-y-4">
-        {brand?.logo && /^https?:\/\//i.test(brand.logo) ? (
-          <img src={brand.logo} alt="" className="mx-auto max-h-20" onError={(e) => (e.currentTarget.style.display = 'none')} />
-        ) : (
-          <h1 className="text-center text-4xl font-black" style={{ color: brand?.primary }}>{brandName(brand)}</h1>
-        )}
+        <BrandMark brand={brand} imgClass="mx-auto max-h-20" nameClass="text-center text-4xl font-black" />
         <p className="text-center text-white/60">
           {mode === 'login' ? 'Entre para gerenciar seus quizzes' : 'Crie sua conta'}
         </p>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { type Brand, brandName, type QuizDraft, type QuizSummary, type GameHistoryEntry } from '@karick/shared';
+import type { Brand, QuizDraft, QuizSummary, GameHistoryEntry } from '@karick/shared';
+import { BrandMark } from './BrandMark.js';
 import { api } from './lib/api.js';
 
 interface Props {
@@ -113,11 +114,7 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onB
   return (
     <div className="mx-auto max-w-3xl p-6 text-slate-100">
       <header className="mb-6 flex items-center justify-between gap-3">
-        {brand?.logo && /^https?:\/\//i.test(brand.logo) ? (
-          <img src={brand.logo} alt="" className="max-h-12" onError={(e) => (e.currentTarget.style.display = 'none')} />
-        ) : (
-          <h1 className="text-4xl font-black" style={{ color: brand?.primary }}>{brandName(brand)}</h1>
-        )}
+        <BrandMark brand={brand} imgClass="max-h-12" nameClass="text-4xl font-black" />
         <div className="flex items-center gap-3">
           {userEmail && (
             <span className="hidden text-sm text-white/50 sm:inline" title={userEmail}>

@@ -56,6 +56,17 @@ function hexFromItem(el: unknown): string | undefined {
   return undefined;
 }
 
+/** Extrai uma URL de imagem utilizável de um texto (lida com link markdown [x](y), wrappers de busca, etc.). */
+export function extractImageUrl(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const found = v.match(/https?:\/\/[^\s)\]]+/gi);
+  if (!found) return undefined;
+  const urls = found.map((u) => u.replace(/[.,)\]]+$/, ''));
+  const isWrapper = (u: string) => /[?&]q=https?/i.test(u) || /\/(search|url)\?/i.test(u);
+  const looksImg = (u: string) => /\.(png|jpe?g|svg|webp|gif|avif)(\?|$)/i.test(u);
+  return urls.find((u) => looksImg(u) && !isWrapper(u)) ?? urls.find((u) => !isWrapper(u)) ?? urls[0];
+}
+
 /** Prompt pronto para colar numa IA e obter a identidade visual de uma marca em JSON. */
 export const BRAND_IMPORT_PROMPT = `Aja como especialista em identidade visual de marcas.
 Quero a identidade visual da seguinte marca: [DESCREVA AQUI — nome, site ou setor da marca].
@@ -106,8 +117,8 @@ export function parseBrandImport(raw: string): { ok: true; brand: Brand } | { ok
   const brand: Brand = {};
   const name = pick('name', 'brand', 'title', 'nome');
   if (typeof name === 'string' && name.trim()) brand.name = name.trim().slice(0, 40);
-  const logo = pick('logo', 'logoUrl', 'logotipo', 'image');
-  if (typeof logo === 'string' && /^https?:\/\//i.test(logo.trim())) brand.logo = logo.trim();
+  const logo = extractImageUrl(pick('logo', 'logoUrl', 'logotipo', 'image'));
+  if (logo) brand.logo = logo;
   const bg = normalizeHex(pick('bg', 'background', 'backgroundColor', 'fundo'));
   if (bg) brand.bg = bg;
   const primary = normalizeHex(pick('primary', 'accent', 'primaryColor', 'destaque', 'brandColor'));

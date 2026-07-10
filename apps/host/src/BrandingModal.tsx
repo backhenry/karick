@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { type Brand, DEFAULT_BRAND, BRAND_PRESETS, OPTION_SHAPES, BRAND_IMPORT_PROMPT, parseBrandImport } from '@karick/shared';
+import { type Brand, DEFAULT_BRAND, BRAND_PRESETS, OPTION_SHAPES, BRAND_IMPORT_PROMPT, parseBrandImport, extractImageUrl } from '@karick/shared';
 
 /** Configura marca do host: nome, logo e paleta de cores (aplicados no jogo todo). */
 export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; onSave: (b: Brand) => void; onClose: () => void }) {
@@ -157,7 +157,7 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
             Padrão
           </button>
           <button
-            onClick={() => onSave({ name: name.trim() || undefined, logo: logo.trim() || undefined, bg, primary, options })}
+            onClick={() => onSave({ name: name.trim() || undefined, logo: extractImageUrl(logo) || undefined, bg, primary, options })}
             className="flex-1 rounded-lg bg-green-500 p-3 font-bold text-white hover:bg-green-400"
           >
             Salvar
