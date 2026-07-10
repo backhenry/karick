@@ -3,6 +3,7 @@ import { OPTION_COLORS, OPTION_SHAPES, MAX_NICKNAME_LENGTH, AVATARS, REACTIONS }
 import { usePlayerSocket } from './hooks/usePlayerSocket.js';
 import { TimerBar } from './TimerBar.js';
 import { sfx } from './lib/sound.js';
+import { buildResultCard } from './lib/resultCard.js';
 
 const randomAvatar = () => AVATARS[Math.floor(Math.random() * AVATARS.length)];
 
@@ -344,7 +345,24 @@ export function App() {
     );
   }
 
-  if (screen === 'OVER') return <Center>🏁 Fim de jogo! Veja o pódio na tela principal.</Center>;
+  if (screen === 'OVER') {
+    const card = buildResultCard({ nickname, avatar, rank: reveal?.rank, score: reveal?.score ?? feedback?.totalScore });
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+        <h1 className="text-2xl font-bold text-slate-700">🏁 Fim de jogo!</h1>
+        {card && <img src={card} alt="Seu resultado" className="w-full max-w-sm rounded-xl shadow-lg" />}
+        {card && (
+          <a
+            href={card}
+            download="karick-resultado.png"
+            className="rounded-lg bg-indigo-600 px-6 py-3 font-bold text-white"
+          >
+            ⬇ Baixar meu resultado
+          </a>
+        )}
+      </div>
+    );
+  }
 
   return <Center>Conectando…</Center>;
 }

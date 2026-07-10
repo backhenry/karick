@@ -8,9 +8,10 @@ interface Props {
   onHost: (draft: QuizDraft) => void;
   userEmail?: string;
   onLogout?: () => void;
+  onBranding?: () => void;
 }
 
-export function Library({ onNew, onEdit, onHost, userEmail, onLogout }: Props) {
+export function Library({ onNew, onEdit, onHost, userEmail, onLogout, onBranding }: Props) {
   const [quizzes, setQuizzes] = useState<QuizSummary[] | null>(null);
   const [history, setHistory] = useState<GameHistoryEntry[]>([]);
   const [dbEnabled, setDbEnabled] = useState(true);
@@ -115,6 +116,11 @@ export function Library({ onNew, onEdit, onHost, userEmail, onLogout }: Props) {
             <span className="hidden text-sm text-white/50 sm:inline" title={userEmail}>
               {userEmail}
             </span>
+          )}
+          {onBranding && (
+            <button onClick={onBranding} title="Personalizar (logo e cor)" className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
+              ⚙
+            </button>
           )}
           {onLogout && (
             <button onClick={onLogout} className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20">

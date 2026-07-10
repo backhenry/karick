@@ -11,6 +11,9 @@ import { Leaderboard } from './Leaderboard.js';
 import { QRCodeView } from './QRCode.js';
 import { Podium } from './Podium.js';
 import { FloatingReactions } from './FloatingReactions.js';
+import { BrandingModal } from './BrandingModal.js';
+import { loadBranding, saveBranding } from './lib/branding.js';
+import { scheduleTension } from './lib/sound.js';
 import { emptyDraft } from './lib/quizStorage.js';
 
 const pct = (s: QuestionStat) => (s.answered > 0 ? Math.round((s.correctCount / s.answered) * 100) : 0);
@@ -24,15 +27,28 @@ export function App() {
   const [view, setView] = useState<PreGameView>({ screen: 'LIBRARY' });
   const [authUser, setAuthUser] = useState<AuthUser | null | 'loading'>('loading');
   const [setupDraft, setSetupDraft] = useState<QuizDraft | null>(null);
+  const [branding, setBranding] = useState(loadBranding);
+  const [showBranding, setShowBranding] = useState(false);
 
   useEffect(() => {
     api.me().then(setAuthUser).catch(() => setAuthUser(null));
   }, []);
 
+  // Tensão sonora nos últimos segundos de cada pergunta (telão).
+  useEffect(() => {
+    if (g.phase !== 'QUESTION') return;
+    return scheduleTension(g.timer.durationSec);
+  }, [g.phase, g.timer.key, g.timer.durationSec]);
+
   const logout = async () => {
     await api.logout().catch(() => {});
     setAuthUser(null);
     setView({ screen: 'LIBRARY' });
+  };
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen?.();
   };
 
   // ─── PRÉ-JOGO: exige login, depois biblioteca ou editor ───
@@ -74,11 +90,23 @@ export function App() {
         <Library
           userEmail={authUser.email}
           onLogout={logout}
+          onBranding={() => setShowBranding(true)}
           onNew={() => setView({ screen: 'EDITOR', draft: emptyDraft(), quizId: null })}
           onEdit={(quizId, draft) => setView({ screen: 'EDITOR', draft, quizId })}
           onHost={(draft) => setSetupDraft(draft)}
         />
         {setup}
+        {showBranding && (
+          <BrandingModal
+            initial={branding}
+            onClose={() => setShowBranding(false)}
+            onSave={(b) => {
+              saveBranding(b);
+              setBranding(b);
+              setShowBranding(false);
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -87,7 +115,13 @@ export function App() {
   if (g.phase === 'LOBBY') {
     const joinUrl = `${window.location.origin}/?pin=${g.pin}`;
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-slate-900 p-6 text-white">
+      <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 bg-slate-900 p-6 text-white">
+        <button onClick={toggleFullscreen} title="Tela cheia" className="absolute right-4 top-4 rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
+          ⛶
+        </button>
+        {branding.logo && /^https?:\/\//i.test(branding.logo) && (
+          <img src={branding.logo} alt="" className="max-h-20" onError={(e) => (e.currentTarget.style.display = 'none')} />
+        )}
         {g.mode !== 'individual' && (
           <span className="rounded-full bg-indigo-500/30 px-4 py-1 text-sm font-bold text-indigo-200">
             Modo: {g.mode === 'teams' ? 'Equipes' : g.mode === 'betting' ? 'Aposta' : 'Sobrevivência'}
@@ -97,7 +131,7 @@ export function App() {
           <div className="text-center">
             <p className="mb-2 text-xl opacity-70">Acesse e use o PIN</p>
             <p className="text-lg opacity-50">{window.location.host}</p>
-            <h1 className="text-7xl font-black tracking-[0.15em]">{g.pin || '…'}</h1>
+            <h1 className="text-7xl font-black tracking-[0.15em]" style={{ color: branding.color }}>{g.pin || '…'}</h1>
           </div>
           <div className="text-center">
             {g.pin && <QRCodeView text={joinUrl} size={200} />}
@@ -292,6 +326,9 @@ export function App() {
       : null;
     return (
       <div className="flex min-h-screen flex-col items-center gap-8 bg-slate-900 py-10 text-white">
+        {branding.logo && /^https?:\/\//i.test(branding.logo) && (
+          <img src={branding.logo} alt="" className="max-h-16" onError={(e) => (e.currentTarget.style.display = 'none')} />
+        )}
         <h1 className="text-5xl font-black">🏆 Pódio</h1>
         {g.teamPodium.length > 0 && (
           <div className="w-full max-w-md">

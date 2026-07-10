@@ -44,4 +44,20 @@ export const sfx = {
     tone(659, 150, 'triangle', 0.08, 150);
     tone(784, 300, 'triangle', 0.08, 300);
   },
+  /** Tique de tensão — sobe de tom conforme o tempo acaba (secsLeft: 5..1). */
+  tick: (secsLeft: number) => tone(700 + (6 - secsLeft) * 90, 70, 'square', 0.06),
+  timeUp: () => tone(200, 400, 'sawtooth', 0.08),
 };
+
+/**
+ * Agenda os tiques de tensão para os últimos `durationSec` segundos.
+ * Retorna uma função para cancelar (ao trocar de pergunta/estender tempo).
+ */
+export function scheduleTension(durationSec: number): () => void {
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  for (let s = Math.min(5, Math.floor(durationSec) - 1); s >= 1; s--) {
+    timers.push(setTimeout(() => sfx.tick(s), (durationSec - s) * 1000));
+  }
+  if (durationSec > 0) timers.push(setTimeout(() => sfx.timeUp(), durationSec * 1000));
+  return () => timers.forEach(clearTimeout);
+}
