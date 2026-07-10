@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { OPTION_SHAPES, MAX_NICKNAME_LENGTH, AVATARS, REACTIONS, optColor } from '@karick/shared';
 import { usePlayerSocket } from './hooks/usePlayerSocket.js';
 import { TimerBar } from './TimerBar.js';
@@ -85,10 +85,31 @@ export function App() {
   const [wagerPct, setWagerPct] = useState(50); // modo aposta
   const [eliminated, setEliminated] = useState(false); // modo sobrevivência
 
+  // Jornada da partida (para as conquistas do cartão final).
+  const [journey, setJourney] = useState({ maxStreak: 0, worstRank: 1, corrects: 0, questions: 0 });
+  const journeyQ = useRef(-1); // última pergunta contabilizada
+
   // Sobrevivência: eliminado ao errar/não responder. Reinicia por partida.
   useEffect(() => {
-    if (screen === 'LOBBY') setEliminated(false);
+    if (screen === 'LOBBY') {
+      setEliminated(false);
+      setJourney({ maxStreak: 0, worstRank: 1, corrects: 0, questions: 0 });
+      journeyQ.current = -1;
+    }
   }, [screen]);
+
+  // Contabiliza cada pergunta uma única vez, no feedback (enquete fica de fora).
+  useEffect(() => {
+    if (screen !== 'FEEDBACK' || !question || journeyQ.current === question.index) return;
+    journeyQ.current = question.index;
+    if (question.type === 'poll') return;
+    setJourney((j) => ({
+      maxStreak: Math.max(j.maxStreak, feedback?.streak ?? 0),
+      worstRank: Math.max(j.worstRank, reveal?.rank ?? j.worstRank),
+      corrects: j.corrects + (feedback?.isCorrect ? 1 : 0),
+      questions: j.questions + 1,
+    }));
+  }, [screen, question, feedback, reveal]);
   useEffect(() => {
     if (screen === 'FEEDBACK' && question?.mode === 'survival' && (!feedback || !feedback.isCorrect)) {
       setEliminated(true);
@@ -432,10 +453,24 @@ export function App() {
   }
 
   if (screen === 'OVER') {
-    const card = buildResultCard({ nickname, avatar, rank: reveal?.rank, score: reveal?.score ?? feedback?.totalScore });
+    // Conquistas da partida — entram no cartão e como selos na tela.
+    const finalRank = reveal?.rank;
+    const badges: string[] = [];
+    if (finalRank === 1) badges.push('🥇 Campeão da sala');
+    if (journey.questions >= 3 && journey.corrects === journey.questions) badges.push('💯 Rodada perfeita');
+    if (journey.maxStreak >= 3) badges.push(`🔥 ${journey.maxStreak} seguidas`);
+    if (finalRank !== undefined && journey.worstRank - finalRank >= 2) badges.push('📈 Remontada');
+    const card = buildResultCard({ nickname, avatar, rank: finalRank, score: reveal?.score ?? feedback?.totalScore, badges });
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
         <h1 className="text-2xl font-bold">🏁 Fim de jogo!</h1>
+        {badges.length > 0 && (
+          <div className="flex max-w-sm flex-wrap justify-center gap-2">
+            {badges.map((b) => (
+              <span key={b} className="rounded-full bg-white/15 px-3 py-1 text-sm font-bold">{b}</span>
+            ))}
+          </div>
+        )}
         {card && <img src={card} alt="Seu resultado" className="w-full max-w-sm rounded-xl shadow-lg" />}
         {card && (
           <a
