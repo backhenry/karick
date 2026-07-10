@@ -98,6 +98,10 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
     }
 
     const explanation = q.explanation ?? q.explicacao ?? q.porque ?? q.justificativa;
+    const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+    const audioUrl = str(q.audioUrl ?? q.audio);
+    const videoUrl = str(q.videoUrl ?? q.video ?? q.youtube);
+    const code = str(q.code ?? q.codigo);
     questions.push({
       text: text.trim(),
       options: opts.map((o) => o.trim()),
@@ -105,6 +109,9 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
       timeLimitSec: toNum(q.timeLimitSec ?? q.tempo ?? q.time, DEFAULT_TIME_LIMIT),
       points: toNum(q.points ?? q.pontos, DEFAULT_POINTS),
       ...(imageUrl ? { imageUrl } : {}),
+      ...(audioUrl ? { audioUrl } : {}),
+      ...(videoUrl ? { videoUrl } : {}),
+      ...(code ? { code } : {}),
       ...(typeof explanation === 'string' && explanation.trim() ? { explanation: explanation.trim() } : {}),
     });
   }

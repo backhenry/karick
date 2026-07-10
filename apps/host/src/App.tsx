@@ -11,6 +11,7 @@ import { Leaderboard } from './Leaderboard.js';
 import { QRCodeView } from './QRCode.js';
 import { Podium } from './Podium.js';
 import { FloatingReactions } from './FloatingReactions.js';
+import { QuestionMedia } from './QuestionMedia.js';
 import { BrandingModal } from './BrandingModal.js';
 import { loadBranding, saveBranding } from './lib/branding.js';
 import { scheduleTension } from './lib/sound.js';
@@ -222,6 +223,12 @@ export function App() {
               className="max-h-[32vh] rounded-xl object-contain"
               onError={(e) => (e.currentTarget.style.display = 'none')}
             />
+          </div>
+        )}
+
+        {(g.question.audioUrl || g.question.videoUrl || g.question.code) && (
+          <div className="py-3">
+            <QuestionMedia audioUrl={g.question.audioUrl} videoUrl={g.question.videoUrl} code={g.question.code} />
           </div>
         )}
 

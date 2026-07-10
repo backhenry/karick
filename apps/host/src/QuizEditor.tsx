@@ -313,6 +313,29 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               className="mb-3 w-full rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
             />
 
+            <div className="mb-3 grid gap-2 sm:grid-cols-2">
+              <input
+                value={q.audioUrl ?? ''}
+                onChange={(e) => patchQuestion(qi, (qq) => (qq.audioUrl = e.target.value || undefined))}
+                placeholder="URL de áudio (opcional)"
+                className="rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
+              />
+              <input
+                value={q.videoUrl ?? ''}
+                onChange={(e) => patchQuestion(qi, (qq) => (qq.videoUrl = e.target.value || undefined))}
+                placeholder="URL de vídeo (YouTube ou .mp4)"
+                className="rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
+              />
+            </div>
+            <textarea
+              value={q.code ?? ''}
+              onChange={(e) => patchQuestion(qi, (qq) => (qq.code = e.target.value || undefined))}
+              placeholder="Trecho de código (opcional)"
+              rows={2}
+              spellCheck={false}
+              className="mb-3 w-full resize-y rounded-lg bg-black/30 p-2 font-mono text-xs outline-none placeholder:text-white/40"
+            />
+
             <div className="grid gap-2 sm:grid-cols-2">
               {q.options.map((opt, oi) => (
                 <div key={oi} className="flex items-center gap-2 rounded-lg p-2" style={{ background: OPTION_COLORS[oi] + '33' }}>

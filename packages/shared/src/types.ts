@@ -19,6 +19,12 @@ export interface Question {
   points: number;
   /** URL http(s) de uma imagem opcional exibida com a pergunta. */
   imageUrl?: string;
+  /** URL http(s) de um áudio opcional (ex.: "adivinhe a música"). */
+  audioUrl?: string;
+  /** URL de vídeo (YouTube ou .mp4) opcional. */
+  videoUrl?: string;
+  /** Trecho de código exibido em fonte monoespaçada (perguntas de programação). */
+  code?: string;
   /** Explicação da resposta certa, mostrada no reveal (opcional). */
   explanation?: string;
 }
@@ -180,6 +186,9 @@ export interface HostQuestionPayload {
   timeLimitSec: number;
   correctIndex: number;
   imageUrl?: string;
+  audioUrl?: string;
+  videoUrl?: string;
+  code?: string;
   mode?: GameMode;
 }
 

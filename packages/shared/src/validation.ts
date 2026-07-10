@@ -78,6 +78,16 @@ export function validateQuiz(quiz: QuizDraft): string | null {
         return `Pergunta ${n}: a imagem deve ser uma URL começando com http(s).`;
       }
     }
+    if (q.audioUrl !== undefined && q.audioUrl !== '') {
+      if (typeof q.audioUrl !== 'string' || !/^https?:\/\//i.test(q.audioUrl.trim())) {
+        return `Pergunta ${n}: o áudio deve ser uma URL começando com http(s).`;
+      }
+    }
+    if (q.videoUrl !== undefined && q.videoUrl !== '') {
+      if (typeof q.videoUrl !== 'string' || !/^https?:\/\//i.test(q.videoUrl.trim())) {
+        return `Pergunta ${n}: o vídeo deve ser uma URL começando com http(s).`;
+      }
+    }
   }
   return null;
 }

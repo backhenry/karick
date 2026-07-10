@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { QuizDraft } from '@karick/shared';
 import { OPTION_COLORS, OPTION_SHAPES } from '@karick/shared';
+import { QuestionMedia } from './QuestionMedia.js';
 
 /** Prévia (somente leitura) de como as perguntas aparecem na tela do Host. */
 export function QuizPreview({ draft, onClose }: { draft: QuizDraft; onClose: () => void }) {
@@ -24,6 +25,12 @@ export function QuizPreview({ draft, onClose }: { draft: QuizDraft; onClose: () 
       {q.imageUrl && /^https?:\/\//i.test(q.imageUrl) && (
         <div className="flex justify-center px-8 py-3">
           <img src={q.imageUrl} alt="" className="max-h-[28vh] rounded-xl object-contain" onError={(e) => (e.currentTarget.style.display = 'none')} />
+        </div>
+      )}
+
+      {(q.audioUrl || q.videoUrl || q.code) && (
+        <div className="py-2">
+          <QuestionMedia audioUrl={q.audioUrl} videoUrl={q.videoUrl} code={q.code} />
         </div>
       )}
 

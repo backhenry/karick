@@ -140,6 +140,9 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       timeLimitSec: q.timeLimitSec,
       correctIndex: q.correctIndex,
       imageUrl: q.imageUrl,
+      audioUrl: q.audioUrl,
+      videoUrl: q.videoUrl,
+      code: q.code,
       mode: room.mode,
     });
     Object.values(room.players).forEach((p) => {
