@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { OPTION_COLORS, OPTION_SHAPES, MAX_NICKNAME_LENGTH, AVATARS, REACTIONS } from '@karick/shared';
+import { OPTION_SHAPES, MAX_NICKNAME_LENGTH, AVATARS, REACTIONS, optColor } from '@karick/shared';
 import { usePlayerSocket } from './hooks/usePlayerSocket.js';
 import { TimerBar } from './TimerBar.js';
 import { sfx } from './lib/sound.js';
@@ -47,7 +47,7 @@ function ReactionBar({ onReact }: { onReact: (emoji: string) => void }) {
 }
 
 export function App() {
-  const { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, usePowerup, team } = usePlayerSocket();
+  const { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, usePowerup, team, brandName } = usePlayerSocket();
   const [pin, setPin] = useState(() => new URLSearchParams(window.location.search).get('pin') ?? '');
   const [nickname, setNickname] = useState('');
   const [avatar, setAvatar] = useState(randomAvatar);
@@ -117,7 +117,7 @@ export function App() {
           if (res.needTeam) setTeamOptions(res.teams ?? []);
         }}
       >
-        <h1 className="mb-4 text-center text-4xl font-black text-indigo-600">Karick</h1>
+        <h1 className="mb-4 text-center text-4xl font-black text-indigo-600">{brandName}</h1>
         <input
           value={pin}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
@@ -194,6 +194,7 @@ export function App() {
     return (
       <Center>
         <div>
+          <p className="mb-2 text-2xl font-black" style={{ color: 'var(--k-primary)' }}>{brandName}</p>
           ✅ Você entrou! Aguarde o apresentador iniciar…
           {team && <p className="mt-3 text-lg font-bold text-indigo-600">Equipe: {team}</p>}
         </div>
@@ -280,7 +281,7 @@ export function App() {
                   key={i}
                   onClick={() => handleAnswer(i)}
                   className={`flex items-center justify-center gap-2 rounded-xl px-3 text-white transition active:scale-95 ${question.options ? 'text-xl font-bold' : 'text-6xl'}`}
-                  style={{ background: OPTION_COLORS[i] }}
+                  style={{ background: optColor(i) }}
                 >
                   <span className={question.options ? 'text-3xl' : ''}>{OPTION_SHAPES[i]}</span>
                   {question.options && <span>{question.options[i]}</span>}
@@ -317,7 +318,7 @@ export function App() {
         {reveal && (
           <div className="flex items-center gap-2 rounded-lg bg-black/20 px-4 py-2 text-lg">
             <span className="opacity-80">Resposta certa:</span>
-            <span className="text-2xl" style={{ color: OPTION_COLORS[reveal.correctIndex] }}>
+            <span className="text-2xl" style={{ color: optColor(reveal.correctIndex) }}>
               {OPTION_SHAPES[reveal.correctIndex]}
             </span>
             <b>{reveal.correctText}</b>

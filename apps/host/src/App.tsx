@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { OPTION_COLORS, OPTION_SHAPES, type QuizDraft, type QuestionStat } from '@karick/shared';
+import { OPTION_COLORS, OPTION_SHAPES, applyBrandVars, brandName, type QuizDraft, type QuestionStat } from '@karick/shared';
 import { useHostSocket } from './hooks/useHostSocket.js';
 import { QuizEditor } from './QuizEditor.js';
 import { Library } from './Library.js';
@@ -36,9 +36,17 @@ export function App() {
   const [showGallery, setShowGallery] = useState(false);
   const [libKey, setLibKey] = useState(0); // força recarregar a biblioteca (ex.: após clonar)
 
+  // Cor de uma alternativa segundo a paleta da marca (fallback ao padrão).
+  const oc = (i: number) => branding.options?.[i] ?? OPTION_COLORS[i];
+
   useEffect(() => {
     api.me().then(setAuthUser).catch(() => setAuthUser(null));
   }, []);
+
+  // Aplica a paleta da marca como variáveis CSS do documento.
+  useEffect(() => {
+    applyBrandVars(branding);
+  }, [branding]);
 
   // Tensão sonora nos últimos segundos de cada pergunta (telão).
   useEffect(() => {
@@ -68,7 +76,7 @@ export function App() {
         onConfirm={async (mode, teams, shuffle) => {
           const draft = setupDraft;
           setSetupDraft(null);
-          const err = await g.createRoom(draft, teams, mode, shuffle);
+          const err = await g.createRoom(draft, teams, mode, shuffle, branding);
           if (err) alert(err);
         }}
       />
@@ -139,15 +147,17 @@ export function App() {
   if (g.phase === 'LOBBY') {
     const joinUrl = `${window.location.origin}/?pin=${g.pin}`;
     return (
-      <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 bg-slate-900 p-6 text-white">
+      <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-white" style={{ background: branding.bg }}>
         <button onClick={toggleFullscreen} title="Tela cheia" className="absolute right-4 top-4 rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
           ⛶
         </button>
-        {branding.logo && /^https?:\/\//i.test(branding.logo) && (
+        {branding.logo && /^https?:\/\//i.test(branding.logo) ? (
           <img src={branding.logo} alt="" className="max-h-20" onError={(e) => (e.currentTarget.style.display = 'none')} />
+        ) : (
+          <h1 className="text-4xl font-black tracking-wide" style={{ color: branding.primary }}>{brandName(branding)}</h1>
         )}
         {g.mode !== 'individual' && (
-          <span className="rounded-full bg-indigo-500/30 px-4 py-1 text-sm font-bold text-indigo-200">
+          <span className="rounded-full px-4 py-1 text-sm font-bold" style={{ background: `${branding.primary}33`, color: branding.primary }}>
             Modo: {g.mode === 'teams' ? 'Equipes' : g.mode === 'betting' ? 'Aposta' : 'Sobrevivência'}
           </span>
         )}
@@ -155,7 +165,7 @@ export function App() {
           <div className="text-center">
             <p className="mb-2 text-xl opacity-70">Acesse e use o PIN</p>
             <p className="text-lg opacity-50">{window.location.host}</p>
-            <h1 className="text-7xl font-black tracking-[0.15em]" style={{ color: branding.color }}>{g.pin || '…'}</h1>
+            <h1 className="text-7xl font-black tracking-[0.15em]" style={{ color: branding.primary }}>{g.pin || '…'}</h1>
           </div>
           <div className="text-center">
             {g.pin && <QRCodeView text={joinUrl} size={200} />}
@@ -167,7 +177,7 @@ export function App() {
           <div className="flex max-w-5xl flex-wrap justify-center gap-6">
             {g.teams.map((tname) => (
               <div key={tname} className="min-w-[10rem] rounded-xl bg-white/5 p-3">
-                <p className="mb-2 text-center font-bold text-indigo-300">
+                <p className="mb-2 text-center font-bold" style={{ color: branding.primary }}>
                   {tname} ({g.players.filter((p) => p.team === tname).length})
                 </p>
                 <div className="flex flex-col gap-1">
@@ -226,7 +236,7 @@ export function App() {
             <button onClick={g.addTime} className="rounded-lg bg-slate-200 px-3 py-1 font-bold text-slate-700 hover:bg-slate-300">
               +20s
             </button>
-            <button onClick={g.revealNow} className="rounded-lg bg-indigo-600 px-3 py-1 font-bold text-white hover:bg-indigo-500">
+            <button onClick={g.revealNow} className="rounded-lg px-3 py-1 font-bold text-white" style={{ background: branding.primary }}>
               Revelar agora ⏭
             </button>
           </div>
@@ -260,7 +270,7 @@ export function App() {
             <div
               key={i}
               className="flex items-center gap-4 rounded-xl p-6 text-3xl font-bold text-white"
-              style={{ background: OPTION_COLORS[i] }}
+              style={{ background: oc(i) }}
             >
               <span className="text-5xl">{OPTION_SHAPES[i]}</span> {opt}
             </div>
@@ -273,13 +283,13 @@ export function App() {
   if (g.phase === 'REVEAL' && g.reveal) {
     const isLast = g.question ? g.question.index >= g.question.total - 1 : false;
     return (
-      <div className="min-h-screen bg-slate-900 p-10 text-white">
+      <div className="min-h-screen p-10 text-white" style={{ background: branding.bg }}>
         <FloatingReactions items={g.reactions} />
         <div className="mx-auto mb-6 max-w-2xl text-center">
           <p className="mb-2 text-lg text-white/50">Resposta certa</p>
           <div
             className="inline-flex items-center gap-3 rounded-xl px-8 py-4 text-3xl font-bold"
-            style={{ background: OPTION_COLORS[g.reveal.correctIndex] }}
+            style={{ background: oc(g.reveal.correctIndex) }}
           >
             <span className="text-4xl">{OPTION_SHAPES[g.reveal.correctIndex]}</span>
             {g.reveal.correctText}
@@ -305,12 +315,12 @@ export function App() {
                     style={{
                       height: `${(count / max) * 100}%`,
                       minHeight: 4,
-                      background: OPTION_COLORS[i],
+                      background: oc(i),
                       opacity: isCorrect ? 1 : 0.45,
                       transition: 'height 700ms ease-out',
                     }}
                   />
-                  <span className="mt-1 text-2xl" style={{ color: OPTION_COLORS[i] }}>
+                  <span className="mt-1 text-2xl" style={{ color: oc(i) }}>
                     {OPTION_SHAPES[i]}
                     {isCorrect && ' ✓'}
                   </span>
@@ -325,7 +335,7 @@ export function App() {
             <h2 className="mb-3 text-center text-3xl font-bold">Placar por equipe <span className="text-lg font-normal text-white/50">(média por integrante)</span></h2>
             <ol className="space-y-2">
               {g.reveal.teamLeaderboard.map((t) => (
-                <li key={t.name} className="flex justify-between rounded-lg bg-indigo-500/20 px-6 py-3 text-2xl">
+                <li key={t.name} className="flex justify-between rounded-lg px-6 py-3 text-2xl" style={{ background: `${branding.primary}2b` }}>
                   <span>{t.rank}. {t.name} <span className="text-base text-white/50">({t.players})</span></span>
                   <span className="font-bold">{t.score}</span>
                 </li>
@@ -339,7 +349,8 @@ export function App() {
 
         <button
           onClick={g.next}
-          className="mx-auto mt-10 block rounded-xl bg-blue-500 px-10 py-4 text-2xl font-bold hover:bg-blue-400"
+          className="mx-auto mt-10 block rounded-xl px-10 py-4 text-2xl font-bold text-white"
+          style={{ background: branding.primary }}
         >
           {isLast ? 'Ver pódio 🏆' : 'Próxima →'}
         </button>
@@ -355,7 +366,7 @@ export function App() {
         )
       : null;
     return (
-      <div className="flex min-h-screen flex-col items-center gap-8 bg-slate-900 py-10 text-white">
+      <div className="flex min-h-screen flex-col items-center gap-8 py-10 text-white" style={{ background: branding.bg }}>
         {branding.logo && /^https?:\/\//i.test(branding.logo) && (
           <img src={branding.logo} alt="" className="max-h-16" onError={(e) => (e.currentTarget.style.display = 'none')} />
         )}
@@ -364,7 +375,7 @@ export function App() {
           <div className="w-full max-w-md">
             <ol className="space-y-2">
               {g.teamPodium.map((t) => (
-                <li key={t.name} className="flex justify-between rounded-lg bg-indigo-500/20 px-6 py-3 text-2xl">
+                <li key={t.name} className="flex justify-between rounded-lg px-6 py-3 text-2xl" style={{ background: `${branding.primary}2b` }}>
                   <span>{['🥇', '🥈', '🥉'][t.rank - 1] ?? `${t.rank}.`} {t.name}</span>
                   <span className="font-bold">{t.score}</span>
                 </li>

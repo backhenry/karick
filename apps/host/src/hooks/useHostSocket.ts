@@ -10,6 +10,7 @@ import type {
   QuestionStat,
   TeamRow,
   GameMode,
+  Brand,
 } from '@karick/shared';
 import { sfx } from '../lib/sound.js';
 
@@ -90,11 +91,11 @@ export function useHostSocket() {
     };
   }, []);
 
-  const createRoom = (quiz: QuizDraft, teams?: string[], gameMode: GameMode = 'individual', shuffle = false): Promise<string | null> =>
+  const createRoom = (quiz: QuizDraft, teams?: string[], gameMode: GameMode = 'individual', shuffle = false, brand?: Brand): Promise<string | null> =>
     new Promise((resolve) => {
       const socket = socketRef.current;
       if (!socket) return resolve('Sem conexão com o servidor.');
-      socket.emit('host:createRoom', { quiz, teams, mode: gameMode, shuffle }, (res) => {
+      socket.emit('host:createRoom', { quiz, teams, mode: gameMode, shuffle, brand }, (res) => {
         if (res.ok && res.pin) {
           setPin(res.pin);
           setMode(gameMode);

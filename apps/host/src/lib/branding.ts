@@ -1,22 +1,25 @@
-export interface Branding {
-  logo: string; // URL http(s) opcional
-  color: string; // cor de destaque (hex)
-}
+import { type Brand, DEFAULT_BRAND } from '@karick/shared';
+
+export type { Brand };
 
 const KEY = 'karick.branding';
-const DEFAULT: Branding = { logo: '', color: '#6366f1' };
 
-export function loadBranding(): Branding {
+export function loadBranding(): Brand {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...DEFAULT, ...(JSON.parse(raw) as Branding) };
+    if (raw) {
+      const p = JSON.parse(raw) as Brand & { color?: string };
+      // Migração do formato antigo ({logo, color}) → primary.
+      if (p.color && !p.primary) p.primary = p.color;
+      return { ...DEFAULT_BRAND, ...p };
+    }
   } catch {
     /* ignora */
   }
-  return DEFAULT;
+  return { ...DEFAULT_BRAND };
 }
 
-export function saveBranding(b: Branding): void {
+export function saveBranding(b: Brand): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(b));
   } catch {

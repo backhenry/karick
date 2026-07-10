@@ -5,8 +5,9 @@ import type {
   ServerToClientEvents,
   PlayerQuestionPayload,
   AnswerResult,
+  Brand,
 } from '@karick/shared';
-import { MAX_NICKNAME_LENGTH } from '@karick/shared';
+import { MAX_NICKNAME_LENGTH, applyBrandVars, brandName } from '@karick/shared';
 
 const SERVER_URL =
   import.meta.env.VITE_SERVER_URL ??
@@ -67,6 +68,14 @@ export function usePlayerSocket() {
   const [timer, setTimer] = useState<{ durationSec: number; key: string }>({ durationSec: 0, key: 'init' });
   const [feedback, setFeedback] = useState<AnswerResult | null>(null);
   const [reveal, setReveal] = useState<RevealInfo | null>(null);
+  const [brand, setBrand] = useState<Brand | null>(null);
+
+  // Aplica a paleta recebida do host (nome + cores) neste dispositivo.
+  const applyBrand = (b?: Brand) => {
+    if (!b) return;
+    setBrand(b);
+    applyBrandVars(b);
+  };
 
   useEffect(() => {
     const socket: ClientSocket = io(SERVER_URL);
@@ -78,6 +87,7 @@ export function usePlayerSocket() {
       if (!jp) return setReconnecting(false);
       socket.emit('player:join', { ...jp, playerId: playerIdRef.current }, (res) => {
         setReconnecting(false);
+        applyBrand(res.brand);
         if (res.ok) {
           nicknameRef.current = jp.nickname.trim().slice(0, MAX_NICKNAME_LENGTH);
         } else {
@@ -151,6 +161,7 @@ export function usePlayerSocket() {
       setError(null);
       const cleanNick = nickname.trim().slice(0, MAX_NICKNAME_LENGTH);
       socketRef.current?.emit('player:join', { pin, nickname, avatar, playerId: playerIdRef.current, team, showText }, (res) => {
+        applyBrand(res.brand);
         if (res.ok) {
           nicknameRef.current = cleanNick;
           joinParamsRef.current = { pin, nickname, avatar, team, showText };
@@ -185,5 +196,5 @@ export function usePlayerSocket() {
     });
   };
 
-  return { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, usePowerup, team: joinParamsRef.current?.team };
+  return { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, usePowerup, team: joinParamsRef.current?.team, brandName: brandName(brand) };
 }

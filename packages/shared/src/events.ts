@@ -15,6 +15,7 @@ import type {
   PowerupType,
   GameMode,
 } from './types.js';
+import type { Brand } from './brand.js';
 
 /** Callback de confirmação (ACK) padrão dos eventos cliente→servidor. */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -58,7 +59,7 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  'host:createRoom': (payload: { quiz: QuizDraft; teams?: string[]; mode?: GameMode; shuffle?: boolean }, ack: Ack<{ pin: string }>) => void;
+  'host:createRoom': (payload: { quiz: QuizDraft; teams?: string[]; mode?: GameMode; shuffle?: boolean; brand?: Brand }, ack: Ack<{ pin: string }>) => void;
   'host:startGame': () => void;
   'host:nextQuestion': () => void;
   /** Revela a resposta imediatamente, sem esperar o tempo. */
@@ -69,7 +70,7 @@ export interface ClientToServerEvents {
   'host:kickPlayer': (payload: { nickname: string }) => void;
   'player:join': (
     payload: { pin: string; nickname: string; avatar?: string; playerId: string; team?: string; showText?: boolean },
-    ack: Ack<{ needTeam: boolean; teams: string[]; mode: GameMode }>,
+    ack: Ack<{ needTeam: boolean; teams: string[]; mode: GameMode; brand?: Brand }>,
   ) => void;
   'player:submitAnswer': (payload: { optionIndex: number; wager?: number }, ack: Ack<AnswerResult>) => void;
   /** Jogador envia uma reação (emoji) que aparece na tela do Host. */

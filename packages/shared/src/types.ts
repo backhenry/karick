@@ -3,6 +3,8 @@
  * Estes tipos são a "fonte da verdade" do formato dos dados que trafegam.
  */
 
+import type { Brand } from './brand.js';
+
 export type GameStatus = 'LOBBY' | 'QUESTION' | 'REVEAL' | 'FINISHED';
 
 export type PowerupType = 'fiftyFifty' | 'double' | 'freeze';
@@ -145,6 +147,8 @@ export interface GameRoom {
   shuffle: boolean;
   /** Equipes do jogo (só quando mode === 'teams'). */
   teams: string[];
+  /** Identidade visual (paleta + nome) definida pelo host, enviada aos jogadores. */
+  brand?: Brand;
   /** Timestamp (ms) em que a pergunta atual começou — base do cálculo de velocidade. */
   questionStartedAt: number | null;
   /** Timestamp (ms) em que a pergunta atual expira (pode ser estendido pelo host). */

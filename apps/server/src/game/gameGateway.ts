@@ -9,7 +9,22 @@ import type {
   SocketData,
 } from '@karick/shared';
 import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS, REACTIONS, normalizeTeams, STARTING_BANK, optionPermutation } from '@karick/shared';
-import type { GameMode } from '@karick/shared';
+import type { GameMode, Brand } from '@karick/shared';
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const isHex = (v: unknown): v is string => typeof v === 'string' && HEX.test(v);
+
+/** Higieniza a marca recebida do host: só hex válidos, URL http(s), nome curto. */
+function sanitizeBrand(b?: Brand): Brand | undefined {
+  if (!b || typeof b !== 'object') return undefined;
+  const out: Brand = {};
+  if (typeof b.name === 'string' && b.name.trim()) out.name = b.name.trim().slice(0, 40);
+  if (typeof b.logo === 'string' && /^https?:\/\//i.test(b.logo)) out.logo = b.logo.slice(0, 500);
+  if (isHex(b.bg)) out.bg = b.bg;
+  if (isHex(b.primary)) out.primary = b.primary;
+  if (Array.isArray(b.options) && b.options.length === 4 && b.options.every(isHex)) out.options = b.options.slice(0, 4);
+  return Object.keys(out).length ? out : undefined;
+}
 
 /** Permutação determinística das opções para um jogador numa pergunta (perm[exibida]=original). */
 const permFor = (playerId: string, qIndex: number, n: number) => optionPermutation(`${playerId}:${qIndex}`, n);
@@ -232,7 +247,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
 
   io.on('connection', (socket: IOSocket) => {
     // ─── HOST: cria a sala ───────────────────────────────
-    socket.on('host:createRoom', async ({ quiz, teams, mode, shuffle }, ack) => {
+    socket.on('host:createRoom', async ({ quiz, teams, mode, shuffle, brand }, ack) => {
       if (!createRoomLimiter.allow(socket.handshake.address)) {
         return ack?.({ ok: false, error: 'Muitas salas criadas, aguarde um instante.' });
       }
@@ -254,6 +269,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         mode: gameMode,
         shuffle: !!shuffle,
         teams: gameMode === 'teams' ? normTeams : [],
+        brand: sanitizeBrand(brand),
         questionStartedAt: null,
         questionEndsAt: null,
         stats: [],
@@ -314,13 +330,13 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       if (outcome === 'badnick') return ack?.({ ok: false, error: 'Apelido inválido' });
       if (outcome === 'offensive') return ack?.({ ok: false, error: 'Apelido não permitido' });
       if (outcome === 'taken') return ack?.({ ok: false, error: 'Apelido já em uso' });
-      if (outcome === 'needteam') return ack?.({ ok: false, error: 'Escolha uma equipe', needTeam: true, teams: room.teams });
+      if (outcome === 'needteam') return ack?.({ ok: false, error: 'Escolha uma equipe', needTeam: true, teams: room.teams, brand: room.brand });
 
       socket.join(pin);
       socket.data.pin = pin;
       socket.data.role = 'player';
       socket.data.playerId = playerId;
-      ack?.({ ok: true, mode: room.mode });
+      ack?.({ ok: true, mode: room.mode, brand: room.brand });
       if (outcome === 'reconnect') sendSync(room, room.players[playerId], socket);
       broadcastLobby(room);
     });
