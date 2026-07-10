@@ -35,6 +35,24 @@ function YouTubeAudioOnly({ id }: { id: string }) {
   );
 }
 
+/** Player de áudio (arquivo direto) com mensagem amigável se falhar. */
+function AudioPlayer({ src }: { src: string }) {
+  const [err, setErr] = useState(false);
+  if (err) {
+    return (
+      <div className="w-full max-w-xl rounded-lg bg-amber-100 p-3 text-center text-sm text-amber-800">
+        ⚠️ Não consegui tocar este áudio. Use um <b>link direto de arquivo</b> (ex.: …/musica.mp3).
+        Para YouTube, cole no campo <b>Vídeo</b> e marque <b>“Só áudio”</b>.
+      </div>
+    );
+  }
+  return (
+    <audio controls autoPlay src={src} onError={() => setErr(true)} className="w-full max-w-xl">
+      <track kind="captions" />
+    </audio>
+  );
+}
+
 /** Renderiza a mídia rica da pergunta na tela do Host: áudio, vídeo e/ou código. */
 export function QuestionMedia({
   audioUrl,
@@ -48,12 +66,11 @@ export function QuestionMedia({
   code?: string;
 }) {
   const ytId = videoUrl ? youtubeId(videoUrl) : null;
+  const audioYtId = audioUrl ? youtubeId(audioUrl) : null; // YouTube colado no campo áudio → trata como música
   return (
     <div className="flex flex-col items-center gap-3 px-10">
       {audioUrl && /^https?:\/\//i.test(audioUrl) && (
-        <audio controls autoPlay src={audioUrl} className="w-full max-w-xl">
-          <track kind="captions" />
-        </audio>
+        audioYtId ? <YouTubeAudioOnly id={audioYtId} /> : <AudioPlayer src={audioUrl} />
       )}
       {videoUrl && /^https?:\/\//i.test(videoUrl) && (
         ytId ? (
