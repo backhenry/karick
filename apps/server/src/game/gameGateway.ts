@@ -3,6 +3,8 @@ import type {
   ClientToServerEvents,
   GameRoom,
   Player,
+  Question,
+  PlayerQuestionPayload,
   ServerToClientEvents,
   SocketData,
 } from '@karick/shared';
@@ -11,6 +13,25 @@ import type { GameMode } from '@karick/shared';
 
 /** Permutação determinística das opções para um jogador numa pergunta (perm[exibida]=original). */
 const permFor = (playerId: string, qIndex: number, n: number) => optionPermutation(`${playerId}:${qIndex}`, n);
+
+/** Monta o payload de pergunta para um jogador (respeitando anti-cola e a preferência de texto). */
+function playerQuestion(room: GameRoom, p: Player, q: Question): PlayerQuestionPayload {
+  const wantsText = !!p.showText;
+  let options: string[] | undefined;
+  if (room.shuffle) options = permFor(p.id, room.currentQuestionIndex, q.options.length).map((o) => q.options[o]);
+  else if (wantsText) options = q.options;
+  return {
+    index: room.currentQuestionIndex,
+    total: room.quiz.questions.length,
+    optionsCount: q.options.length,
+    timeLimitSec: q.timeLimitSec,
+    imageUrl: q.imageUrl,
+    mode: room.mode,
+    ...(room.mode === 'betting' ? { bank: p.score } : {}),
+    ...(options ? { options } : {}),
+    ...(wantsText ? { text: q.text } : {}),
+  };
+}
 import { generatePin, type RoomStore } from '../store/roomStore.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
 import { RateLimiter } from '../util/rateLimiter.js';
@@ -69,18 +90,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         : q.timeLimitSec;
       return socket.emit('game:sync', {
         screen: player.currentAnswer ? 'ANSWERED' : 'QUESTION',
-        question: {
-          index: room.currentQuestionIndex,
-          total: room.quiz.questions.length,
-          optionsCount: q.options.length,
-          timeLimitSec: q.timeLimitSec,
-          imageUrl: q.imageUrl,
-          mode: room.mode,
-          ...(room.mode === 'betting' ? { bank: player.score } : {}),
-          ...(room.shuffle
-            ? { options: permFor(player.id, room.currentQuestionIndex, q.options.length).map((orig) => q.options[orig]) }
-            : {}),
-        },
+        question: playerQuestion(room, player, q),
         remainingSec,
       });
     }
@@ -133,18 +143,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       mode: room.mode,
     });
     Object.values(room.players).forEach((p) => {
-      io.to(p.socketId).emit('game:question:player', {
-        index: room.currentQuestionIndex,
-        total: room.quiz.questions.length,
-        optionsCount: q.options.length,
-        timeLimitSec: q.timeLimitSec,
-        imageUrl: q.imageUrl,
-        mode: room.mode,
-        ...(room.mode === 'betting' ? { bank: p.score } : {}),
-        ...(room.shuffle
-          ? { options: permFor(p.id, room.currentQuestionIndex, q.options.length).map((orig) => q.options[orig]) }
-          : {}),
-      });
+      io.to(p.socketId).emit('game:question:player', playerQuestion(room, p, q));
     });
 
     clearRoomTimer(pin);
@@ -262,7 +261,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     });
 
     // ─── PLAYER: entra na sala (ou reconecta) ────────────
-    socket.on('player:join', async ({ pin, nickname, avatar, playerId, team }, ack) => {
+    socket.on('player:join', async ({ pin, nickname, avatar, playerId, team, showText }, ack) => {
       if (!joinLimiter.allow(socket.handshake.address)) {
         return ack?.({ ok: false, error: 'Muitas tentativas, aguarde um instante.' });
       }
@@ -275,6 +274,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         if (existing) {
           existing.socketId = socket.id;
           existing.connected = true;
+          existing.showText = !!showText;
           outcome = 'reconnect';
           return;
         }
@@ -297,6 +297,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
           connected: true,
           powerups: { fiftyFifty: true, double: true, freeze: true },
           eliminated: false,
+          showText: !!showText,
           ...(r.teams.length > 0 ? { team } : {}),
           currentAnswer: null,
         };

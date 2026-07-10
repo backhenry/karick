@@ -109,6 +109,8 @@ export interface Player {
   scoringPowerupQ?: 'double' | 'freeze' | null;
   /** Eliminado no modo sobrevivência (vira espectador). */
   eliminated?: boolean;
+  /** Preferência: mostrar o texto do enunciado/opções no celular do jogador. */
+  showText?: boolean;
   /** Resposta da pergunta atual; resetada a cada nova pergunta. */
   currentAnswer: PlayerAnswer | null;
   /** Posição no ranking na última revelação (para calcular a variação). */
@@ -191,8 +193,10 @@ export interface PlayerQuestionPayload {
   mode: GameMode;
   /** Banco atual do jogador (modo aposta). */
   bank?: number;
-  /** Textos das opções, embaralhados por jogador (anti-cola). Ausente = modo cor. */
+  /** Textos das opções (anti-cola embaralha; preferência do jogador em ordem normal). Ausente = modo cor. */
   options?: string[];
+  /** Enunciado, enviado quando o jogador optou por ver o texto no celular. */
+  text?: string;
 }
 
 export interface AnswerResult {

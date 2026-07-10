@@ -50,6 +50,7 @@ export function App() {
   const [pin, setPin] = useState(() => new URLSearchParams(window.location.search).get('pin') ?? '');
   const [nickname, setNickname] = useState('');
   const [avatar, setAvatar] = useState(randomAvatar);
+  const [showText, setShowText] = useState(false);
   const [expired, setExpired] = useState(false);
   const [teamOptions, setTeamOptions] = useState<string[] | null>(null);
   const [powerups, setPowerups] = useState({ fiftyFifty: true, double: true, freeze: true });
@@ -111,7 +112,7 @@ export function App() {
         className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-3 p-6"
         onSubmit={async (e) => {
           e.preventDefault();
-          const res = await join(pin, nickname, avatar);
+          const res = await join(pin, nickname, avatar, undefined, showText);
           if (res.needTeam) setTeamOptions(res.teams ?? []);
         }}
       >
@@ -155,6 +156,11 @@ export function App() {
           ))}
         </div>
 
+        <label className="flex cursor-pointer items-center justify-center gap-2 text-sm text-slate-600">
+          <input type="checkbox" checked={showText} onChange={(e) => setShowText(e.target.checked)} />
+          Mostrar o texto das perguntas no meu celular
+        </label>
+
         {teamOptions ? (
           <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
             <p className="mb-2 text-center text-sm font-bold text-indigo-700">Escolha sua equipe</p>
@@ -163,7 +169,7 @@ export function App() {
                 <button
                   key={t}
                   type="button"
-                  onClick={() => join(pin, nickname, avatar, t)}
+                  onClick={() => join(pin, nickname, avatar, t, showText)}
                   className="rounded-lg bg-indigo-600 p-3 font-bold text-white active:scale-95"
                 >
                   {t}
@@ -203,6 +209,9 @@ export function App() {
           resetKey={timer.key}
           onExpire={() => setExpired(true)}
         />
+        {question.text && (
+          <h2 className="px-3 pt-1 text-center text-lg font-bold text-slate-800">{question.text}</h2>
+        )}
         {question.imageUrl && (
           <div className="flex justify-center px-3 pb-1">
             <img

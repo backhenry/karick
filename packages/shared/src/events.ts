@@ -68,7 +68,7 @@ export interface ClientToServerEvents {
   /** Remove um jogador da sala (pelo apelido). */
   'host:kickPlayer': (payload: { nickname: string }) => void;
   'player:join': (
-    payload: { pin: string; nickname: string; avatar?: string; playerId: string; team?: string },
+    payload: { pin: string; nickname: string; avatar?: string; playerId: string; team?: string; showText?: boolean },
     ack: Ack<{ needTeam: boolean; teams: string[]; mode: GameMode }>,
   ) => void;
   'player:submitAnswer': (payload: { optionIndex: number; wager?: number }, ack: Ack<AnswerResult>) => void;
