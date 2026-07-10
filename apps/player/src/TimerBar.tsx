@@ -41,11 +41,11 @@ export function TimerBar({
 
   return (
     <div className="p-3">
-      <div className="mb-1 text-center text-2xl font-black text-slate-700">{Math.ceil(remaining)}</div>
-      <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
+      <div className="mb-1 text-center text-2xl font-black" style={{ color: 'var(--k-primary, #334155)' }}>{Math.ceil(remaining)}</div>
+      <div className="h-3 w-full overflow-hidden rounded-full bg-black/20">
         <div
-          className="h-full bg-indigo-500"
-          style={{ width, transition: `width ${durationSec}s linear` }}
+          className="h-full"
+          style={{ width, background: 'var(--k-primary, #6366f1)', transition: `width ${durationSec}s linear` }}
         />
       </div>
     </div>

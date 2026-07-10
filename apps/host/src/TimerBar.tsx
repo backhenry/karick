@@ -13,8 +13,8 @@ export function TimerBar({ durationSec, resetKey }: { durationSec: number; reset
   return (
     <div className="h-3 w-full overflow-hidden rounded-full bg-black/10">
       <div
-        className="h-full bg-indigo-500"
-        style={{ width, transition: `width ${durationSec}s linear` }}
+        className="h-full"
+        style={{ width, background: 'var(--k-primary, #6366f1)', transition: `width ${durationSec}s linear` }}
       />
     </div>
   );

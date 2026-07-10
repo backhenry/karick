@@ -192,18 +192,18 @@ export function App() {
 
   if (screen === 'LOBBY')
     return (
-      <Center>
+      <div className="flex min-h-screen items-center justify-center p-6 text-center text-xl text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
         <div>
-          <p className="mb-2 text-2xl font-black" style={{ color: 'var(--k-primary)' }}>{brandName}</p>
+          <p className="mb-2 text-2xl font-black" style={{ color: 'var(--k-primary, #a5b4fc)' }}>{brandName}</p>
           ✅ Você entrou! Aguarde o apresentador iniciar…
-          {team && <p className="mt-3 text-lg font-bold text-indigo-600">Equipe: {team}</p>}
+          {team && <p className="mt-3 text-lg font-bold" style={{ color: 'var(--k-primary, #a5b4fc)' }}>Equipe: {team}</p>}
         </div>
-      </Center>
+      </div>
     );
 
   if (screen === 'QUESTION' && question) {
     return (
-      <div className="flex h-screen flex-col pb-12">
+      <div className="flex h-screen flex-col pb-12 text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
         {reconnecting && <ReconnectBanner />}
         <ReactionBar onReact={react} />
         <TimerBar
@@ -212,7 +212,7 @@ export function App() {
           onExpire={() => setExpired(true)}
         />
         {question.text && (
-          <h2 className="px-3 pt-1 text-center text-lg font-bold text-slate-800">{question.text}</h2>
+          <h2 className="px-3 pt-1 text-center text-lg font-bold text-white">{question.text}</h2>
         )}
         {question.imageUrl && (
           <div className="flex justify-center px-3 pb-1">
@@ -225,25 +225,26 @@ export function App() {
           </div>
         )}
         {eliminated && question.mode === 'survival' ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-slate-500">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-white/60">
             <span className="text-5xl">💀</span>
             <span className="text-2xl">Eliminado — assistindo</span>
           </div>
         ) : expired ? (
-          <div className="flex flex-1 items-center justify-center text-2xl text-slate-500">
+          <div className="flex flex-1 items-center justify-center text-2xl text-white/60">
             Tempo esgotado ⏰
           </div>
         ) : (
           <>
             {question.mode === 'betting' ? (
               <div className="px-3 pb-1 text-center">
-                <p className="text-sm text-slate-500">Banco: <b>{bank}</b> · apostando <b>{wager}</b></p>
+                <p className="text-sm text-white/70">Banco: <b>{bank}</b> · apostando <b>{wager}</b></p>
                 <div className="mt-1 flex justify-center gap-2">
                   {[25, 50, 100].map((pct) => (
                     <button
                       key={pct}
                       onClick={() => setWagerPct(pct)}
-                      className={`rounded-lg px-3 py-1 text-sm font-bold ${wagerPct === pct ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}
+                      className={`rounded-lg px-3 py-1 text-sm font-bold ${wagerPct === pct ? 'text-white' : 'bg-white/15 text-white'}`}
+                      style={wagerPct === pct ? { background: 'var(--k-primary, #4f46e5)' } : undefined}
                     >
                       {pct === 100 ? 'Tudo' : `${pct}%`}
                     </button>
@@ -255,21 +256,21 @@ export function App() {
                 <button
                   onClick={() => doPowerup('fiftyFifty')}
                   disabled={!powerups.fiftyFifty || !!keep}
-                  className="rounded-lg bg-slate-200 px-3 py-1 text-sm font-bold text-slate-700 disabled:opacity-40"
+                  className="rounded-lg bg-white/15 px-3 py-1 text-sm font-bold text-white disabled:opacity-40"
                 >
                   50/50
                 </button>
                 <button
                   onClick={() => doPowerup('double')}
                   disabled={!powerups.double || !!activeScoring}
-                  className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'double' ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-700'}`}
+                  className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'double' ? 'bg-green-500 text-white' : 'bg-white/15 text-white'}`}
                 >
                   2× pontos
                 </button>
                 <button
                   onClick={() => doPowerup('freeze')}
                   disabled={!powerups.freeze || !!activeScoring}
-                  className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'freeze' ? 'bg-cyan-500 text-white' : 'bg-slate-200 text-slate-700'}`}
+                  className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'freeze' ? 'bg-cyan-500 text-white' : 'bg-white/15 text-white'}`}
                 >
                   ⏱ congelar
                 </button>
@@ -298,7 +299,9 @@ export function App() {
     return (
       <>
         {reconnecting && <ReconnectBanner />}
-        <Center>Resposta enviada! Aguardando os outros… ⏳</Center>
+        <div className="flex min-h-screen items-center justify-center p-6 text-center text-xl text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
+          Resposta enviada! Aguardando os outros… ⏳
+        </div>
         <ReactionBar onReact={react} />
       </>
     );
@@ -349,14 +352,15 @@ export function App() {
   if (screen === 'OVER') {
     const card = buildResultCard({ nickname, avatar, rank: reveal?.rank, score: reveal?.score ?? feedback?.totalScore });
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-        <h1 className="text-2xl font-bold text-slate-700">🏁 Fim de jogo!</h1>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
+        <h1 className="text-2xl font-bold">🏁 Fim de jogo!</h1>
         {card && <img src={card} alt="Seu resultado" className="w-full max-w-sm rounded-xl shadow-lg" />}
         {card && (
           <a
             href={card}
             download="karick-resultado.png"
-            className="rounded-lg bg-indigo-600 px-6 py-3 font-bold text-white"
+            className="rounded-lg px-6 py-3 font-bold text-white"
+            style={{ background: 'var(--k-primary, #4f46e5)' }}
           >
             ⬇ Baixar meu resultado
           </a>

@@ -221,17 +221,17 @@ export function App() {
   // ─── QUESTION: pergunta + opções + tempo + progresso ───
   if (g.phase === 'QUESTION' && g.question)
     return (
-      <div className="flex min-h-screen flex-col bg-white">
+      <div className="flex min-h-screen flex-col" style={{ background: branding.bg }}>
         <FloatingReactions items={g.reactions} />
-        <div className="flex items-center justify-between p-6 text-slate-500">
+        <div className="flex items-center justify-between p-6 text-white/60">
           <span className="text-xl">
             Pergunta {g.question.index + 1} de {g.question.total}
           </span>
           <div className="flex items-center gap-3">
-            <span className="rounded-full bg-slate-100 px-4 py-1 text-xl font-bold text-slate-700">
+            <span className="rounded-full bg-white/10 px-4 py-1 text-xl font-bold text-white">
               {g.answeredCount}/{g.players.length} responderam
             </span>
-            <button onClick={g.addTime} className="rounded-lg bg-slate-200 px-3 py-1 font-bold text-slate-700 hover:bg-slate-300">
+            <button onClick={g.addTime} className="rounded-lg bg-white/10 px-3 py-1 font-bold text-white hover:bg-white/20">
               +20s
             </button>
             <button onClick={g.revealNow} className="rounded-lg px-3 py-1 font-bold text-white" style={{ background: branding.primary }}>
@@ -244,7 +244,7 @@ export function App() {
           <TimerBar durationSec={g.timer.durationSec} resetKey={g.timer.key} />
         </div>
 
-        <h2 className="px-10 pt-8 text-center text-5xl font-bold text-slate-800">{g.question.text}</h2>
+        <h2 className="px-10 pt-8 text-center text-5xl font-bold text-white">{g.question.text}</h2>
 
         {g.question.imageUrl && (
           <div className="flex justify-center px-10 py-4">
