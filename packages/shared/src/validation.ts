@@ -5,6 +5,10 @@ import { MIN_OPTIONS, MAX_OPTIONS, MIN_TIME_LIMIT, MAX_TIME_LIMIT, MAX_TAGS, MAX
 export const MAX_ACCEPTED_ANSWERS = 10;
 export const MAX_ANSWER_LENGTH = 80;
 
+/** Limites das dicas progressivas ("Quem sou eu?"). */
+export const MAX_HINTS = 6;
+export const MAX_HINT_LENGTH = 120;
+
 /**
  * Normaliza uma resposta digitada para comparação: minúsculas, sem acentos,
  * espaços colapsados. "São  Paulo " ≡ "sao paulo".
@@ -102,6 +106,13 @@ export function validateQuiz(quiz: QuizDraft): string | null {
     }
     if (typeof q.points !== 'number' || q.points <= 0) {
       return `Pergunta ${n}: pontuação inválida.`;
+    }
+    if (q.hints !== undefined) {
+      const ok =
+        Array.isArray(q.hints) &&
+        q.hints.length <= MAX_HINTS &&
+        q.hints.every((h) => typeof h === 'string' && h.trim() && h.length <= MAX_HINT_LENGTH);
+      if (!ok) return `Pergunta ${n}: dicas devem ser até ${MAX_HINTS} textos de até ${MAX_HINT_LENGTH} caracteres.`;
     }
     if (q.imageUrl !== undefined && q.imageUrl !== '') {
       if (typeof q.imageUrl !== 'string' || !/^https?:\/\//i.test(q.imageUrl.trim())) {

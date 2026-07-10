@@ -22,6 +22,31 @@ function Center({ children }: { children: ReactNode }) {
   );
 }
 
+/** Imagem que se revela (espelha o telão): borrada → nítida ao longo do tempo. */
+function RevealImg({ src, durationSec, resetKey }: { src: string; durationSec: number; resetKey: number | string }) {
+  const [sharp, setSharp] = useState(false);
+  useEffect(() => {
+    setSharp(false);
+    const id = requestAnimationFrame(() => setSharp(true));
+    return () => cancelAnimationFrame(id);
+  }, [resetKey]);
+  return (
+    <div className="overflow-hidden rounded-lg">
+      <img
+        src={src}
+        alt=""
+        className="max-h-[28vh] object-contain"
+        style={{
+          filter: sharp ? 'blur(0px)' : 'blur(18px)',
+          transform: sharp ? 'scale(1)' : 'scale(1.15)',
+          transition: `filter ${durationSec}s linear, transform ${durationSec}s linear`,
+        }}
+        onError={(e) => (e.currentTarget.style.display = 'none')}
+      />
+    </div>
+  );
+}
+
 function ReconnectBanner() {
   return (
     <div className="fixed inset-x-0 top-0 z-50 bg-amber-500 py-1 text-center text-sm font-bold text-white">
@@ -226,12 +251,16 @@ export function App() {
         )}
         {question.imageUrl && (
           <div className="flex justify-center px-3 pb-1">
-            <img
-              src={question.imageUrl}
-              alt=""
-              className="max-h-[28vh] rounded-lg object-contain"
-              onError={(e) => (e.currentTarget.style.display = 'none')}
-            />
+            {question.imageReveal ? (
+              <RevealImg src={question.imageUrl} durationSec={timer.durationSec || question.timeLimitSec} resetKey={timer.key} />
+            ) : (
+              <img
+                src={question.imageUrl}
+                alt=""
+                className="max-h-[28vh] rounded-lg object-contain"
+                onError={(e) => (e.currentTarget.style.display = 'none')}
+              />
+            )}
           </div>
         )}
         {eliminated && question.mode === 'survival' ? (

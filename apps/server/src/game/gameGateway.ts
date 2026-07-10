@@ -45,6 +45,7 @@ function playerQuestion(room: GameRoom, p: Player, q: Question): PlayerQuestionP
     optionsCount: q.options.length,
     timeLimitSec: q.timeLimitSec,
     imageUrl: q.imageUrl,
+    ...(q.imageUrl && q.imageReveal ? { imageReveal: true } : {}),
     mode: room.mode,
     ...(room.mode === 'betting' ? { bank: p.score } : {}),
     ...(options ? { options } : {}),
@@ -166,6 +167,8 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       code: q.code,
       latex: q.latex,
       mode: room.mode,
+      imageReveal: q.imageReveal,
+      hints: q.hints,
     });
     Object.values(room.players).forEach((p) => {
       io.to(p.socketId).emit('game:question:player', playerQuestion(room, p, q));

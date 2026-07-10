@@ -33,6 +33,10 @@ export interface Question {
   points: number;
   /** URL http(s) de uma imagem opcional exibida com a pergunta. */
   imageUrl?: string;
+  /** Imagem começa borrada e vai ficando nítida ao longo do tempo (responder cedo vale mais). */
+  imageReveal?: boolean;
+  /** "Quem sou eu?": dicas exibidas progressivamente no telão ao longo do tempo. */
+  hints?: string[];
   /** URL http(s) de um áudio opcional (ex.: "adivinhe a música"). */
   audioUrl?: string;
   /** URL de vídeo (YouTube ou .mp4) opcional. */
@@ -217,6 +221,10 @@ export interface HostQuestionPayload {
   code?: string;
   latex?: string;
   mode?: GameMode;
+  /** Imagem borrada que fica nítida ao longo do tempo. */
+  imageReveal?: boolean;
+  /** Dicas progressivas ("Quem sou eu?"), exibidas no telão. */
+  hints?: string[];
 }
 
 /** Pergunta como o PLAYER a vê (sem texto nem resposta — só os botões). */
@@ -228,6 +236,8 @@ export interface PlayerQuestionPayload {
   optionsCount: number;
   timeLimitSec: number;
   imageUrl?: string;
+  /** Imagem borrada que fica nítida ao longo do tempo (espelha o telão). */
+  imageReveal?: boolean;
   mode: GameMode;
   /** Banco atual do jogador (modo aposta). */
   bank?: number;

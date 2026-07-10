@@ -28,6 +28,9 @@ Campos opcionais por pergunta: "latex" (fórmula LaTeX, ex.: "x = \\frac{-b}{2a}
 Tipos: o padrão é alternativas; "type": "text" + "acceptedAnswers": ["resposta", "variação"]
 faz o jogador DIGITAR a resposta (sem "options"); "type": "poll" é enquete sem resposta
 certa (tem "options", dispensa "correctIndex"). Misture os tipos quando fizer sentido.
+Efeitos opcionais: "imageReveal": true faz a imagem começar borrada e abrir com o tempo;
+"hints": ["dica 1", "dica 2", …] cria um "Quem sou eu?" com dicas progressivas no telão
+(até 6 — combine com type "text" para o jogador digitar quem/o que é).
 Tema do quiz: [DESCREVA O TEMA] com [N] perguntas.
 
 {
@@ -109,12 +112,14 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
   const effectiveDraft = (): QuizDraft => ({
     ...draft,
     tags: normalizeTags(tagsInput),
-    // Respostas aceitas: apara e remove vazias (o campo aceita vírgula solta ao digitar).
-    questions: draft.questions.map((q) =>
-      (q.type ?? 'choice') === 'text'
-        ? { ...q, acceptedAnswers: (q.acceptedAnswers ?? []).map((a) => a.trim()).filter(Boolean) }
-        : q,
-    ),
+    // Normaliza campos "digitados solto": respostas aceitas (vírgulas) e dicas (linhas).
+    questions: draft.questions.map((q) => {
+      const hints = (q.hints ?? []).map((h) => h.trim()).filter(Boolean).slice(0, 6);
+      const base = { ...q, hints: hints.length ? hints : undefined };
+      return (q.type ?? 'choice') === 'text'
+        ? { ...base, acceptedAnswers: (q.acceptedAnswers ?? []).map((a) => a.trim()).filter(Boolean) }
+        : base;
+    }),
   });
 
   const save = async () => {
@@ -365,6 +370,25 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                 />
               )}
             </div>
+
+            {q.imageUrl && /^https?:\/\//i.test(q.imageUrl) && (
+              <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  checked={!!q.imageReveal}
+                  onChange={(e) => patchQuestion(qi, (qq) => (qq.imageReveal = e.target.checked || undefined))}
+                />
+                🔍 Revelar aos poucos — imagem começa borrada e abre com o tempo (responder cedo vale mais)
+              </label>
+            )}
+
+            <textarea
+              value={(q.hints ?? []).join('\n')}
+              onChange={(e) => patchQuestion(qi, (qq) => (qq.hints = e.target.value ? e.target.value.split('\n') : undefined))}
+              placeholder={'Dicas "Quem sou eu?" (opcional) — uma por linha, aparecem aos poucos no telão'}
+              rows={2}
+              className="mb-3 w-full resize-y rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
+            />
 
             <input
               value={q.explanation ?? ''}

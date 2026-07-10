@@ -19,6 +19,7 @@ import { GalleryModal } from './GalleryModal.js';
 import { loadBranding, saveBranding } from './lib/branding.js';
 import { scheduleTension, startLobbyMusic } from './lib/sound.js';
 import { Confetti } from './Confetti.js';
+import { RevealImage, Hints } from './QuestionFx.js';
 import { emptyDraft } from './lib/quizStorage.js';
 
 const pct = (s: QuestionStat) => (s.answered > 0 ? Math.round((s.correctCount / s.answered) * 100) : 0);
@@ -273,13 +274,21 @@ export function App() {
 
         {g.question.imageUrl && (
           <div className="flex justify-center px-10 py-4">
-            <img
-              src={g.question.imageUrl}
-              alt=""
-              className="max-h-[32vh] rounded-xl object-contain"
-              onError={(e) => (e.currentTarget.style.display = 'none')}
-            />
+            {g.question.imageReveal ? (
+              <RevealImage src={g.question.imageUrl} durationSec={g.timer.durationSec} resetKey={g.timer.key} />
+            ) : (
+              <img
+                src={g.question.imageUrl}
+                alt=""
+                className="max-h-[32vh] rounded-xl object-contain"
+                onError={(e) => (e.currentTarget.style.display = 'none')}
+              />
+            )}
           </div>
+        )}
+
+        {g.question.hints && g.question.hints.length > 0 && (
+          <Hints hints={g.question.hints} durationSec={g.timer.durationSec} resetKey={g.timer.key} />
         )}
 
         {(g.question.audioUrl || g.question.videoUrl || g.question.code || g.question.latex) && (

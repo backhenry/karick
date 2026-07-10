@@ -135,6 +135,11 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
     const audioOnly = q.audioOnly === true || q.soAudio === true;
     const code = str(q.code ?? q.codigo);
     const latex = str(q.latex ?? q.formula ?? q.math);
+    const rawHints = q.hints ?? q.dicas;
+    const hints = Array.isArray(rawHints)
+      ? rawHints.filter((h): h is string => typeof h === 'string' && !!h.trim()).map((h) => h.trim()).slice(0, 6)
+      : [];
+    const imageReveal = q.imageReveal === true || q.revealImage === true || q.revelarImagem === true;
     questions.push({
       text: text.trim(),
       ...(qType !== 'choice' ? { type: qType } : {}),
@@ -144,6 +149,8 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
       timeLimitSec: toNum(q.timeLimitSec ?? q.tempo ?? q.time, DEFAULT_TIME_LIMIT),
       points: toNum(q.points ?? q.pontos, DEFAULT_POINTS),
       ...(imageUrl ? { imageUrl } : {}),
+      ...(imageUrl && imageReveal ? { imageReveal: true } : {}),
+      ...(hints.length ? { hints } : {}),
       ...(audioUrl ? { audioUrl } : {}),
       ...(videoUrl ? { videoUrl } : {}),
       ...(videoUrl && audioOnly ? { audioOnly: true } : {}),
