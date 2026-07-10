@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { type Brand, DEFAULT_BRAND, BRAND_PRESETS, OPTION_SHAPES } from '@karick/shared';
+import { type Brand, DEFAULT_BRAND, BRAND_PRESETS, OPTION_SHAPES, BRAND_IMPORT_PROMPT, parseBrandImport } from '@karick/shared';
 
 /** Configura marca do host: nome, logo e paleta de cores (aplicados no jogo todo). */
 export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; onSave: (b: Brand) => void; onClose: () => void }) {
@@ -8,8 +8,35 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
   const [bg, setBg] = useState(initial.bg ?? DEFAULT_BRAND.bg!);
   const [primary, setPrimary] = useState(initial.primary ?? DEFAULT_BRAND.primary!);
   const [options, setOptions] = useState<string[]>(initial.options && initial.options.length === 4 ? [...initial.options] : [...DEFAULT_BRAND.options!]);
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importErr, setImportErr] = useState<string | null>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
 
   const setOpt = (i: number, v: string) => setOptions((o) => o.map((c, idx) => (idx === i ? v : c)));
+
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(BRAND_IMPORT_PROMPT);
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2000);
+    } catch {
+      /* clipboard indisponível: o usuário pode copiar manualmente do campo */
+    }
+  };
+
+  const applyImport = () => {
+    const r = parseBrandImport(importText);
+    if (!r.ok) return setImportErr(r.error);
+    setImportErr(null);
+    if (r.brand.name !== undefined) setName(r.brand.name);
+    if (r.brand.logo !== undefined) setLogo(r.brand.logo);
+    if (r.brand.bg) setBg(r.brand.bg);
+    if (r.brand.primary) setPrimary(r.brand.primary);
+    if (r.brand.options) setOptions(r.brand.options);
+    setShowImport(false);
+    setImportText('');
+  };
 
   const applyPreset = (p: (typeof BRAND_PRESETS)[number]) => {
     setBg(p.bg);
@@ -27,6 +54,36 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" role="dialog" aria-modal="true">
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-slate-800 p-6 text-slate-100">
         <h2 className="mb-4 text-2xl font-bold">Personalização (marca)</h2>
+
+        <div className="mb-4 rounded-lg border border-white/10 p-3">
+          <button onClick={() => setShowImport((v) => !v)} className="flex w-full items-center justify-between font-bold">
+            <span>✨ Importar identidade visual (com ajuda de IA)</span>
+            <span className="text-white/50">{showImport ? '▲' : '▼'}</span>
+          </button>
+          {showImport && (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs text-white/60">
+                1. Copie o prompt e cole numa IA (ChatGPT, Claude…), trocando <b>[DESCREVA AQUI]</b> pela sua marca.
+                2. Cole aqui o JSON que ela devolver e clique em <b>Aplicar</b>.
+              </p>
+              <button onClick={copyPrompt} className="w-full rounded-lg bg-white/10 px-3 py-2 text-sm font-bold hover:bg-white/20">
+                📋 {promptCopied ? 'Prompt copiado!' : 'Copiar prompt para IA'}
+              </button>
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder={'Cole aqui o JSON, ex.:\n{ "name": "Marca", "bg": "#0f172a", "primary": "#6366f1", "options": ["#e21b3c","#1368ce","#d89e00","#26890c"] }'}
+                rows={5}
+                spellCheck={false}
+                className="w-full resize-y rounded-lg bg-black/30 p-2 font-mono text-xs outline-none placeholder:text-white/30"
+              />
+              {importErr && <p className="text-xs text-red-300">⚠️ {importErr}</p>}
+              <button onClick={applyImport} className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-bold hover:bg-indigo-500">
+                Aplicar JSON aos campos
+              </button>
+            </div>
+          )}
+        </div>
 
         <label className="mb-1 block text-sm text-white/70">Nome (substitui “Karick”)</label>
         <input

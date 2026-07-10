@@ -38,6 +38,84 @@ export function applyBrandVars(b?: Brand | null): void {
   opts.forEach((c, i) => s.setProperty(`--k-opt-${i}`, c));
 }
 
+/** Normaliza uma cor para o formato #rrggbb (aceita #rgb, sem #, maiúsculas). */
+function normalizeHex(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  let s = v.trim().replace(/^#/, '');
+  if (/^[0-9a-fA-F]{3}$/.test(s)) s = s.split('').map((c) => c + c).join('');
+  return /^[0-9a-fA-F]{6}$/.test(s) ? '#' + s.toLowerCase() : undefined;
+}
+
+/** Extrai um hex de um item de paleta (string ou objeto {hex|color|value}). */
+function hexFromItem(el: unknown): string | undefined {
+  if (typeof el === 'string') return normalizeHex(el);
+  if (el && typeof el === 'object') {
+    const o = el as Record<string, unknown>;
+    return normalizeHex(o.hex ?? o.color ?? o.value);
+  }
+  return undefined;
+}
+
+/** Prompt pronto para colar numa IA e obter a identidade visual de uma marca em JSON. */
+export const BRAND_IMPORT_PROMPT = `Aja como especialista em identidade visual de marcas.
+Quero a identidade visual da seguinte marca: [DESCREVA AQUI — nome, site ou setor da marca].
+
+Responda APENAS com um JSON válido (sem markdown, sem comentários, sem texto antes ou depois), exatamente neste formato:
+
+{
+  "name": "Nome da marca",
+  "logo": "https://url-publica-do-logo.png",
+  "bg": "#0f172a",
+  "primary": "#6366f1",
+  "options": ["#e21b3c", "#1368ce", "#d89e00", "#26890c"]
+}
+
+Regras:
+- Todas as cores em hexadecimal no formato #rrggbb.
+- "bg": cor de fundo ESCURA (o texto por cima é branco) — use um tom bem escuro da paleta da marca.
+- "primary": cor de destaque principal da marca (usada em PIN, botões e títulos).
+- "options": 4 cores VIBRANTES e bem distintas entre si para as alternativas do quiz (podem derivar da paleta da marca).
+- "logo": URL http(s) pública do logo; se não tiver certeza de uma URL real, use "".
+- Não invente URLs de logo que possam não existir.`;
+
+/** Interpreta um JSON de identidade visual (tolerante a apelidos e cercas de markdown). */
+export function parseBrandImport(raw: string): { ok: true; brand: Brand } | { ok: false; error: string } {
+  if (!raw || !raw.trim()) return { ok: false, error: 'Cole o JSON da identidade visual.' };
+  let text = raw.trim();
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) text = fence[1].trim();
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start >= 0 && end > start) text = text.slice(start, end + 1);
+  let obj: Record<string, unknown>;
+  try {
+    obj = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return { ok: false, error: 'JSON inválido — verifique o texto colado.' };
+  }
+  if (!obj || typeof obj !== 'object') return { ok: false, error: 'O JSON precisa ser um objeto.' };
+  const pick = (...keys: string[]): unknown => {
+    for (const k of keys) if (obj[k] != null) return obj[k];
+    return undefined;
+  };
+  const brand: Brand = {};
+  const name = pick('name', 'brand', 'title', 'nome');
+  if (typeof name === 'string' && name.trim()) brand.name = name.trim().slice(0, 40);
+  const logo = pick('logo', 'logoUrl', 'logotipo', 'image');
+  if (typeof logo === 'string' && /^https?:\/\//i.test(logo.trim())) brand.logo = logo.trim();
+  const bg = normalizeHex(pick('bg', 'background', 'backgroundColor', 'fundo'));
+  if (bg) brand.bg = bg;
+  const primary = normalizeHex(pick('primary', 'accent', 'primaryColor', 'destaque', 'brandColor'));
+  if (primary) brand.primary = primary;
+  const rawOpts = pick('options', 'answerColors', 'palette', 'alternativas', 'colors', 'optionColors');
+  if (Array.isArray(rawOpts)) {
+    const opts = rawOpts.map(hexFromItem).filter((c): c is string => !!c);
+    if (opts.length >= 4) brand.options = opts.slice(0, 4);
+  }
+  if (!Object.keys(brand).length) return { ok: false, error: 'Nenhum campo reconhecido (name, logo, bg, primary, options).' };
+  return { ok: true, brand };
+}
+
 /** Paletas prontas para escolha rápida. */
 export const BRAND_PRESETS: { name: string; bg: string; primary: string; options: string[] }[] = [
   { name: 'Karick', bg: '#0f172a', primary: '#6366f1', options: [...OPTION_COLORS] },
