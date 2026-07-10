@@ -42,6 +42,7 @@ export interface QuizDraft {
   title: string;
   questions: Question[];
   tags?: string[];
+  isPublic?: boolean;
 }
 
 /** Pergunta avulsa no banco de perguntas (reutilizável, com tags). */
@@ -58,6 +59,7 @@ export interface SavedQuiz {
   title: string;
   questions: Question[];
   tags: string[];
+  isPublic: boolean;
   updatedAt: string; // ISO
 }
 
@@ -67,6 +69,7 @@ export interface QuizSummary {
   title: string;
   questionCount: number;
   tags: string[];
+  isPublic: boolean;
   updatedAt: string; // ISO
 }
 

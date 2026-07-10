@@ -10,9 +10,10 @@ interface Props {
   onLogout?: () => void;
   onBranding?: () => void;
   onBank?: () => void;
+  onGallery?: () => void;
 }
 
-export function Library({ onNew, onEdit, onHost, userEmail, onLogout, onBranding, onBank }: Props) {
+export function Library({ onNew, onEdit, onHost, userEmail, onLogout, onBranding, onBank, onGallery }: Props) {
   const [quizzes, setQuizzes] = useState<QuizSummary[] | null>(null);
   const [history, setHistory] = useState<GameHistoryEntry[]>([]);
   const [dbEnabled, setDbEnabled] = useState(true);
@@ -41,7 +42,7 @@ export function Library({ onNew, onEdit, onHost, userEmail, onLogout, onBranding
     setBusyId(id);
     try {
       const quiz = await api.getQuiz(id);
-      fn({ title: quiz.title, questions: quiz.questions, tags: quiz.tags });
+      fn({ title: quiz.title, questions: quiz.questions, tags: quiz.tags, isPublic: quiz.isPublic });
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -118,6 +119,11 @@ export function Library({ onNew, onEdit, onHost, userEmail, onLogout, onBranding
               {userEmail}
             </span>
           )}
+          {onGallery && (
+            <button onClick={onGallery} title="Galeria pública" className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
+              🌐 Galeria
+            </button>
+          )}
           {onBank && (
             <button onClick={onBank} title="Banco de perguntas" className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
               🎲 Banco
@@ -184,7 +190,10 @@ export function Library({ onNew, onEdit, onHost, userEmail, onLogout, onBranding
           {shown.map((q) => (
             <li key={q.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/5 p-4">
               <div className="min-w-0">
-                <p className="truncate text-lg font-bold">{q.title}</p>
+                <p className="truncate text-lg font-bold">
+                  {q.title}
+                  {q.isPublic && <span className="ml-2 rounded bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">🌐 público</span>}
+                </p>
                 <p className="text-sm text-white/40">
                   {q.questionCount} pergunta{q.questionCount !== 1 ? 's' : ''} · {fmt(q.updatedAt)}
                 </p>

@@ -242,8 +242,16 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
         value={tagsInput}
         onChange={(e) => setTagsInput(e.target.value)}
         placeholder="Tags (separadas por vírgula) — ex.: geografia, fácil"
-        className="mb-6 w-full rounded-lg bg-white/10 p-3 text-sm outline-none placeholder:text-white/40"
+        className="mb-3 w-full rounded-lg bg-white/10 p-3 text-sm outline-none placeholder:text-white/40"
       />
+      <label className="mb-6 flex cursor-pointer items-center gap-2 text-sm text-white/70">
+        <input
+          type="checkbox"
+          checked={!!draft.isPublic}
+          onChange={(e) => update((d) => (d.isPublic = e.target.checked || undefined))}
+        />
+        🌐 Público — aparece na galeria para outros descobrirem e clonarem
+      </label>
 
       <div className="space-y-6">
         {draft.questions.map((q, qi) => (

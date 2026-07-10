@@ -82,6 +82,25 @@ export function createApiRouter(
     }
   });
 
+  // ─── Galeria pública ───
+  r.get('/gallery', async (_req, res, next) => {
+    try {
+      res.json(await quizzes.listPublic());
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  r.get('/gallery/:id', async (req, res, next) => {
+    try {
+      const quiz = await quizzes.getPublic(req.params.id);
+      if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado' });
+      res.json(quiz);
+    } catch (e) {
+      next(e);
+    }
+  });
+
   // ─── Banco de perguntas ───
   r.get('/bank', async (_req, res, next) => {
     try {

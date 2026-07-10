@@ -2,13 +2,16 @@ import type pg from 'pg';
 import type { Question, QuizDraft, QuizSummary, SavedQuiz } from '@karick/shared';
 import { normalizeTags } from '@karick/shared';
 
-/** Todas as operações são escopadas ao dono (ownerId) — cada um só vê os seus. */
 export interface QuizRepository {
   list(ownerId: string): Promise<QuizSummary[]>;
   get(id: string, ownerId: string): Promise<SavedQuiz | null>;
   create(draft: QuizDraft, ownerId: string): Promise<SavedQuiz>;
   update(id: string, draft: QuizDraft, ownerId: string): Promise<SavedQuiz | null>;
   remove(id: string, ownerId: string): Promise<boolean>;
+  /** Quizzes públicos de qualquer usuário (galeria). */
+  listPublic(): Promise<QuizSummary[]>;
+  /** Um quiz público qualquer (para clonar). */
+  getPublic(id: string): Promise<SavedQuiz | null>;
 }
 
 const genId = () => 'qz_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -20,23 +23,33 @@ export class PostgresQuizRepository implements QuizRepository {
 
   async list(ownerId: string): Promise<QuizSummary[]> {
     const { rows } = await this.pool.query(
-      `SELECT id, title, tags, jsonb_array_length(questions) AS question_count, updated_at
+      `SELECT id, title, tags, is_public, jsonb_array_length(questions) AS question_count, updated_at
        FROM quizzes WHERE owner_id = $1 ORDER BY updated_at DESC`,
       [ownerId],
     );
-    return rows.map((r) => ({
-      id: r.id,
-      title: r.title,
-      tags: parseTags(r.tags),
-      questionCount: Number(r.question_count),
-      updatedAt: new Date(r.updated_at).toISOString(),
-    }));
+    return rows.map(toSummary);
+  }
+
+  async listPublic(): Promise<QuizSummary[]> {
+    const { rows } = await this.pool.query(
+      `SELECT id, title, tags, is_public, jsonb_array_length(questions) AS question_count, updated_at
+       FROM quizzes WHERE is_public = true ORDER BY updated_at DESC LIMIT 100`,
+    );
+    return rows.map(toSummary);
   }
 
   async get(id: string, ownerId: string): Promise<SavedQuiz | null> {
     const { rows } = await this.pool.query(
-      `SELECT id, title, questions, tags, updated_at FROM quizzes WHERE id = $1 AND owner_id = $2`,
+      `SELECT id, title, questions, tags, is_public, updated_at FROM quizzes WHERE id = $1 AND owner_id = $2`,
       [id, ownerId],
+    );
+    return rows[0] ? toSavedQuiz(rows[0]) : null;
+  }
+
+  async getPublic(id: string): Promise<SavedQuiz | null> {
+    const { rows } = await this.pool.query(
+      `SELECT id, title, questions, tags, is_public, updated_at FROM quizzes WHERE id = $1 AND is_public = true`,
+      [id],
     );
     return rows[0] ? toSavedQuiz(rows[0]) : null;
   }
@@ -44,20 +57,20 @@ export class PostgresQuizRepository implements QuizRepository {
   async create(draft: QuizDraft, ownerId: string): Promise<SavedQuiz> {
     const id = genId();
     const { rows } = await this.pool.query(
-      `INSERT INTO quizzes (id, title, questions, tags, owner_id, updated_at)
-       VALUES ($1, $2, $3, $4, $5, now())
-       RETURNING id, title, questions, tags, updated_at`,
-      [id, draft.title.trim(), JSON.stringify(draft.questions), JSON.stringify(normalizeTags(draft.tags)), ownerId],
+      `INSERT INTO quizzes (id, title, questions, tags, is_public, owner_id, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, now())
+       RETURNING id, title, questions, tags, is_public, updated_at`,
+      [id, draft.title.trim(), JSON.stringify(draft.questions), JSON.stringify(normalizeTags(draft.tags)), !!draft.isPublic, ownerId],
     );
     return toSavedQuiz(rows[0]);
   }
 
   async update(id: string, draft: QuizDraft, ownerId: string): Promise<SavedQuiz | null> {
     const { rows } = await this.pool.query(
-      `UPDATE quizzes SET title = $2, questions = $3, tags = $4, updated_at = now()
-       WHERE id = $1 AND owner_id = $5
-       RETURNING id, title, questions, tags, updated_at`,
-      [id, draft.title.trim(), JSON.stringify(draft.questions), JSON.stringify(normalizeTags(draft.tags)), ownerId],
+      `UPDATE quizzes SET title = $2, questions = $3, tags = $4, is_public = $5, updated_at = now()
+       WHERE id = $1 AND owner_id = $6
+       RETURNING id, title, questions, tags, is_public, updated_at`,
+      [id, draft.title.trim(), JSON.stringify(draft.questions), JSON.stringify(normalizeTags(draft.tags)), !!draft.isPublic, ownerId],
     );
     return rows[0] ? toSavedQuiz(rows[0]) : null;
   }
@@ -73,12 +86,24 @@ function parseTags(v: unknown): string[] {
   return Array.isArray(arr) ? arr : [];
 }
 
-function toSavedQuiz(row: { id: string; title: string; questions: Question[] | string; tags: unknown; updated_at: string }): SavedQuiz {
+function toSummary(r: { id: string; title: string; tags: unknown; is_public: boolean; question_count: number; updated_at: string }): QuizSummary {
+  return {
+    id: r.id,
+    title: r.title,
+    tags: parseTags(r.tags),
+    isPublic: !!r.is_public,
+    questionCount: Number(r.question_count),
+    updatedAt: new Date(r.updated_at).toISOString(),
+  };
+}
+
+function toSavedQuiz(row: { id: string; title: string; questions: Question[] | string; tags: unknown; is_public: boolean; updated_at: string }): SavedQuiz {
   return {
     id: row.id,
     title: row.title,
     questions: typeof row.questions === 'string' ? JSON.parse(row.questions) : row.questions,
     tags: parseTags(row.tags),
+    isPublic: !!row.is_public,
     updatedAt: new Date(row.updated_at).toISOString(),
   };
 }
@@ -92,15 +117,29 @@ interface OwnedQuiz extends SavedQuiz {
 export class InMemoryQuizRepository implements QuizRepository {
   private store = new Map<string, OwnedQuiz>();
 
+  private summary(q: OwnedQuiz): QuizSummary {
+    return { id: q.id, title: q.title, tags: q.tags, isPublic: q.isPublic, questionCount: q.questions.length, updatedAt: q.updatedAt };
+  }
+
   async list(ownerId: string): Promise<QuizSummary[]> {
     return [...this.store.values()]
       .filter((q) => q.ownerId === ownerId)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-      .map((q) => ({ id: q.id, title: q.title, tags: q.tags, questionCount: q.questions.length, updatedAt: q.updatedAt }));
+      .map((q) => this.summary(q));
+  }
+  async listPublic(): Promise<QuizSummary[]> {
+    return [...this.store.values()]
+      .filter((q) => q.isPublic)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map((q) => this.summary(q));
   }
   async get(id: string, ownerId: string): Promise<SavedQuiz | null> {
     const q = this.store.get(id);
     return q && q.ownerId === ownerId ? q : null;
+  }
+  async getPublic(id: string): Promise<SavedQuiz | null> {
+    const q = this.store.get(id);
+    return q && q.isPublic ? q : null;
   }
   async create(draft: QuizDraft, ownerId: string): Promise<SavedQuiz> {
     const quiz: OwnedQuiz = {
@@ -108,6 +147,7 @@ export class InMemoryQuizRepository implements QuizRepository {
       title: draft.title.trim(),
       questions: draft.questions,
       tags: normalizeTags(draft.tags),
+      isPublic: !!draft.isPublic,
       updatedAt: new Date().toISOString(),
       ownerId,
     };
@@ -122,6 +162,7 @@ export class InMemoryQuizRepository implements QuizRepository {
       title: draft.title.trim(),
       questions: draft.questions,
       tags: normalizeTags(draft.tags),
+      isPublic: !!draft.isPublic,
       updatedAt: new Date().toISOString(),
       ownerId,
     };

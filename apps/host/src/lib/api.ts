@@ -41,6 +41,8 @@ export const api = {
     req<SavedQuiz>(`/quizzes/${id}`, { method: 'PUT', body: JSON.stringify(draft) }),
   deleteQuiz: (id: string) => req<void>(`/quizzes/${id}`, { method: 'DELETE' }),
   history: () => req<GameHistoryEntry[]>('/history'),
+  gallery: () => req<QuizSummary[]>('/gallery'),
+  galleryQuiz: (id: string) => req<SavedQuiz>(`/gallery/${id}`),
   listBank: () => req<BankQuestion[]>('/bank'),
   addBank: (questions: Question[], tags: string[]) =>
     req<BankQuestion[]>('/bank', { method: 'POST', body: JSON.stringify({ questions, tags }) }),

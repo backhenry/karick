@@ -14,6 +14,7 @@ import { FloatingReactions } from './FloatingReactions.js';
 import { QuestionMedia } from './QuestionMedia.js';
 import { BrandingModal } from './BrandingModal.js';
 import { BankModal } from './BankModal.js';
+import { GalleryModal } from './GalleryModal.js';
 import { loadBranding, saveBranding } from './lib/branding.js';
 import { scheduleTension } from './lib/sound.js';
 import { emptyDraft } from './lib/quizStorage.js';
@@ -32,6 +33,8 @@ export function App() {
   const [branding, setBranding] = useState(loadBranding);
   const [showBranding, setShowBranding] = useState(false);
   const [showBank, setShowBank] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
+  const [libKey, setLibKey] = useState(0); // força recarregar a biblioteca (ex.: após clonar)
 
   useEffect(() => {
     api.me().then(setAuthUser).catch(() => setAuthUser(null));
@@ -91,10 +94,12 @@ export function App() {
     return (
       <div className="min-h-screen bg-slate-900">
         <Library
+          key={libKey}
           userEmail={authUser.email}
           onLogout={logout}
           onBranding={() => setShowBranding(true)}
           onBank={() => setShowBank(true)}
+          onGallery={() => setShowGallery(true)}
           onNew={() => setView({ screen: 'EDITOR', draft: emptyDraft(), quizId: null })}
           onEdit={(quizId, draft) => setView({ screen: 'EDITOR', draft, quizId })}
           onHost={(draft) => setSetupDraft(draft)}
@@ -118,6 +123,12 @@ export function App() {
               setShowBank(false);
               setView({ screen: 'EDITOR', draft, quizId: null });
             }}
+          />
+        )}
+        {showGallery && (
+          <GalleryModal
+            onClose={() => setShowGallery(false)}
+            onCloned={() => setLibKey((k) => k + 1)}
           />
         )}
       </div>
