@@ -49,5 +49,14 @@ export async function initSchema(pool: pg.Pool): Promise<void> {
     ALTER TABLE game_history ADD COLUMN IF NOT EXISTS owner_id TEXT;
     ALTER TABLE game_history ADD COLUMN IF NOT EXISTS stats JSONB NOT NULL DEFAULT '[]'::jsonb;
     CREATE INDEX IF NOT EXISTS idx_quizzes_owner ON quizzes (owner_id);
+
+    CREATE TABLE IF NOT EXISTS bank_questions (
+      id         TEXT PRIMARY KEY,
+      owner_id   TEXT NOT NULL,
+      question   JSONB NOT NULL,
+      tags       JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_bank_owner ON bank_questions (owner_id);
   `);
 }

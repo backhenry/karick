@@ -36,6 +36,14 @@ export interface QuizDraft {
   tags?: string[];
 }
 
+/** Pergunta avulsa no banco de perguntas (reutilizável, com tags). */
+export interface BankQuestion {
+  id: string;
+  question: Question;
+  tags: string[];
+  updatedAt: string; // ISO
+}
+
 /** Quiz salvo na biblioteca (banco de dados). */
 export interface SavedQuiz {
   id: string;

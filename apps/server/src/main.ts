@@ -23,6 +23,7 @@ import {
 import { createApiRouter } from './api/apiRouter.js';
 import { RateLimiter } from './util/rateLimiter.js';
 import { InMemoryUserRepository, PostgresUserRepository, type UserRepository } from './store/userRepository.js';
+import { InMemoryBankRepository, PostgresBankRepository, type BankRepository } from './store/bankRepository.js';
 import { createAuthRouter } from './auth/authRouter.js';
 import { connectRedis } from './db/redis.js';
 
@@ -40,6 +41,7 @@ const pool = createPool();
 let quizRepo: QuizRepository;
 let historyRepo: HistoryRepository;
 let userRepo: UserRepository;
+let bankRepo: BankRepository;
 let dbEnabled = false;
 
 if (pool) {
@@ -48,18 +50,21 @@ if (pool) {
     quizRepo = new PostgresQuizRepository(pool);
     historyRepo = new PostgresHistoryRepository(pool);
     userRepo = new PostgresUserRepository(pool);
+    bankRepo = new PostgresBankRepository(pool);
     dbEnabled = true;
-    console.log('🗄️  Postgres conectado (biblioteca, histórico e contas persistentes)');
+    console.log('🗄️  Postgres conectado (biblioteca, histórico, contas e banco persistentes)');
   } catch (err) {
     console.error('⚠️  Falha ao conectar no Postgres, caindo para memória:', err);
     quizRepo = new InMemoryQuizRepository();
     historyRepo = new InMemoryHistoryRepository();
     userRepo = new InMemoryUserRepository();
+    bankRepo = new InMemoryBankRepository();
   }
 } else {
   quizRepo = new InMemoryQuizRepository();
   historyRepo = new InMemoryHistoryRepository();
   userRepo = new InMemoryUserRepository();
+  bankRepo = new InMemoryBankRepository();
   console.log('💾 Sem DATABASE_URL — usando repositório em memória (não persiste)');
 }
 
@@ -78,7 +83,7 @@ app.use('/api', (req, res, next) => {
   next();
 });
 app.use('/api/auth', createAuthRouter(userRepo));
-app.use('/api', createApiRouter(quizRepo, historyRepo, dbEnabled));
+app.use('/api', createApiRouter(quizRepo, historyRepo, bankRepo, dbEnabled));
 
 if (FRONTENDS_BUILT) {
   app.use('/host', express.static(HOST_DIST));

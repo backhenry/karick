@@ -1,7 +1,9 @@
 import { Router, type Response } from 'express';
 import { validateQuiz } from '@karick/shared';
+import type { Question } from '@karick/shared';
 import type { QuizRepository } from '../store/quizRepository.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
+import type { BankRepository } from '../store/bankRepository.js';
 import { requireAuth } from '../auth/authMiddleware.js';
 
 /**
@@ -11,6 +13,7 @@ import { requireAuth } from '../auth/authMiddleware.js';
 export function createApiRouter(
   quizzes: QuizRepository,
   history: HistoryRepository,
+  bank: BankRepository,
   dbEnabled: boolean,
 ): Router {
   const r = Router();
@@ -74,6 +77,43 @@ export function createApiRouter(
   r.get('/history', async (_req, res, next) => {
     try {
       res.json(await history.recent(uid(res)));
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // ─── Banco de perguntas ───
+  r.get('/bank', async (_req, res, next) => {
+    try {
+      res.json(await bank.list(uid(res)));
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  r.post('/bank', async (req, res, next) => {
+    try {
+      const questions: Question[] = Array.isArray(req.body?.questions) ? req.body.questions : [];
+      const tags: string[] = Array.isArray(req.body?.tags) ? req.body.tags : [];
+      if (questions.length === 0) return res.status(400).json({ error: 'Nenhuma pergunta enviada.' });
+      // Valida cada pergunta reaproveitando validateQuiz (um quiz de 1 pergunta).
+      for (let i = 0; i < questions.length; i++) {
+        const err = validateQuiz({ title: 'x', questions: [questions[i]] });
+        if (err) return res.status(400).json({ error: `Pergunta ${i + 1}: ${err}` });
+      }
+      const added = [];
+      for (const q of questions) added.push(await bank.add(uid(res), q, tags));
+      res.status(201).json(added);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  r.delete('/bank/:id', async (req, res, next) => {
+    try {
+      const okDel = await bank.remove(req.params.id, uid(res));
+      if (!okDel) return res.status(404).json({ error: 'Pergunta não encontrada' });
+      res.status(204).end();
     } catch (e) {
       next(e);
     }
