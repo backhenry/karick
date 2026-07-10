@@ -11,9 +11,13 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const [importErr, setImportErr] = useState<string | null>(null);
+  const [importOk, setImportOk] = useState<string | null>(null);
   const [promptCopied, setPromptCopied] = useState(false);
 
   const setOpt = (i: number, v: string) => setOptions((o) => o.map((c, idx) => (idx === i ? v : c)));
+
+  // URL utilizável do logo (aceita link markdown/texto sujo colado no campo).
+  const logoUrl = extractImageUrl(logo);
 
   const copyPrompt = async () => {
     try {
@@ -27,14 +31,19 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
 
   const applyImport = () => {
     const r = parseBrandImport(importText);
-    if (!r.ok) return setImportErr(r.error);
+    if (!r.ok) {
+      setImportOk(null);
+      return setImportErr(r.error);
+    }
     setImportErr(null);
-    if (r.brand.name !== undefined) setName(r.brand.name);
-    if (r.brand.logo !== undefined) setLogo(r.brand.logo);
-    if (r.brand.bg) setBg(r.brand.bg);
-    if (r.brand.primary) setPrimary(r.brand.primary);
-    if (r.brand.options) setOptions(r.brand.options);
-    setShowImport(false);
+    const got: string[] = [];
+    if (r.brand.name !== undefined) { setName(r.brand.name); got.push('nome'); }
+    if (r.brand.logo !== undefined) { setLogo(r.brand.logo); got.push('logo'); }
+    if (r.brand.bg) { setBg(r.brand.bg); got.push('fundo'); }
+    if (r.brand.primary) { setPrimary(r.brand.primary); got.push('destaque'); }
+    if (r.brand.options) { setOptions(r.brand.options); got.push('cores das alternativas'); }
+    const missing = ['nome', 'logo', 'fundo', 'destaque', 'cores das alternativas'].filter((f) => !got.includes(f));
+    setImportOk(`✔ Aplicado: ${got.join(', ')}.${missing.length ? ` Não reconhecido no JSON: ${missing.join(', ')}.` : ''}`);
     setImportText('');
   };
 
@@ -78,6 +87,7 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
                 className="w-full resize-y rounded-lg bg-black/30 p-2 font-mono text-xs outline-none placeholder:text-white/30"
               />
               {importErr && <p className="text-xs text-red-300">⚠️ {importErr}</p>}
+              {importOk && <p className="text-xs text-emerald-300">{importOk}</p>}
               <button onClick={applyImport} className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-bold hover:bg-indigo-500">
                 Aplicar JSON aos campos
               </button>
@@ -101,8 +111,9 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
           placeholder="https://…/logo.png"
           className="mb-2 w-full rounded-lg bg-white/10 p-2 outline-none placeholder:text-white/40"
         />
-        {logo && /^https?:\/\//i.test(logo) && (
-          <img src={logo} alt="prévia do logo" className="mb-3 max-h-20 rounded bg-white/10 p-1" onError={(e) => (e.currentTarget.style.display = 'none')} />
+        {logoUrl && (
+          // key remonta o <img> quando a URL muda — senão um display:none de erro anterior fica preso.
+          <img key={logoUrl} src={logoUrl} alt="prévia do logo" className="mb-3 h-12 max-w-full rounded bg-white/10 object-contain p-1" onError={(e) => (e.currentTarget.style.display = 'none')} />
         )}
 
         <label className="mb-1 mt-2 block text-sm text-white/70">Paletas prontas</label>
@@ -126,19 +137,26 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
         <label className="mb-1 block text-sm text-white/70">Cores</label>
         <div className="mb-2 flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
           <span className="text-sm">Fundo das telas</span>
-          <input type="color" value={bg} onChange={(e) => setBg(e.target.value)} className="h-8 w-14 rounded bg-transparent" />
+          <span className="flex items-center gap-2">
+            <span className="font-mono text-xs text-white/50">{bg}</span>
+            <input type="color" value={bg} onChange={(e) => setBg(e.target.value)} className="h-8 w-14 rounded bg-transparent" />
+          </span>
         </div>
         <div className="mb-2 flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
           <span className="text-sm">Destaque (PIN, botões, títulos)</span>
-          <input type="color" value={primary} onChange={(e) => setPrimary(e.target.value)} className="h-8 w-14 rounded bg-transparent" />
+          <span className="flex items-center gap-2">
+            <span className="font-mono text-xs text-white/50">{primary}</span>
+            <input type="color" value={primary} onChange={(e) => setPrimary(e.target.value)} className="h-8 w-14 rounded bg-transparent" />
+          </span>
         </div>
         <div className="mb-4 rounded-lg bg-white/5 px-3 py-2">
           <span className="text-sm">Cores das alternativas</span>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {options.map((c, i) => (
-              <label key={i} className="flex items-center gap-2 rounded px-2 py-1" style={{ background: c }}>
+              <label key={i} className="flex items-center gap-1 rounded px-2 py-1" style={{ background: c }}>
                 <span className="text-lg font-bold text-white">{OPTION_SHAPES[i]}</span>
-                <input type="color" value={c} onChange={(e) => setOpt(i, e.target.value)} className="ml-auto h-7 w-12 rounded bg-transparent" />
+                <span className="font-mono text-[10px] text-white/90">{c}</span>
+                <input type="color" value={c} onChange={(e) => setOpt(i, e.target.value)} className="ml-auto h-7 w-10 rounded bg-transparent" />
               </label>
             ))}
           </div>

@@ -38,12 +38,20 @@ export function applyBrandVars(b?: Brand | null): void {
   opts.forEach((c, i) => s.setProperty(`--k-opt-${i}`, c));
 }
 
-/** Normaliza uma cor para o formato #rrggbb (aceita #rgb, sem #, maiúsculas). */
+/** Normaliza uma cor para #rrggbb (aceita #rgb, sem #, maiúsculas, rgb(), hex embutido em texto). */
 function normalizeHex(v: unknown): string | undefined {
   if (typeof v !== 'string') return undefined;
+  const rgb = v.match(/rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})/i);
+  if (rgb) {
+    const hex = rgb.slice(1, 4).map((n) => Math.min(255, Number(n)).toString(16).padStart(2, '0')).join('');
+    return '#' + hex;
+  }
   let s = v.trim().replace(/^#/, '');
   if (/^[0-9a-fA-F]{3}$/.test(s)) s = s.split('').map((c) => c + c).join('');
-  return /^[0-9a-fA-F]{6}$/.test(s) ? '#' + s.toLowerCase() : undefined;
+  if (/^[0-9a-fA-F]{6}$/.test(s)) return '#' + s.toLowerCase();
+  // Hex embutido em texto, ex.: "Vermelho Vale (#e21b3c)".
+  const inText = v.match(/#([0-9a-fA-F]{6})\b/);
+  return inText ? '#' + inText[1].toLowerCase() : undefined;
 }
 
 /** Extrai um hex de um item de paleta (string ou objeto {hex|color|value}). */
@@ -123,7 +131,9 @@ export function parseBrandImport(raw: string): { ok: true; brand: Brand } | { ok
   if (bg) brand.bg = bg;
   const primary = normalizeHex(pick('primary', 'accent', 'primaryColor', 'destaque', 'brandColor'));
   if (primary) brand.primary = primary;
-  const rawOpts = pick('options', 'answerColors', 'palette', 'alternativas', 'colors', 'optionColors');
+  let rawOpts = pick('options', 'answerColors', 'palette', 'alternativas', 'colors', 'optionColors', 'opcoes', 'opções');
+  // Aceita objeto ({"opcao1": "#…", …}) além de array.
+  if (rawOpts && typeof rawOpts === 'object' && !Array.isArray(rawOpts)) rawOpts = Object.values(rawOpts);
   if (Array.isArray(rawOpts)) {
     const opts = rawOpts.map(hexFromItem).filter((c): c is string => !!c);
     if (opts.length >= 4) brand.options = opts.slice(0, 4);
