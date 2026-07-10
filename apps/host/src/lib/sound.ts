@@ -40,14 +40,42 @@ export const sfx = {
     tone(587, 200, 'sawtooth', 0.05, 130);
   },
   over: () => {
-    tone(523, 150, 'triangle', 0.08);
-    tone(659, 150, 'triangle', 0.08, 150);
-    tone(784, 300, 'triangle', 0.08, 300);
+    // Fanfarra: arpejo ascendente + acorde de resolução sustentado.
+    [523, 659, 784].forEach((f, i) => tone(f, 180, 'triangle', 0.08, i * 130));
+    tone(1047, 550, 'triangle', 0.09, 420);
+    [262, 330, 392].forEach((f) => tone(f, 700, 'sine', 0.04, 420));
   },
   /** Tique de tensão — sobe de tom conforme o tempo acaba (secsLeft: 5..1). */
   tick: (secsLeft: number) => tone(700 + (6 - secsLeft) * 90, 70, 'square', 0.06),
   timeUp: () => tone(200, 400, 'sawtooth', 0.08),
 };
+
+/**
+ * Música de lobby: arpejos suaves em loop (Am–F–C–G), volume baixo.
+ * Retorna uma função para parar (ao sair do lobby ou silenciar).
+ */
+export function startLobbyMusic(): () => void {
+  const c = getCtx();
+  if (!c) return () => {};
+  const chords = [
+    [220.0, 261.63, 329.63], // Am
+    [174.61, 220.0, 261.63], // F
+    [130.81, 164.81, 196.0], // C
+    [196.0, 246.94, 293.66], // G
+  ];
+  let bar = 0;
+  let step = 0;
+  const id = setInterval(() => {
+    const chord = chords[bar % chords.length];
+    // 4 passos por compasso: sobe o arpejo e coroa com a fundamental uma oitava acima.
+    const freq = step < 3 ? chord[step] : chord[0] * 2;
+    tone(freq, 300, 'sine', 0.028);
+    if (step === 0) tone(chord[0] / 2, 900, 'sine', 0.02); // baixo sustentado
+    step = (step + 1) % 4;
+    if (step === 0) bar++;
+  }, 290);
+  return () => clearInterval(id);
+}
 
 /**
  * Agenda os tiques de tensão para os últimos `durationSec` segundos.

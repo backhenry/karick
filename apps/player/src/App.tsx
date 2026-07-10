@@ -93,10 +93,11 @@ export function App() {
     if (screen === 'QUESTION') setExpired(false);
   }, [screen, question?.index, timer.key]);
 
-  // Som de acerto/erro ao receber o feedback.
+  // Som + vibração de acerto/erro ao receber o feedback.
   useEffect(() => {
     if (screen === 'FEEDBACK' && feedback) {
       feedback.isCorrect ? sfx.correct() : sfx.wrong();
+      navigator.vibrate?.(feedback.isCorrect ? 80 : [90, 60, 90]);
     }
   }, [screen, feedback]);
 
@@ -104,6 +105,7 @@ export function App() {
   const wager = Math.max(1, Math.round((bank * wagerPct) / 100));
   const handleAnswer = (i: number) => {
     sfx.tap();
+    navigator.vibrate?.(15);
     answer(i, question?.mode === 'betting' ? wager : undefined);
   };
 

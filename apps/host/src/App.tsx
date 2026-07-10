@@ -17,7 +17,8 @@ import { BrandingModal } from './BrandingModal.js';
 import { BankModal } from './BankModal.js';
 import { GalleryModal } from './GalleryModal.js';
 import { loadBranding, saveBranding } from './lib/branding.js';
-import { scheduleTension } from './lib/sound.js';
+import { scheduleTension, startLobbyMusic } from './lib/sound.js';
+import { Confetti } from './Confetti.js';
 import { emptyDraft } from './lib/quizStorage.js';
 
 const pct = (s: QuestionStat) => (s.answered > 0 ? Math.round((s.correctCount / s.answered) * 100) : 0);
@@ -54,6 +55,13 @@ export function App() {
     if (g.phase !== 'QUESTION') return;
     return scheduleTension(g.timer.durationSec);
   }, [g.phase, g.timer.key, g.timer.durationSec]);
+
+  // Música ambiente enquanto os jogadores entram (com botão de mudo).
+  const [musicOn, setMusicOn] = useState(true);
+  useEffect(() => {
+    if (g.phase !== 'LOBBY' || !musicOn) return;
+    return startLobbyMusic();
+  }, [g.phase, musicOn]);
 
   const logout = async () => {
     await api.logout().catch(() => {});
@@ -150,9 +158,14 @@ export function App() {
     const joinUrl = `${window.location.origin}/?pin=${g.pin}`;
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-white" style={{ background: branding.bg }}>
-        <button onClick={toggleFullscreen} title="Tela cheia" className="absolute right-4 top-4 rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
-          ⛶
-        </button>
+        <div className="absolute right-4 top-4 flex gap-2">
+          <button onClick={() => setMusicOn((m) => !m)} title="Música do lobby" className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
+            {musicOn ? '🔊' : '🔇'}
+          </button>
+          <button onClick={toggleFullscreen} title="Tela cheia" className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
+            ⛶
+          </button>
+        </div>
         <BrandMark brand={branding} imgClass="max-h-20" nameClass="text-4xl font-black tracking-wide" />
         {g.mode !== 'individual' && (
           <span className="rounded-full px-4 py-1 text-sm font-bold" style={{ background: `${branding.primary}33`, color: branding.primary }}>
@@ -365,6 +378,7 @@ export function App() {
       : null;
     return (
       <div className="flex min-h-screen flex-col items-center gap-8 py-10 text-white" style={{ background: branding.bg }}>
+        <Confetti colors={[branding.primary ?? '#6366f1', ...(branding.options ?? OPTION_COLORS), '#ffffff']} />
         <BrandMark brand={branding} imgClass="max-h-16" nameClass="text-3xl font-black" />
         <h1 className="text-5xl font-black">🏆 Pódio</h1>
         {g.teamPodium.length > 0 && (

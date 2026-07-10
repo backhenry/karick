@@ -23,6 +23,8 @@ Para imagens, NÃO invente URLs: use "imageQuery" com 1 a 3 palavras-chave (de p
 em inglês) que descrevam uma imagem relevante — o app gera a imagem a partir disso.
 (Se você tiver uma URL de imagem real e pública, pode usar "imageUrl" no lugar.)
 Inclua também "explanation": uma frase curta explicando por que a resposta certa está certa.
+Campos opcionais por pergunta: "latex" (fórmula LaTeX, ex.: "x = \\frac{-b}{2a}") e
+"code" (trecho de código) — use quando o tema pedir. No topo, "tags": ["tema", "nível"].
 Tema do quiz: [DESCREVA O TEMA] com [N] perguntas.
 
 {
