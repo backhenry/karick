@@ -28,9 +28,9 @@ export function QuizPreview({ draft, onClose }: { draft: QuizDraft; onClose: () 
         </div>
       )}
 
-      {(q.audioUrl || q.videoUrl || q.code) && (
+      {(q.audioUrl || q.videoUrl || q.code || q.latex) && (
         <div className="py-2">
-          <QuestionMedia audioUrl={q.audioUrl} videoUrl={q.videoUrl} audioOnly={q.audioOnly} code={q.code} />
+          <QuestionMedia audioUrl={q.audioUrl} videoUrl={q.videoUrl} audioOnly={q.audioOnly} code={q.code} latex={q.latex} />
         </div>
       )}
 

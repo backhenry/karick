@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Katex } from './Katex.js';
 
 function youtubeId(url: string): string | null {
   const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
@@ -59,11 +60,13 @@ export function QuestionMedia({
   videoUrl,
   audioOnly,
   code,
+  latex,
 }: {
   audioUrl?: string;
   videoUrl?: string;
   audioOnly?: boolean;
   code?: string;
+  latex?: string;
 }) {
   const ytId = videoUrl ? youtubeId(videoUrl) : null;
   const audioYtId = audioUrl ? youtubeId(audioUrl) : null; // YouTube colado no campo áudio → trata como música
@@ -93,6 +96,11 @@ export function QuestionMedia({
         <pre className="w-full max-w-2xl overflow-x-auto rounded-xl bg-slate-900 p-4 text-left font-mono text-lg text-slate-100">
           <code>{code}</code>
         </pre>
+      )}
+      {latex && (
+        <div className="w-full max-w-2xl overflow-x-auto rounded-xl bg-slate-100 p-4">
+          <Katex tex={latex} />
+        </div>
       )}
     </div>
   );

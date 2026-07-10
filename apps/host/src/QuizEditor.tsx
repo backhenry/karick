@@ -370,6 +370,13 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               spellCheck={false}
               className="mb-3 w-full resize-y rounded-lg bg-black/30 p-2 font-mono text-xs outline-none placeholder:text-white/40"
             />
+            <input
+              value={q.latex ?? ''}
+              onChange={(e) => patchQuestion(qi, (qq) => (qq.latex = e.target.value || undefined))}
+              placeholder="Fórmula LaTeX (opcional) — ex.: x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}"
+              spellCheck={false}
+              className="mb-3 w-full rounded-lg bg-black/30 p-2 font-mono text-xs outline-none placeholder:text-white/40"
+            />
 
             <div className="grid gap-2 sm:grid-cols-2">
               {q.options.map((opt, oi) => (

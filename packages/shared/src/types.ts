@@ -27,6 +27,8 @@ export interface Question {
   audioOnly?: boolean;
   /** Trecho de código exibido em fonte monoespaçada (perguntas de programação). */
   code?: string;
+  /** Fórmula matemática em LaTeX, renderizada com KaTeX. */
+  latex?: string;
   /** Explicação da resposta certa, mostrada no reveal (opcional). */
   explanation?: string;
 }
@@ -195,6 +197,7 @@ export interface HostQuestionPayload {
   videoUrl?: string;
   audioOnly?: boolean;
   code?: string;
+  latex?: string;
   mode?: GameMode;
 }
 

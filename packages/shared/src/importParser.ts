@@ -103,6 +103,7 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
     const videoUrl = str(q.videoUrl ?? q.video ?? q.youtube);
     const audioOnly = q.audioOnly === true || q.soAudio === true;
     const code = str(q.code ?? q.codigo);
+    const latex = str(q.latex ?? q.formula ?? q.math);
     questions.push({
       text: text.trim(),
       options: opts.map((o) => o.trim()),
@@ -114,6 +115,7 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
       ...(videoUrl ? { videoUrl } : {}),
       ...(videoUrl && audioOnly ? { audioOnly: true } : {}),
       ...(code ? { code } : {}),
+      ...(latex ? { latex } : {}),
       ...(typeof explanation === 'string' && explanation.trim() ? { explanation: explanation.trim() } : {}),
     });
   }

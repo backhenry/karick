@@ -144,6 +144,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       videoUrl: q.videoUrl,
       audioOnly: q.audioOnly,
       code: q.code,
+      latex: q.latex,
       mode: room.mode,
     });
     Object.values(room.players).forEach((p) => {

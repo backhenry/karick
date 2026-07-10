@@ -10,12 +10,14 @@
   },
   "dependencies": {
     "@karick/shared": "*",
+    "katex": "^0.16.11",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
+    "@types/katex": "^0.16.7",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
