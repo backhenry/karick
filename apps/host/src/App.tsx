@@ -237,8 +237,13 @@ export function App() {
       <div className="flex min-h-screen flex-col" style={{ background: branding.bg }}>
         <FloatingReactions items={g.reactions} />
         <div className="flex items-center justify-between p-6 text-white/60">
-          <span className="text-xl">
+          <span className="flex items-center gap-3 text-xl">
             Pergunta {g.question.index + 1} de {g.question.total}
+            {g.question.type === 'poll' && (
+              <span className="rounded-full px-3 py-0.5 text-sm font-bold" style={{ background: `${branding.primary}33`, color: branding.primary }}>
+                🗳️ Enquete
+              </span>
+            )}
           </span>
           <div className="flex items-center gap-3">
             <span className="rounded-full bg-white/10 px-4 py-1 text-xl font-bold text-white">
@@ -283,35 +288,45 @@ export function App() {
           </div>
         )}
 
-        <div className="grid flex-1 grid-cols-2 gap-4 p-6">
-          {g.question.options.map((opt, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-4 rounded-xl p-6 text-3xl font-bold text-white"
-              style={{ background: oc(i) }}
-            >
-              <span className="text-5xl">{OPTION_SHAPES[i]}</span> {opt}
-            </div>
-          ))}
-        </div>
+        {g.question.type === 'text' ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-white/80">
+            <span className="text-7xl">✍️</span>
+            <span className="text-3xl font-bold">Respondam digitando no celular</span>
+          </div>
+        ) : (
+          <div className="grid flex-1 grid-cols-2 gap-4 p-6">
+            {g.question.options.map((opt, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 rounded-xl p-6 text-3xl font-bold text-white"
+                style={{ background: oc(i) }}
+              >
+                <span className="text-5xl">{OPTION_SHAPES[i]}</span> {opt}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
 
   // ─── REVEAL: resposta certa + placar com ganhos e variação ───
   if (g.phase === 'REVEAL' && g.reveal) {
     const isLast = g.question ? g.question.index >= g.question.total - 1 : false;
+    const qType = g.question?.type ?? 'choice';
     return (
       <div className="min-h-screen p-10 text-white" style={{ background: branding.bg }}>
         <FloatingReactions items={g.reactions} />
         <div className="mx-auto mb-6 max-w-2xl text-center">
-          <p className="mb-2 text-lg text-white/50">Resposta certa</p>
-          <div
-            className="inline-flex items-center gap-3 rounded-xl px-8 py-4 text-3xl font-bold"
-            style={{ background: oc(g.reveal.correctIndex) }}
-          >
-            <span className="text-4xl">{OPTION_SHAPES[g.reveal.correctIndex]}</span>
-            {g.reveal.correctText}
-          </div>
+          <p className="mb-2 text-lg text-white/50">{qType === 'poll' ? '🗳️ Resultado da enquete' : 'Resposta certa'}</p>
+          {qType !== 'poll' && (
+            <div
+              className="inline-flex items-center gap-3 rounded-xl px-8 py-4 text-3xl font-bold"
+              style={{ background: g.reveal.correctIndex >= 0 ? oc(g.reveal.correctIndex) : branding.primary }}
+            >
+              {g.reveal.correctIndex >= 0 && <span className="text-4xl">{OPTION_SHAPES[g.reveal.correctIndex]}</span>}
+              {g.reveal.correctText}
+            </div>
+          )}
           {g.reveal.explanation && (
             <p className="mx-auto mt-3 max-w-xl rounded-lg bg-white/10 px-4 py-2 text-lg text-white/80">
               💡 {g.reveal.explanation}
@@ -319,9 +334,9 @@ export function App() {
           )}
         </div>
 
-        {g.question && (
+        {g.question && qType !== 'text' && (
           <div className="mx-auto mb-8 flex max-w-2xl items-end justify-center gap-4" style={{ height: 140 }}>
-            {g.question.options.map((_, i) => {
+            {g.question.options.map((opt, i) => {
               const count = g.reveal!.distribution[i] ?? 0;
               const max = Math.max(1, ...g.reveal!.distribution);
               const isCorrect = i === g.reveal!.correctIndex;
@@ -334,7 +349,7 @@ export function App() {
                       height: `${(count / max) * 100}%`,
                       minHeight: 4,
                       background: oc(i),
-                      opacity: isCorrect ? 1 : 0.45,
+                      opacity: qType === 'poll' || isCorrect ? 1 : 0.45,
                       transition: 'height 700ms ease-out',
                     }}
                   />
@@ -342,6 +357,7 @@ export function App() {
                     {OPTION_SHAPES[i]}
                     {isCorrect && ' ✓'}
                   </span>
+                  {qType === 'poll' && <span className="max-w-full truncate text-sm text-white/70">{opt}</span>}
                 </div>
               );
             })}

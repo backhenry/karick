@@ -1,4 +1,4 @@
-import type { QuizDraft, Question } from './types.js';
+import type { QuizDraft, Question, QuestionType } from './types.js';
 import { DEFAULT_TIME_LIMIT, DEFAULT_POINTS } from './constants.js';
 import { validateQuiz, normalizeTags } from './validation.js';
 
@@ -67,24 +67,55 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
     const text = q.text ?? q.question ?? q.enunciado ?? q.pergunta;
     if (typeof text !== 'string' || !text.trim()) return err(n, 'falta o campo "text".');
 
-    const options = q.options ?? q.opcoes ?? q.alternativas;
-    if (!Array.isArray(options) || options.some((o) => typeof o !== 'string')) {
-      return err(n, '"options" deve ser uma lista de textos.');
-    }
-    const opts = options as string[];
+    // Tipo: explícito ("type"/"tipo") ou inferido (respostas aceitas sem opções → digitada).
+    const rawType = String((q.type ?? q.tipo ?? '') as string).toLowerCase();
+    const rawAccepted = q.acceptedAnswers ?? q.answers ?? q.respostas ?? q.respostasAceitas;
+    const acceptedList = (Array.isArray(rawAccepted) ? rawAccepted : typeof rawAccepted === 'string' ? [rawAccepted] : [])
+      .filter((a): a is string => typeof a === 'string' && !!a.trim())
+      .map((a) => a.trim());
+    const rawOptions = q.options ?? q.opcoes ?? q.alternativas;
+    const qType: QuestionType = ['text', 'texto', 'digitada'].includes(rawType)
+      ? 'text'
+      : ['poll', 'enquete', 'votacao', 'votação'].includes(rawType) || q.poll === true
+        ? 'poll'
+        : acceptedList.length > 0 && !Array.isArray(rawOptions)
+          ? 'text'
+          : 'choice';
 
-    let correctIndex: number | undefined;
-    if (typeof q.correctIndex === 'number') {
-      correctIndex = q.correctIndex;
-    } else {
-      const ca = q.correctAnswer ?? q.correct ?? q.answer ?? q.resposta ?? q.correta;
-      if (typeof ca === 'string') {
-        correctIndex = opts.findIndex((o) => o.trim().toLowerCase() === ca.trim().toLowerCase());
-        if (correctIndex < 0) return err(n, `resposta correta "${ca}" não corresponde a nenhuma opção.`);
+    let opts: string[] = [];
+    let correctIndex = 0;
+    let acceptedAnswers: string[] | undefined;
+
+    if (qType === 'text') {
+      // Também aceita "answer"/"resposta" (string única) como resposta aceita.
+      const single = [q.correctAnswer, q.correct, q.answer, q.resposta, q.correta].find(
+        (v) => typeof v === 'string' && v.trim(),
+      );
+      acceptedAnswers = acceptedList.length ? acceptedList : single ? [String(single).trim()] : [];
+      if (!acceptedAnswers.length) {
+        return err(n, 'pergunta digitada precisa de "acceptedAnswers" (lista de respostas aceitas).');
       }
-    }
-    if (correctIndex === undefined) {
-      return err(n, 'informe a resposta certa via "correctIndex" (0-based) ou "correctAnswer" (texto da opção).');
+    } else {
+      if (!Array.isArray(rawOptions) || rawOptions.some((o) => typeof o !== 'string')) {
+        return err(n, '"options" deve ser uma lista de textos.');
+      }
+      opts = (rawOptions as string[]).map((o) => o.trim());
+      if (qType === 'choice') {
+        let ci: number | undefined;
+        if (typeof q.correctIndex === 'number') {
+          ci = q.correctIndex;
+        } else {
+          const ca = q.correctAnswer ?? q.correct ?? q.answer ?? q.resposta ?? q.correta;
+          if (typeof ca === 'string') {
+            ci = opts.findIndex((o) => o.trim().toLowerCase() === ca.trim().toLowerCase());
+            if (ci < 0) return err(n, `resposta correta "${ca}" não corresponde a nenhuma opção.`);
+          }
+        }
+        if (ci === undefined) {
+          return err(n, 'informe a resposta certa via "correctIndex" (0-based) ou "correctAnswer" (texto da opção).');
+        }
+        correctIndex = ci;
+      }
     }
 
     // Imagem: URL direta tem prioridade; senão, palavras-chave viram uma URL real.
@@ -106,7 +137,9 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
     const latex = str(q.latex ?? q.formula ?? q.math);
     questions.push({
       text: text.trim(),
-      options: opts.map((o) => o.trim()),
+      ...(qType !== 'choice' ? { type: qType } : {}),
+      ...(acceptedAnswers ? { acceptedAnswers } : {}),
+      options: opts,
       correctIndex,
       timeLimitSec: toNum(q.timeLimitSec ?? q.tempo ?? q.time, DEFAULT_TIME_LIMIT),
       points: toNum(q.points ?? q.pontos, DEFAULT_POINTS),

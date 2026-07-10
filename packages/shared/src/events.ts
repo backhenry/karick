@@ -72,7 +72,7 @@ export interface ClientToServerEvents {
     payload: { pin: string; nickname: string; avatar?: string; playerId: string; team?: string; showText?: boolean },
     ack: Ack<{ needTeam: boolean; teams: string[]; mode: GameMode; brand?: Brand }>,
   ) => void;
-  'player:submitAnswer': (payload: { optionIndex: number; wager?: number }, ack: Ack<AnswerResult>) => void;
+  'player:submitAnswer': (payload: { optionIndex?: number; wager?: number; text?: string }, ack: Ack<AnswerResult>) => void;
   /** Jogador envia uma reação (emoji) que aparece na tela do Host. */
   'player:react': (payload: { emoji: string }) => void;
   /** Jogador aciona um power-up na pergunta atual (50/50 devolve as opções a manter). */

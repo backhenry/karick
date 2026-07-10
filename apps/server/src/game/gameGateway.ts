@@ -8,7 +8,7 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from '@karick/shared';
-import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS, REACTIONS, normalizeTeams, STARTING_BANK, optionPermutation } from '@karick/shared';
+import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS, REACTIONS, normalizeTeams, STARTING_BANK, optionPermutation, normalizeAnswer } from '@karick/shared';
 import type { GameMode, Brand } from '@karick/shared';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -32,12 +32,16 @@ const permFor = (playerId: string, qIndex: number, n: number) => optionPermutati
 /** Monta o payload de pergunta para um jogador (respeitando anti-cola e a preferência de texto). */
 function playerQuestion(room: GameRoom, p: Player, q: Question): PlayerQuestionPayload {
   const wantsText = !!p.showText;
+  const qType = q.type ?? 'choice';
   let options: string[] | undefined;
-  if (room.shuffle) options = permFor(p.id, room.currentQuestionIndex, q.options.length).map((o) => q.options[o]);
-  else if (wantsText) options = q.options;
+  if (qType !== 'text') {
+    if (room.shuffle) options = permFor(p.id, room.currentQuestionIndex, q.options.length).map((o) => q.options[o]);
+    else if (wantsText) options = q.options;
+  }
   return {
     index: room.currentQuestionIndex,
     total: room.quiz.questions.length,
+    ...(qType !== 'choice' ? { type: qType } : {}),
     optionsCount: q.options.length,
     timeLimitSec: q.timeLimitSec,
     imageUrl: q.imageUrl,
@@ -151,6 +155,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       index: room.currentQuestionIndex,
       total: room.quiz.questions.length,
       text: q.text,
+      type: q.type,
       options: q.options,
       timeLimitSec: q.timeLimitSec,
       correctIndex: q.correctIndex,
@@ -180,29 +185,36 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       if (r.status !== 'QUESTION') return; // já revelada
       transitioned = true;
       r.status = 'REVEAL';
+      const q = currentQuestion(r);
+      const qType = q?.type ?? 'choice';
       // Sobrevivência: quem errou ou não respondeu (e ainda estava vivo) é eliminado.
-      if (r.mode === 'survival') {
+      // Enquete não elimina ninguém (não existe "errar" uma enquete).
+      if (r.mode === 'survival' && qType !== 'poll') {
         for (const p of Object.values(r.players)) {
           if (!p.eliminated && (!p.currentAnswer || !p.currentAnswer.isCorrect)) p.eliminated = true;
         }
       }
-      const q = currentQuestion(r);
       const distribution = q ? buildDistribution(r, q.options.length) : [];
       const teamLeaderboard = buildTeamLeaderboard(r);
+      // correctIndex/correctText por tipo: digitada mostra a 1ª resposta aceita; enquete não tem certa.
+      const correctIndex = q && qType === 'choice' ? q.correctIndex : -1;
+      const correctText = !q ? '' : qType === 'choice' ? q.options[q.correctIndex] : qType === 'text' ? (q.acceptedAnswers?.[0] ?? '') : '';
       payload = {
-        correctIndex: q ? q.correctIndex : -1,
-        correctText: q ? q.options[q.correctIndex] : '',
+        correctIndex,
+        correctText,
         distribution,
         leaderboard: buildRevealLeaderboard(r),
         ...(teamLeaderboard.length ? { teamLeaderboard } : {}),
         explanation: q?.explanation,
       };
       r.lastReveal = payload;
-      if (q) {
+      // Enquete fica fora das estatísticas de acerto (não é medição de conhecimento).
+      if (q && qType !== 'poll') {
+        const answeredPlayers = Object.values(r.players).filter((p) => p.currentAnswer !== null);
         r.stats.push({
           text: q.text,
-          correctCount: distribution[q.correctIndex] ?? 0,
-          answered: distribution.reduce((a, b) => a + b, 0),
+          correctCount: answeredPlayers.filter((p) => p.currentAnswer!.isCorrect).length,
+          answered: answeredPlayers.length,
           total: Object.keys(r.players).length,
         });
       }
@@ -404,13 +416,13 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     });
 
     // ─── PLAYER: responde ────────────────────────────────
-    socket.on('player:submitAnswer', async ({ optionIndex, wager }, ack) => {
+    socket.on('player:submitAnswer', async ({ optionIndex, wager, text }, ack) => {
       if (!answerLimiter.allow(socket.handshake.address)) {
         return ack?.({ ok: false, error: 'Muitas ações, aguarde um instante.' });
       }
       const pin = socket.data.pin ?? '';
       const playerId = socket.data.playerId;
-      let outcome = 'ok' as 'ok' | 'inactive' | 'noplayer' | 'answered' | 'eliminated';
+      let outcome = 'ok' as 'ok' | 'inactive' | 'noplayer' | 'answered' | 'eliminated' | 'badanswer';
       let result: { isCorrect: boolean; pointsAwarded: number; totalScore: number; streak: number; streakBonus: number } | null = null;
       const room = await store.update(pin, (r) => {
         outcome = 'ok';
@@ -421,16 +433,31 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         if (p.eliminated) return void (outcome = 'eliminated');
         if (p.currentAnswer) return void (outcome = 'answered');
         const q = currentQuestion(r)!;
+        const qType = q.type ?? 'choice';
         const elapsedSec = (Date.now() - r.questionStartedAt) / 1000;
-        // Anti-cola: o jogador envia a posição EXIBIDA; mapeamos para a opção original.
-        const originalIndex = r.shuffle
-          ? (permFor(p.id, r.currentQuestionIndex, q.options.length)[optionIndex] ?? optionIndex)
-          : optionIndex;
-        const isCorrect = originalIndex === q.correctIndex;
 
-        let pointsAwarded: number;
+        let originalIndex = -1;
+        let isCorrect = false;
+        if (qType === 'text') {
+          const typed = typeof text === 'string' ? text.trim().slice(0, 200) : '';
+          if (!typed) return void (outcome = 'badanswer');
+          isCorrect = (q.acceptedAnswers ?? []).some((a) => normalizeAnswer(a) === normalizeAnswer(typed));
+        } else {
+          if (typeof optionIndex !== 'number' || optionIndex < 0 || optionIndex >= q.options.length) {
+            return void (outcome = 'badanswer');
+          }
+          // Anti-cola: o jogador envia a posição EXIBIDA; mapeamos para a opção original.
+          originalIndex = r.shuffle
+            ? (permFor(p.id, r.currentQuestionIndex, q.options.length)[optionIndex] ?? optionIndex)
+            : optionIndex;
+          isCorrect = qType === 'choice' && originalIndex === q.correctIndex;
+        }
+
+        let pointsAwarded = 0;
         let bonus = 0;
-        if (r.mode === 'betting') {
+        if (qType === 'poll') {
+          // Enquete: registra o voto; sem pontos e sem mexer na sequência.
+        } else if (r.mode === 'betting') {
           // Aposta: acertou ganha o valor apostado, errou perde. Sem velocidade/streak.
           const bet = Math.max(1, Math.min(Math.round(wager ?? 0) || 0, p.score));
           pointsAwarded = isCorrect ? bet : -bet;
@@ -455,6 +482,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       if (outcome === 'noplayer') return ack?.({ ok: false, error: 'Jogador não está na sala' });
       if (outcome === 'eliminated') return ack?.({ ok: false, error: 'Você foi eliminado' });
       if (outcome === 'answered') return ack?.({ ok: false, error: 'Você já respondeu' });
+      if (outcome === 'badanswer') return ack?.({ ok: false, error: 'Resposta inválida' });
       ack?.({ ok: true, ...result! });
 
       const connected = Object.values(room.players).filter((p) => p.connected && !p.eliminated);
@@ -492,6 +520,8 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         if (!q) return void (outcome = 'invalid');
 
         if (type === 'fiftyFifty') {
+          // 50/50 só faz sentido com alternativas e uma resposta certa.
+          if ((q.type ?? 'choice') !== 'choice') return void (outcome = 'unavailable');
           p.powerups.fiftyFifty = false;
           p.fiftyUsedQ = true;
           const wrong = q.options.map((_, i) => i).filter((i) => i !== q.correctIndex);

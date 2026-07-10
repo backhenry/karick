@@ -181,9 +181,9 @@ export function usePlayerSocket() {
       socketRef.current?.emit('player:usePowerup', { type }, (res) => resolve({ ok: res.ok, keep: res.keep }));
     });
 
-  const answer = (optionIndex: number, wager?: number) => {
+  const answer = (sel: { optionIndex?: number; text?: string }, wager?: number) => {
     setScreen('ANSWERED');
-    socketRef.current?.emit('player:submitAnswer', { optionIndex, wager }, (res) => {
+    socketRef.current?.emit('player:submitAnswer', { ...sel, wager }, (res) => {
       if (res.ok && res.totalScore !== undefined) {
         setFeedback({
           isCorrect: !!res.isCorrect,

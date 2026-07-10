@@ -11,11 +11,23 @@ export type PowerupType = 'fiftyFifty' | 'double' | 'freeze';
 
 export type GameMode = 'individual' | 'teams' | 'betting' | 'survival';
 
+/**
+ * Tipo da pergunta:
+ * - 'choice' (padrão): alternativas com uma correta;
+ * - 'text': o jogador digita a resposta (comparada sem acento/maiúsculas);
+ * - 'poll': enquete — sem resposta certa nem pontos, o reveal mostra a distribuição.
+ */
+export type QuestionType = 'choice' | 'text' | 'poll';
+
 export interface Question {
   text: string;
+  /** Tipo da pergunta (ausente = 'choice', compatível com quizzes antigos). */
+  type?: QuestionType;
   options: string[];
   /** Índice (0-based) da opção correta. Nunca enviado ao Player durante a pergunta. */
   correctIndex: number;
+  /** Respostas aceitas quando type === 'text' (comparadas normalizadas). */
+  acceptedAnswers?: string[];
   timeLimitSec: number;
   /** Pontuação-base da pergunta; o valor final varia com a velocidade da resposta. */
   points: number;
@@ -193,6 +205,8 @@ export interface HostQuestionPayload {
   index: number;
   total: number;
   text: string;
+  /** Tipo da pergunta (ausente = 'choice'). */
+  type?: QuestionType;
   options: string[];
   timeLimitSec: number;
   correctIndex: number;
@@ -209,6 +223,8 @@ export interface HostQuestionPayload {
 export interface PlayerQuestionPayload {
   index: number;
   total: number;
+  /** Tipo da pergunta (ausente = 'choice'): 'text' troca os botões por um campo de digitação. */
+  type?: QuestionType;
   optionsCount: number;
   timeLimitSec: number;
   imageUrl?: string;

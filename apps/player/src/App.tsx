@@ -103,10 +103,18 @@ export function App() {
 
   const bank = question?.bank ?? 0;
   const wager = Math.max(1, Math.round((bank * wagerPct) / 100));
+  const [typed, setTyped] = useState('');
+  useEffect(() => setTyped(''), [question?.index]);
   const handleAnswer = (i: number) => {
     sfx.tap();
     navigator.vibrate?.(15);
-    answer(i, question?.mode === 'betting' ? wager : undefined);
+    answer({ optionIndex: i }, question?.mode === 'betting' ? wager : undefined);
+  };
+  const handleTyped = () => {
+    if (!typed.trim()) return;
+    sfx.tap();
+    navigator.vibrate?.(15);
+    answer({ text: typed.trim() }, question?.mode === 'betting' ? wager : undefined);
   };
 
   if (screen === 'JOIN') {
@@ -237,7 +245,9 @@ export function App() {
           </div>
         ) : (
           <>
-            {question.mode === 'betting' ? (
+            {question.type === 'poll' ? (
+              <p className="px-3 pb-1 text-center text-sm text-white/70">🗳️ Enquete — vote na sua opção (sem pontos)</p>
+            ) : question.mode === 'betting' ? (
               <div className="px-3 pb-1 text-center">
                 <p className="text-sm text-white/70">Banco: <b>{bank}</b> · apostando <b>{wager}</b></p>
                 <div className="mt-1 flex justify-center gap-2">
@@ -255,13 +265,15 @@ export function App() {
               </div>
             ) : (
               <div className="flex justify-center gap-2 px-3 pb-1">
-                <button
-                  onClick={() => doPowerup('fiftyFifty')}
-                  disabled={!powerups.fiftyFifty || !!keep}
-                  className="rounded-lg bg-white/15 px-3 py-1 text-sm font-bold text-white disabled:opacity-40"
-                >
-                  50/50
-                </button>
+                {question.type !== 'text' && (
+                  <button
+                    onClick={() => doPowerup('fiftyFifty')}
+                    disabled={!powerups.fiftyFifty || !!keep}
+                    className="rounded-lg bg-white/15 px-3 py-1 text-sm font-bold text-white disabled:opacity-40"
+                  >
+                    50/50
+                  </button>
+                )}
                 <button
                   onClick={() => doPowerup('double')}
                   disabled={!powerups.double || !!activeScoring}
@@ -278,19 +290,42 @@ export function App() {
                 </button>
               </div>
             )}
-            <div className="grid flex-1 grid-cols-2 gap-3 p-3">
-              {(keep ?? Array.from({ length: question.optionsCount }, (_, i) => i)).map((i) => (
+            {question.type === 'text' ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4">
+                <p className="text-sm text-white/70">✍️ Digite sua resposta</p>
+                <input
+                  value={typed}
+                  onChange={(e) => setTyped(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTyped()}
+                  maxLength={200}
+                  autoFocus
+                  className="w-full max-w-md rounded-xl p-4 text-center text-xl text-slate-800 outline-none"
+                  placeholder="Sua resposta…"
+                />
                 <button
-                  key={i}
-                  onClick={() => handleAnswer(i)}
-                  className={`flex items-center justify-center gap-2 rounded-xl px-3 text-white transition active:scale-95 ${question.options ? 'text-xl font-bold' : 'text-6xl'}`}
-                  style={{ background: optColor(i) }}
+                  onClick={handleTyped}
+                  disabled={!typed.trim()}
+                  className="w-full max-w-md rounded-xl p-4 text-xl font-bold text-white active:scale-95 disabled:opacity-40"
+                  style={{ background: 'var(--k-primary, #4f46e5)' }}
                 >
-                  <span className={question.options ? 'text-3xl' : ''}>{OPTION_SHAPES[i]}</span>
-                  {question.options && <span>{question.options[i]}</span>}
+                  Enviar
                 </button>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="grid flex-1 grid-cols-2 gap-3 p-3">
+                {(keep ?? Array.from({ length: question.optionsCount }, (_, i) => i)).map((i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleAnswer(i)}
+                    className={`flex items-center justify-center gap-2 rounded-xl px-3 text-white transition active:scale-95 ${question.options ? 'text-xl font-bold' : 'text-6xl'}`}
+                    style={{ background: optColor(i) }}
+                  >
+                    <span className={question.options ? 'text-3xl' : ''}>{OPTION_SHAPES[i]}</span>
+                    {question.options && <span>{question.options[i]}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -309,23 +344,39 @@ export function App() {
     );
 
   if (screen === 'FEEDBACK') {
+    const isPoll = question?.type === 'poll';
     const answered = !!feedback;
     const correct = feedback?.isCorrect ?? false;
-    const bg = !answered ? 'bg-slate-700' : correct ? 'bg-green-600' : 'bg-red-600';
+    const bg = isPoll ? '' : !answered ? 'bg-slate-700' : correct ? 'bg-green-600' : 'bg-red-600';
     const gained = reveal?.gained ?? feedback?.pointsAwarded ?? 0;
     const total = reveal?.score ?? feedback?.totalScore;
+
+    // Enquete: sem certo/errado — só confirma o voto.
+    if (isPoll) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
+          <h1 className="text-5xl font-black">🗳️</h1>
+          <p className="text-2xl font-bold">{answered ? 'Voto registrado!' : 'Enquete encerrada'}</p>
+          <p className="text-lg text-white/70">Veja o resultado no telão</p>
+          <ReactionBar onReact={react} />
+        </div>
+      );
+    }
+
     return (
       <div className={`flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center text-white ${bg}`}>
         <h1 className="text-5xl font-black">
           {!answered ? 'Tempo esgotado ⏰' : correct ? 'Acertou! 🎉' : 'Errou 😢'}
         </h1>
 
-        {reveal && (
+        {reveal && reveal.correctText && (
           <div className="flex items-center gap-2 rounded-lg bg-black/20 px-4 py-2 text-lg">
             <span className="opacity-80">Resposta certa:</span>
-            <span className="text-2xl" style={{ color: optColor(reveal.correctIndex) }}>
-              {OPTION_SHAPES[reveal.correctIndex]}
-            </span>
+            {reveal.correctIndex >= 0 && (
+              <span className="text-2xl" style={{ color: optColor(reveal.correctIndex) }}>
+                {OPTION_SHAPES[reveal.correctIndex]}
+              </span>
+            )}
             <b>{reveal.correctText}</b>
           </div>
         )}

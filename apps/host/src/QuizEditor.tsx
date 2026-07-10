@@ -25,6 +25,9 @@ em inglês) que descrevam uma imagem relevante — o app gera a imagem a partir 
 Inclua também "explanation": uma frase curta explicando por que a resposta certa está certa.
 Campos opcionais por pergunta: "latex" (fórmula LaTeX, ex.: "x = \\frac{-b}{2a}") e
 "code" (trecho de código) — use quando o tema pedir. No topo, "tags": ["tema", "nível"].
+Tipos: o padrão é alternativas; "type": "text" + "acceptedAnswers": ["resposta", "variação"]
+faz o jogador DIGITAR a resposta (sem "options"); "type": "poll" é enquete sem resposta
+certa (tem "options", dispensa "correctIndex"). Misture os tipos quando fizer sentido.
 Tema do quiz: [DESCREVA O TEMA] com [N] perguntas.
 
 {
@@ -103,7 +106,16 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
   const duplicateQuestion = (qi: number) =>
     update((d) => d.questions.splice(qi + 1, 0, structuredClone(d.questions[qi])));
 
-  const effectiveDraft = (): QuizDraft => ({ ...draft, tags: normalizeTags(tagsInput) });
+  const effectiveDraft = (): QuizDraft => ({
+    ...draft,
+    tags: normalizeTags(tagsInput),
+    // Respostas aceitas: apara e remove vazias (o campo aceita vírgula solta ao digitar).
+    questions: draft.questions.map((q) =>
+      (q.type ?? 'choice') === 'text'
+        ? { ...q, acceptedAnswers: (q.acceptedAnswers ?? []).map((a) => a.trim()).filter(Boolean) }
+        : q,
+    ),
+  });
 
   const save = async () => {
     const payload = effectiveDraft();
@@ -304,6 +316,27 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               className="mb-3 w-full resize-none rounded-lg bg-white/10 p-3 outline-none placeholder:text-white/40"
             />
 
+            <div className="mb-3 flex flex-wrap gap-2 text-sm">
+              {([
+                ['choice', '🔘 Alternativas'],
+                ['text', '✍️ Resposta digitada'],
+                ['poll', '🗳️ Enquete (sem pontos)'],
+              ] as const).map(([t, label]) => (
+                <button
+                  key={t}
+                  onClick={() =>
+                    patchQuestion(qi, (qq) => {
+                      qq.type = t === 'choice' ? undefined : t;
+                      if (t === 'text' && !qq.acceptedAnswers?.length) qq.acceptedAnswers = [];
+                    })
+                  }
+                  className={`rounded-full px-3 py-1 ${(q.type ?? 'choice') === t ? 'bg-indigo-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             <div className="mb-3 flex items-center gap-3">
               <input
                 value={q.imageUrl ?? ''}
@@ -380,7 +413,21 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               className="mb-3 w-full rounded-lg bg-black/30 p-2 font-mono text-xs outline-none placeholder:text-white/40"
             />
 
-            <div className="grid gap-2 sm:grid-cols-2">
+            {(q.type ?? 'choice') === 'text' && (
+              <div className="rounded-lg bg-white/10 p-3">
+                <p className="mb-1 text-sm text-white/70">
+                  ✍️ Respostas aceitas — separe por vírgula (acentos e maiúsculas não diferenciam)
+                </p>
+                <input
+                  value={(q.acceptedAnswers ?? []).join(',')}
+                  onChange={(e) => patchQuestion(qi, (qq) => (qq.acceptedAnswers = e.target.value.split(',')))}
+                  placeholder="ex.: Brasil, República Federativa do Brasil"
+                  className="w-full rounded bg-white/10 p-2 outline-none placeholder:text-white/40"
+                />
+              </div>
+            )}
+
+            <div className={`grid gap-2 sm:grid-cols-2 ${(q.type ?? 'choice') === 'text' ? 'hidden' : ''}`}>
               {q.options.map((opt, oi) => (
                 <div key={oi} className="flex items-center gap-2 rounded-lg p-2" style={{ background: OPTION_COLORS[oi] + '33' }}>
                   <span className="text-xl" style={{ color: OPTION_COLORS[oi] }}>{OPTION_SHAPES[oi]}</span>
@@ -390,15 +437,17 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                     placeholder={`Opção ${oi + 1}`}
                     className="flex-1 bg-transparent outline-none placeholder:text-white/40"
                   />
-                  <label className="flex items-center gap-1 text-xs text-white/70">
-                    <input
-                      type="radio"
-                      name={`correct-${qi}`}
-                      checked={q.correctIndex === oi}
-                      onChange={() => patchQuestion(qi, (qq) => (qq.correctIndex = oi))}
-                    />
-                    correta
-                  </label>
+                  {(q.type ?? 'choice') === 'choice' && (
+                    <label className="flex items-center gap-1 text-xs text-white/70">
+                      <input
+                        type="radio"
+                        name={`correct-${qi}`}
+                        checked={q.correctIndex === oi}
+                        onChange={() => patchQuestion(qi, (qq) => (qq.correctIndex = oi))}
+                      />
+                      correta
+                    </label>
+                  )}
                   {q.options.length > MIN_OPTIONS && (
                     <button
                       onClick={() =>
@@ -418,7 +467,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
-              {q.options.length < MAX_OPTIONS && (
+              {(q.type ?? 'choice') !== 'text' && q.options.length < MAX_OPTIONS && (
                 <button onClick={() => patchQuestion(qi, (qq) => qq.options.push(''))} className="rounded bg-white/10 px-3 py-1 hover:bg-white/20">
                   + opção
                 </button>

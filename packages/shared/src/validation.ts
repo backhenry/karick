@@ -1,6 +1,23 @@
 import type { QuizDraft } from './types.js';
 import { MIN_OPTIONS, MAX_OPTIONS, MIN_TIME_LIMIT, MAX_TIME_LIMIT, MAX_TAGS, MAX_TAG_LENGTH, MAX_TEAMS, MAX_TEAM_NAME_LENGTH } from './constants.js';
 
+/** Limites das perguntas de resposta digitada. */
+export const MAX_ACCEPTED_ANSWERS = 10;
+export const MAX_ANSWER_LENGTH = 80;
+
+/**
+ * Normaliza uma resposta digitada para comparação: minúsculas, sem acentos,
+ * espaços colapsados. "São  Paulo " ≡ "sao paulo".
+ */
+export function normalizeAnswer(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Normaliza nomes de equipes: apara, remove vazias/duplicadas, limita. */
 export function normalizeTeams(input: unknown): string[] {
   const raw = Array.isArray(input) ? input : [];
@@ -60,12 +77,25 @@ export function validateQuiz(quiz: QuizDraft): string | null {
     const q = quiz.questions[i];
     const n = i + 1;
     if (!q.text?.trim()) return `Pergunta ${n}: falta o enunciado.`;
-    if (!Array.isArray(q.options) || q.options.length < MIN_OPTIONS || q.options.length > MAX_OPTIONS) {
-      return `Pergunta ${n}: precisa de ${MIN_OPTIONS} a ${MAX_OPTIONS} opções.`;
+    const type = q.type ?? 'choice';
+    if (!['choice', 'text', 'poll'].includes(type)) {
+      return `Pergunta ${n}: tipo inválido (use choice, text ou poll).`;
     }
-    if (q.options.some((o) => !o?.trim())) return `Pergunta ${n}: há opção em branco.`;
-    if (typeof q.correctIndex !== 'number' || q.correctIndex < 0 || q.correctIndex >= q.options.length) {
-      return `Pergunta ${n}: marque a opção correta.`;
+    if (type === 'text') {
+      const ok =
+        Array.isArray(q.acceptedAnswers) &&
+        q.acceptedAnswers.length > 0 &&
+        q.acceptedAnswers.length <= MAX_ACCEPTED_ANSWERS &&
+        q.acceptedAnswers.every((a) => typeof a === 'string' && a.trim() && a.length <= MAX_ANSWER_LENGTH);
+      if (!ok) return `Pergunta ${n}: informe de 1 a ${MAX_ACCEPTED_ANSWERS} respostas aceitas (até ${MAX_ANSWER_LENGTH} caracteres).`;
+    } else {
+      if (!Array.isArray(q.options) || q.options.length < MIN_OPTIONS || q.options.length > MAX_OPTIONS) {
+        return `Pergunta ${n}: precisa de ${MIN_OPTIONS} a ${MAX_OPTIONS} opções.`;
+      }
+      if (q.options.some((o) => !o?.trim())) return `Pergunta ${n}: há opção em branco.`;
+      if (type === 'choice' && (typeof q.correctIndex !== 'number' || q.correctIndex < 0 || q.correctIndex >= q.options.length)) {
+        return `Pergunta ${n}: marque a opção correta.`;
+      }
     }
     if (typeof q.timeLimitSec !== 'number' || q.timeLimitSec < MIN_TIME_LIMIT || q.timeLimitSec > MAX_TIME_LIMIT) {
       return `Pergunta ${n}: tempo deve ficar entre ${MIN_TIME_LIMIT} e ${MAX_TIME_LIMIT}s.`;
