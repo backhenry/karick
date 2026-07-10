@@ -228,7 +228,7 @@ export function App() {
 
         {(g.question.audioUrl || g.question.videoUrl || g.question.code) && (
           <div className="py-3">
-            <QuestionMedia audioUrl={g.question.audioUrl} videoUrl={g.question.videoUrl} code={g.question.code} />
+            <QuestionMedia audioUrl={g.question.audioUrl} videoUrl={g.question.videoUrl} audioOnly={g.question.audioOnly} code={g.question.code} />
           </div>
         )}
 

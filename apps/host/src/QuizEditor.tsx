@@ -327,6 +327,16 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                 className="rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
               />
             </div>
+            {q.videoUrl && (
+              <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  checked={!!q.audioOnly}
+                  onChange={(e) => patchQuestion(qi, (qq) => (qq.audioOnly = e.target.checked || undefined))}
+                />
+                🎵 Só áudio (adivinhe a música — esconde vídeo e título; só YouTube)
+              </label>
+            )}
             <textarea
               value={q.code ?? ''}
               onChange={(e) => patchQuestion(qi, (qq) => (qq.code = e.target.value || undefined))}

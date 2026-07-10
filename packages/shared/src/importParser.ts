@@ -101,6 +101,7 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
     const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
     const audioUrl = str(q.audioUrl ?? q.audio);
     const videoUrl = str(q.videoUrl ?? q.video ?? q.youtube);
+    const audioOnly = q.audioOnly === true || q.soAudio === true;
     const code = str(q.code ?? q.codigo);
     questions.push({
       text: text.trim(),
@@ -111,6 +112,7 @@ export function parseQuizImport(raw: string | unknown): ImportResult {
       ...(imageUrl ? { imageUrl } : {}),
       ...(audioUrl ? { audioUrl } : {}),
       ...(videoUrl ? { videoUrl } : {}),
+      ...(videoUrl && audioOnly ? { audioOnly: true } : {}),
       ...(code ? { code } : {}),
       ...(typeof explanation === 'string' && explanation.trim() ? { explanation: explanation.trim() } : {}),
     });

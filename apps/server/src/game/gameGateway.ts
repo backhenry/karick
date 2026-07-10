@@ -142,6 +142,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       imageUrl: q.imageUrl,
       audioUrl: q.audioUrl,
       videoUrl: q.videoUrl,
+      audioOnly: q.audioOnly,
       code: q.code,
       mode: room.mode,
     });

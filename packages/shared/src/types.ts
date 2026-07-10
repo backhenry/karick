@@ -23,6 +23,8 @@ export interface Question {
   audioUrl?: string;
   /** URL de vídeo (YouTube ou .mp4) opcional. */
   videoUrl?: string;
+  /** Só áudio do vídeo do YouTube (esconde imagem e título — "adivinhe a música"). */
+  audioOnly?: boolean;
   /** Trecho de código exibido em fonte monoespaçada (perguntas de programação). */
   code?: string;
   /** Explicação da resposta certa, mostrada no reveal (opcional). */
@@ -188,6 +190,7 @@ export interface HostQuestionPayload {
   imageUrl?: string;
   audioUrl?: string;
   videoUrl?: string;
+  audioOnly?: boolean;
   code?: string;
   mode?: GameMode;
 }
