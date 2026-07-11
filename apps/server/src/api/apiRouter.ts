@@ -135,6 +135,15 @@ export function createApiRouter(
     }
   });
 
+  r.delete('/history', async (_req, res, next) => {
+    try {
+      await history.clear(uid(res));
+      res.status(204).end();
+    } catch (e) {
+      next(e);
+    }
+  });
+
   // ─── Galeria pública ───
   r.get('/gallery', async (_req, res, next) => {
     try {

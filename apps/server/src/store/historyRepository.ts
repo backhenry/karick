@@ -12,6 +12,8 @@ interface RecordInput {
 export interface HistoryRepository {
   record(entry: RecordInput): Promise<void>;
   recent(ownerId: string, limit?: number): Promise<GameHistoryEntry[]>;
+  /** Apaga todo o histórico de partidas do usuário. */
+  clear(ownerId: string): Promise<void>;
 }
 
 const genId = () => 'gh_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -42,6 +44,10 @@ export class PostgresHistoryRepository implements HistoryRepository {
       playedAt: new Date(r.played_at).toISOString(),
     }));
   }
+
+  async clear(ownerId: string): Promise<void> {
+    await this.pool.query(`DELETE FROM game_history WHERE owner_id = $1`, [ownerId]);
+  }
 }
 
 export class InMemoryHistoryRepository implements HistoryRepository {
@@ -61,5 +67,8 @@ export class InMemoryHistoryRepository implements HistoryRepository {
   }
   async recent(ownerId: string, limit = 20): Promise<GameHistoryEntry[]> {
     return this.entries.filter((e) => e.ownerId === ownerId).slice(0, limit);
+  }
+  async clear(ownerId: string): Promise<void> {
+    this.entries = this.entries.filter((e) => e.ownerId !== ownerId);
   }
 }

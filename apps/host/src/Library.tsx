@@ -88,6 +88,16 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
     }
   };
 
+  const clearHistory = async () => {
+    if (!confirm(t('confirmClearHistory'))) return;
+    try {
+      await api.clearHistory();
+      setHistory([]);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
   const allTags = [...new Set((quizzes ?? []).flatMap((q) => q.tags))].sort();
   const shown = (quizzes ?? []).filter((q) => !activeTag || q.tags.includes(activeTag));
 
@@ -285,9 +295,14 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
             <h2 className="text-lg font-bold text-white/70">
               {t('lastGames')} <span className="text-white/40">({history.length})</span>
             </h2>
-            <button onClick={exportCsv} className="rounded bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
-              {t('exportCsv')}
-            </button>
+            <div className="flex gap-2">
+              <button onClick={exportCsv} className="rounded bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
+                {t('exportCsv')}
+              </button>
+              <button onClick={clearHistory} className="rounded bg-red-500/20 px-3 py-2 text-sm text-red-300 hover:bg-red-500/30">
+                {t('clearHistory')}
+              </button>
+            </div>
           </div>
           <ul className="space-y-2">
             {history.map((h) => (
