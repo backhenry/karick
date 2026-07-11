@@ -121,7 +121,7 @@ export function usePlayerSocket() {
     socket.on('player:kicked', () => {
       joinParamsRef.current = null;
       setSavedJoin(null);
-      setError('Você foi removido pelo apresentador.');
+      setError('errKicked');
     });
     socket.on('game:reveal', ({ correctIndex, correctText, leaderboard, explanation }) => {
       const mine = leaderboard.find((r) => r.nickname === nicknameRef.current);
@@ -136,7 +136,7 @@ export function usePlayerSocket() {
     socket.on('game:hostLeft', () => {
       joinParamsRef.current = null;
       setSavedJoin(null);
-      setError('O apresentador encerrou a sala.');
+      setError('errHostLeft');
     });
 
     // Re-sincronização após reconectar no meio do jogo.
@@ -174,7 +174,8 @@ export function usePlayerSocket() {
           setSavedJoin({ pin, nickname, avatar, team, showText });
           setScreen('LOBBY');
         } else if (!res.needTeam) {
-          setError(res.error ?? 'Não foi possível entrar');
+          // Prefere o código (traduzível no cliente); cai no texto do servidor.
+          setError(res.errorCode ?? res.error ?? 'errGeneric');
         }
         resolve({ ok: res.ok, needTeam: res.needTeam, teams: res.teams });
       });

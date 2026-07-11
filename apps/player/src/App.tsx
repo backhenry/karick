@@ -313,13 +313,13 @@ export function App() {
             {t('enterAs', { avatar })}
           </button>
         )}
-        {error && <p className="text-center text-red-600">{error}</p>}
+        {error && <p className="text-center text-red-600">{t(error as never)}</p>}
         <LangSwitcher className="mt-2" />
       </form>
     );
   }
 
-  if (error) return <Center>⚠️ {error}</Center>;
+  if (error) return <Center>⚠️ {t(error as never)}</Center>;
 
   if (screen === 'LOBBY')
     return (

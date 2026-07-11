@@ -20,7 +20,7 @@ import type { Brand } from './brand.js';
 /** Callback de confirmação (ACK) padrão dos eventos cliente→servidor. */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type Ack<T = {}> = (
-  res: { ok: boolean; error?: string } & Partial<T>,
+  res: { ok: boolean; error?: string; errorCode?: string } & Partial<T>,
 ) => void;
 
 export interface ServerToClientEvents {

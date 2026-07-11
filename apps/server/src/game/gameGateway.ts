@@ -321,9 +321,9 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     // ─── PLAYER: entra na sala (ou reconecta) ────────────
     socket.on('player:join', async ({ pin, nickname, avatar, playerId, team, showText }, ack) => {
       if (!joinLimiter.allow(socket.handshake.address)) {
-        return ack?.({ ok: false, error: 'Muitas tentativas, aguarde um instante.' });
+        return ack?.({ ok: false, error: 'Muitas tentativas, aguarde um instante.', errorCode: 'errRateLimit' });
       }
-      if (!playerId) return ack?.({ ok: false, error: 'Identificador ausente' });
+      if (!playerId) return ack?.({ ok: false, error: 'Identificador ausente', errorCode: 'errNoId' });
 
       let outcome = 'new' as 'reconnect' | 'new' | 'inprogress' | 'badnick' | 'taken' | 'offensive' | 'needteam';
       const clean = nickname?.trim().slice(0, MAX_NICKNAME_LENGTH);
@@ -362,12 +362,12 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         outcome = 'new';
       });
 
-      if (!room) return ack?.({ ok: false, error: 'Sala não encontrada' });
-      if (outcome === 'inprogress') return ack?.({ ok: false, error: 'Jogo já iniciado' });
-      if (outcome === 'badnick') return ack?.({ ok: false, error: 'Apelido inválido' });
-      if (outcome === 'offensive') return ack?.({ ok: false, error: 'Apelido não permitido' });
-      if (outcome === 'taken') return ack?.({ ok: false, error: 'Apelido já em uso' });
-      if (outcome === 'needteam') return ack?.({ ok: false, error: 'Escolha uma equipe', needTeam: true, teams: room.teams, brand: room.brand });
+      if (!room) return ack?.({ ok: false, error: 'Sala não encontrada', errorCode: 'errRoomNotFound' });
+      if (outcome === 'inprogress') return ack?.({ ok: false, error: 'Jogo já iniciado', errorCode: 'errInProgress' });
+      if (outcome === 'badnick') return ack?.({ ok: false, error: 'Apelido inválido', errorCode: 'errBadNick' });
+      if (outcome === 'offensive') return ack?.({ ok: false, error: 'Apelido não permitido', errorCode: 'errOffensive' });
+      if (outcome === 'taken') return ack?.({ ok: false, error: 'Apelido já em uso', errorCode: 'errNickTaken' });
+      if (outcome === 'needteam') return ack?.({ ok: false, error: 'Escolha uma equipe', errorCode: 'errNeedTeam', needTeam: true, teams: room.teams, brand: room.brand });
 
       socket.join(pin);
       socket.data.pin = pin;
@@ -479,7 +479,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     // ─── PLAYER: responde ────────────────────────────────
     socket.on('player:submitAnswer', async ({ optionIndex, wager, text }, ack) => {
       if (!answerLimiter.allow(socket.handshake.address)) {
-        return ack?.({ ok: false, error: 'Muitas ações, aguarde um instante.' });
+        return ack?.({ ok: false, error: 'Muitas ações, aguarde um instante.', errorCode: 'errRateLimit' });
       }
       const pin = socket.data.pin ?? '';
       const playerId = socket.data.playerId;
@@ -539,11 +539,11 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
         p.currentAnswer = { optionIndex: originalIndex, answeredAt: Date.now(), isCorrect, pointsAwarded };
         result = { isCorrect, pointsAwarded, totalScore: p.score, streak: p.streak, streakBonus: bonus };
       });
-      if (!room || outcome === 'inactive') return ack?.({ ok: false, error: 'Fora de uma pergunta ativa' });
-      if (outcome === 'noplayer') return ack?.({ ok: false, error: 'Jogador não está na sala' });
-      if (outcome === 'eliminated') return ack?.({ ok: false, error: 'Você foi eliminado' });
-      if (outcome === 'answered') return ack?.({ ok: false, error: 'Você já respondeu' });
-      if (outcome === 'badanswer') return ack?.({ ok: false, error: 'Resposta inválida' });
+      if (!room || outcome === 'inactive') return ack?.({ ok: false, error: 'Fora de uma pergunta ativa', errorCode: 'errInactive' });
+      if (outcome === 'noplayer') return ack?.({ ok: false, error: 'Jogador não está na sala', errorCode: 'errNoPlayer' });
+      if (outcome === 'eliminated') return ack?.({ ok: false, error: 'Você foi eliminado', errorCode: 'errEliminated' });
+      if (outcome === 'answered') return ack?.({ ok: false, error: 'Você já respondeu', errorCode: 'errAlreadyAnswered' });
+      if (outcome === 'badanswer') return ack?.({ ok: false, error: 'Resposta inválida', errorCode: 'errBadAnswer' });
       ack?.({ ok: true, ...result! });
 
       const connected = Object.values(room.players).filter((p) => p.connected && !p.eliminated);

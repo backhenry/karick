@@ -15,6 +15,7 @@ import {
 import { emptyQuestion, exampleQuiz, trueFalseQuestion } from './lib/quizStorage.js';
 import { api } from './lib/api.js';
 import { QuizPreview } from './QuizPreview.js';
+import { useI18n } from './i18n.js';
 
 const AI_PROMPT = `Crie um quiz no formato JSON EXATO abaixo (responda só com o JSON, sem texto extra).
 Regras: "correctIndex" é o índice 0-based da opção correta; use 2 a 4 opções por pergunta;
@@ -60,6 +61,7 @@ interface Props {
 }
 
 export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, onSavedId, simple = false }: Props) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState<QuizDraft>(initialDraft);
   const [tagsInput, setTagsInput] = useState((initialDraft.tags ?? []).join(', '));
   const [id, setId] = useState<string | null>(quizId);
@@ -84,7 +86,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
     setImportError(null);
     setShowImport(false);
     setImportText('');
-    setSavedMsg(`Importado: ${result.draft.questions.length} pergunta(s) ✓`);
+    setSavedMsg(t('imported', { n: result.draft.questions.length }));
     setTimeout(() => setSavedMsg(null), 3000);
   };
 
@@ -134,7 +136,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
       const saved = id ? await api.updateQuiz(id, payload) : await api.createQuiz(payload);
       setId(saved.id);
       onSavedId(saved.id);
-      setSavedMsg('Salvo na biblioteca ✓');
+      setSavedMsg(t('savedToLibrary'));
       setTimeout(() => setSavedMsg(null), 2500);
     } catch (e) {
       setError((e as Error).message);
@@ -150,7 +152,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
     setError(null);
     try {
       await api.addBank(payload.questions, payload.tags ?? []);
-      setSavedMsg(`${payload.questions.length} pergunta(s) enviada(s) ao banco ✓`);
+      setSavedMsg(t('sentToBank', { n: payload.questions.length }));
       setTimeout(() => setSavedMsg(null), 3000);
     } catch (e) {
       setError((e as Error).message);
@@ -172,7 +174,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
     <div className="mx-auto max-w-3xl p-6 text-slate-100">
       <header className="mb-6 flex items-center justify-between gap-2">
         <button onClick={onBack} className="rounded bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
-          ← Biblioteca
+          {t('backToLibrary')}
         </button>
         <div className="flex gap-2 text-sm">
           <button
@@ -180,7 +182,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
             disabled={draft.questions.length === 0}
             className="rounded bg-white/10 px-3 py-2 hover:bg-white/20 disabled:opacity-40"
           >
-            👁 Prévia
+            {t('preview')}
           </button>
           {!simple && (
             <>
@@ -188,31 +190,28 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                 onClick={() => setShowImport((s) => !s)}
                 className="rounded bg-indigo-500/80 px-3 py-2 font-semibold hover:bg-indigo-500"
               >
-                Importar JSON
+                {t('importJson')}
               </button>
               <button onClick={sendToBank} className="rounded bg-white/10 px-3 py-2 hover:bg-white/20">
-                Enviar ao banco
+                {t('sendToBank')}
               </button>
             </>
           )}
           <button onClick={() => setDraft(exampleQuiz())} className="rounded bg-white/10 px-3 py-2 hover:bg-white/20">
-            Carregar exemplo
+            {t('loadExample')}
           </button>
           <button
             onClick={() => setDraft({ title: '', questions: [emptyQuestion()] })}
             className="rounded bg-white/10 px-3 py-2 hover:bg-white/20"
           >
-            Limpar
+            {t('clear')}
           </button>
         </div>
       </header>
 
       {showImport && (
         <div className="mb-6 rounded-xl border border-indigo-500/40 bg-indigo-500/5 p-4">
-          <p className="mb-2 text-sm text-white/70">
-            Envie um arquivo <code>.json</code> ou cole o conteúdo abaixo. Peça para uma IA gerar no
-            formato do exemplo — ela responde o JSON e você importa aqui.
-          </p>
+          <p className="mb-2 text-sm text-white/70">{t('importHint')}</p>
 
           <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
             <input ref={fileRef} type="file" accept="application/json,.json" onChange={onFile} className="hidden" />
@@ -220,24 +219,24 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               onClick={() => fileRef.current?.click()}
               className="rounded bg-white/10 px-3 py-2 hover:bg-white/20"
             >
-              📁 Escolher arquivo .json
+              {t('chooseFile')}
             </button>
             <button
               onClick={() => {
                 navigator.clipboard?.writeText(AI_PROMPT);
-                setSavedMsg('Prompt copiado — cole numa IA ✓');
+                setSavedMsg(t('promptCopied'));
                 setTimeout(() => setSavedMsg(null), 3000);
               }}
               className="rounded bg-white/10 px-3 py-2 hover:bg-white/20"
             >
-              📋 Copiar prompt para IA
+              {t('copyAiPrompt')}
             </button>
           </div>
 
           <textarea
             value={importText}
             onChange={(e) => setImportText(e.target.value)}
-            placeholder='Cole aqui o JSON — ex.: {"title":"...","questions":[{"text":"...","options":["A","B"],"correctIndex":0}]}'
+            placeholder={t('importTextarea')}
             rows={6}
             className="w-full resize-y rounded-lg bg-black/30 p-3 font-mono text-xs outline-none placeholder:text-white/30"
           />
@@ -248,10 +247,10 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               disabled={!importText.trim()}
               className="rounded bg-indigo-500 px-4 py-2 text-sm font-bold hover:bg-indigo-400 disabled:opacity-40"
             >
-              Importar do texto
+              {t('importFromText')}
             </button>
             <button onClick={() => setShowImport(false)} className="rounded bg-white/10 px-4 py-2 text-sm hover:bg-white/20">
-              Fechar
+              {t('close')}
             </button>
           </div>
         </div>
@@ -260,7 +259,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
       <input
         value={draft.title}
         onChange={(e) => update((d) => (d.title = e.target.value))}
-        placeholder="Título do quiz"
+        placeholder={t('quizTitle')}
         className="mb-3 w-full rounded-lg bg-white/10 p-4 text-2xl font-bold outline-none placeholder:text-white/40"
       />
       {!simple && (
@@ -268,7 +267,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
           <input
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
-            placeholder="Tags (separadas por vírgula) — ex.: geografia, fácil"
+            placeholder={t('tagsPlaceholder')}
             className="mb-3 w-full rounded-lg bg-white/10 p-3 text-sm outline-none placeholder:text-white/40"
           />
           <label className="mb-6 flex cursor-pointer items-center gap-2 text-sm text-white/70">
@@ -277,7 +276,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               checked={!!draft.isPublic}
               onChange={(e) => update((d) => (d.isPublic = e.target.checked || undefined))}
             />
-            🌐 Público — aparece na galeria para outros descobrirem e clonarem
+            {t('publicToggle')}
           </label>
         </>
       )}
@@ -287,13 +286,13 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
         {draft.questions.map((q, qi) => (
           <div key={qi} className="rounded-xl bg-white/5 p-5">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-lg font-bold text-white/70">Pergunta {qi + 1}</span>
+              <span className="text-lg font-bold text-white/70">{t('questionN', { n: qi + 1 })}</span>
               <div className="flex items-center gap-2 text-sm">
                 <span className="mr-1 text-white/40">{q.timeLimitSec}s · {q.points} pts</span>
                 <button
                   onClick={() => moveQuestion(qi, -1)}
                   disabled={qi === 0}
-                  title="Mover para cima"
+                  title={t('moveUp')}
                   className="rounded bg-white/10 px-2 py-1 hover:bg-white/20 disabled:opacity-30"
                 >
                   ↑
@@ -301,24 +300,24 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                 <button
                   onClick={() => moveQuestion(qi, 1)}
                   disabled={qi === draft.questions.length - 1}
-                  title="Mover para baixo"
+                  title={t('moveDown')}
                   className="rounded bg-white/10 px-2 py-1 hover:bg-white/20 disabled:opacity-30"
                 >
                   ↓
                 </button>
                 <button
                   onClick={() => duplicateQuestion(qi)}
-                  title="Duplicar pergunta"
+                  title={t('duplicateQuestion')}
                   className="rounded bg-white/10 px-2 py-1 hover:bg-white/20"
                 >
-                  Duplicar
+                  {t('duplicate')}
                 </button>
                 {draft.questions.length > 1 && (
                   <button
                     onClick={() => update((d) => d.questions.splice(qi, 1))}
                     className="rounded bg-red-500/20 px-2 py-1 text-red-300 hover:bg-red-500/30"
                   >
-                    Remover
+                    {t('remove')}
                   </button>
                 )}
               </div>
@@ -327,7 +326,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
             <textarea
               value={q.text}
               onChange={(e) => patchQuestion(qi, (qq) => (qq.text = e.target.value))}
-              placeholder="Enunciado da pergunta"
+              placeholder={t('questionPlaceholder')}
               rows={2}
               className="mb-3 w-full resize-none rounded-lg bg-white/10 p-3 outline-none placeholder:text-white/40"
             />
@@ -335,19 +334,19 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
             {!simple && (
             <div className="mb-3 flex flex-wrap gap-2 text-sm">
               {([
-                ['choice', '🔘 Alternativas'],
-                ['text', '✍️ Resposta digitada'],
-                ['poll', '🗳️ Enquete (sem pontos)'],
-              ] as const).map(([t, label]) => (
+                ['choice', t('typeChoice')],
+                ['text', t('typeText')],
+                ['poll', t('typePoll')],
+              ] as const).map(([type, label]) => (
                 <button
-                  key={t}
+                  key={type}
                   onClick={() =>
                     patchQuestion(qi, (qq) => {
-                      qq.type = t === 'choice' ? undefined : t;
-                      if (t === 'text' && !qq.acceptedAnswers?.length) qq.acceptedAnswers = [];
+                      qq.type = type === 'choice' ? undefined : type;
+                      if (type === 'text' && !qq.acceptedAnswers?.length) qq.acceptedAnswers = [];
                     })
                   }
-                  className={`rounded-full px-3 py-1 ${(q.type ?? 'choice') === t ? 'bg-indigo-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+                  className={`rounded-full px-3 py-1 ${(q.type ?? 'choice') === type ? 'bg-indigo-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
                 >
                   {label}
                 </button>
@@ -360,19 +359,19 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               <input
                 value={q.imageUrl ?? ''}
                 onChange={(e) => patchQuestion(qi, (qq) => (qq.imageUrl = e.target.value || undefined))}
-                placeholder="URL de imagem (opcional) — https://…"
+                placeholder={t('imagePlaceholder')}
                 className="flex-1 rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
               />
               <button
                 type="button"
-                title="Gerar imagem a partir de palavras-chave"
+                title={t('byKeyword')}
                 onClick={() => {
-                  const kw = window.prompt('Palavras-chave da imagem (ex.: mars planet):');
+                  const kw = window.prompt(t('keywordPrompt'));
                   if (kw && kw.trim()) patchQuestion(qi, (qq) => (qq.imageUrl = imageUrlFromQuery(kw)));
                 }}
                 className="shrink-0 rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20"
               >
-                🔎 por palavra-chave
+                {t('byKeyword')}
               </button>
               {q.imageUrl && /^https?:\/\//i.test(q.imageUrl) && (
                 <img
@@ -392,14 +391,14 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                   checked={!!q.imageReveal}
                   onChange={(e) => patchQuestion(qi, (qq) => (qq.imageReveal = e.target.checked || undefined))}
                 />
-                🔍 Revelar aos poucos — imagem começa borrada e abre com o tempo (responder cedo vale mais)
+                {t('imageRevealToggle')}
               </label>
             )}
 
             <textarea
               value={(q.hints ?? []).join('\n')}
               onChange={(e) => patchQuestion(qi, (qq) => (qq.hints = e.target.value ? e.target.value.split('\n') : undefined))}
-              placeholder={'Dicas "Quem sou eu?" (opcional) — uma por linha, aparecem aos poucos no telão'}
+              placeholder={t('hintsPlaceholder')}
               rows={2}
               className="mb-3 w-full resize-y rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
             />
@@ -407,7 +406,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
             <input
               value={q.explanation ?? ''}
               onChange={(e) => patchQuestion(qi, (qq) => (qq.explanation = e.target.value || undefined))}
-              placeholder="Explicação da resposta (opcional) — aparece no reveal"
+              placeholder={t('explanationPlaceholder')}
               className="mb-3 w-full rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
             />
 
@@ -415,13 +414,13 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               <input
                 value={q.audioUrl ?? ''}
                 onChange={(e) => patchQuestion(qi, (qq) => (qq.audioUrl = e.target.value || undefined))}
-                placeholder="URL de áudio (opcional)"
+                placeholder={t('audioPlaceholder')}
                 className="rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
               />
               <input
                 value={q.videoUrl ?? ''}
                 onChange={(e) => patchQuestion(qi, (qq) => (qq.videoUrl = e.target.value || undefined))}
-                placeholder="URL de vídeo (YouTube ou .mp4)"
+                placeholder={t('videoPlaceholder')}
                 className="rounded-lg bg-white/10 p-2 text-sm outline-none placeholder:text-white/40"
               />
             </div>
@@ -432,13 +431,13 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                   checked={!!q.audioOnly}
                   onChange={(e) => patchQuestion(qi, (qq) => (qq.audioOnly = e.target.checked || undefined))}
                 />
-                🎵 Só áudio (adivinhe a música — esconde vídeo e título; só YouTube)
+                {t('audioOnlyToggle')}
               </label>
             )}
             <textarea
               value={q.code ?? ''}
               onChange={(e) => patchQuestion(qi, (qq) => (qq.code = e.target.value || undefined))}
-              placeholder="Trecho de código (opcional)"
+              placeholder={t('codePlaceholder')}
               rows={2}
               spellCheck={false}
               className="mb-3 w-full resize-y rounded-lg bg-black/30 p-2 font-mono text-xs outline-none placeholder:text-white/40"
@@ -446,7 +445,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
             <input
               value={q.latex ?? ''}
               onChange={(e) => patchQuestion(qi, (qq) => (qq.latex = e.target.value || undefined))}
-              placeholder="Fórmula LaTeX (opcional) — ex.: x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}"
+              placeholder={t('latexPlaceholder')}
               spellCheck={false}
               className="mb-3 w-full rounded-lg bg-black/30 p-2 font-mono text-xs outline-none placeholder:text-white/40"
             />
@@ -454,13 +453,11 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
 
             {(q.type ?? 'choice') === 'text' && (
               <div className="rounded-lg bg-white/10 p-3">
-                <p className="mb-1 text-sm text-white/70">
-                  ✍️ Respostas aceitas — separe por vírgula (acentos e maiúsculas não diferenciam)
-                </p>
+                <p className="mb-1 text-sm text-white/70">{t('acceptedHint')}</p>
                 <input
                   value={(q.acceptedAnswers ?? []).join(',')}
                   onChange={(e) => patchQuestion(qi, (qq) => (qq.acceptedAnswers = e.target.value.split(',')))}
-                  placeholder="ex.: Brasil, República Federativa do Brasil"
+                  placeholder={t('acceptedPlaceholder')}
                   className="w-full rounded bg-white/10 p-2 outline-none placeholder:text-white/40"
                 />
               </div>
@@ -473,7 +470,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                   <input
                     value={opt}
                     onChange={(e) => patchQuestion(qi, (qq) => (qq.options[oi] = e.target.value))}
-                    placeholder={`Opção ${oi + 1}`}
+                    placeholder={t('optionN', { n: oi + 1 })}
                     className="flex-1 bg-transparent outline-none placeholder:text-white/40"
                   />
                   {(q.type ?? 'choice') === 'choice' && (
@@ -484,7 +481,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                         checked={q.correctIndex === oi}
                         onChange={() => patchQuestion(qi, (qq) => (qq.correctIndex = oi))}
                       />
-                      correta
+                      {t('correctOption')}
                     </label>
                   )}
                   {q.options.length > MIN_OPTIONS && (
@@ -496,7 +493,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                         })
                       }
                       className="text-white/40 hover:text-red-300"
-                      title="Remover opção"
+                      title={t('removeOption')}
                     >
                       ✕
                     </button>
@@ -508,11 +505,11 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
             <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
               {(q.type ?? 'choice') !== 'text' && q.options.length < MAX_OPTIONS && (
                 <button onClick={() => patchQuestion(qi, (qq) => qq.options.push(''))} className="rounded bg-white/10 px-3 py-1 hover:bg-white/20">
-                  + opção
+                  {t('addOption')}
                 </button>
               )}
               <label className="flex items-center gap-2">
-                Tempo (s):
+                {t('timeSec')}
                 <input
                   type="number"
                   min={MIN_TIME_LIMIT}
@@ -523,7 +520,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                 />
               </label>
               <label className="flex items-center gap-2">
-                Pontos:
+                {t('points')}
                 <input
                   type="number"
                   min={100}
@@ -543,13 +540,13 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
           onClick={() => update((d) => d.questions.push(emptyQuestion()))}
           className="flex-1 rounded-xl border-2 border-dashed border-white/20 py-4 text-white/60 hover:border-white/40 hover:text-white"
         >
-          + Adicionar pergunta
+          {t('addQuestion')}
         </button>
         <button
           onClick={() => update((d) => d.questions.push(trueFalseQuestion()))}
           className="flex-1 rounded-xl border-2 border-dashed border-white/20 py-4 text-white/60 hover:border-white/40 hover:text-white"
         >
-          + Verdadeiro / Falso
+          {t('addTrueFalse')}
         </button>
       </div>
 
@@ -562,14 +559,14 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
           disabled={saving}
           className="flex-1 rounded-xl bg-white/10 py-4 text-xl font-bold text-white hover:bg-white/20 disabled:opacity-40"
         >
-          {saving ? 'Salvando…' : id ? 'Salvar alterações' : 'Salvar na biblioteca'}
+          {saving ? t('saving') : id ? t('saveChanges') : t('saveToLibrary')}
         </button>
         <button
           onClick={start}
           disabled={starting || !connected}
           className="flex-1 rounded-xl bg-green-500 py-4 text-xl font-bold text-white hover:bg-green-400 disabled:opacity-40"
         >
-          {!connected ? 'Conectando…' : starting ? 'Criando sala…' : 'Iniciar hospedagem →'}
+          {!connected ? t('loading') : starting ? t('loading') : t('startHosting')}
         </button>
       </div>
 
