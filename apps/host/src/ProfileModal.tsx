@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Brand } from '@karick/shared';
 import { QRCodeView } from './QRCode.js';
 import { useEscape } from './lib/useEscape.js';
+import { useI18n, LangSwitcher } from './i18n.js';
 import { fileToSquareDataUrl } from './lib/resizeImage.js';
 import { api } from './lib/api.js';
 
@@ -31,6 +32,7 @@ export function ProfileModal({
   onLogout: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [fixedPin, setFixedPin] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -61,7 +63,7 @@ export function ProfileModal({
       setPic(res.photo);
       onPhotoChange?.(res.photo);
     } catch {
-      setPhotoErr('Não consegui usar essa imagem. Tente outra.');
+      setPhotoErr(t('photoError'));
     }
   };
   const removePhoto = async () => {
@@ -91,8 +93,8 @@ export function ProfileModal({
         <div className="mb-5 flex items-center gap-3">
           <button
             onClick={() => fileRef.current?.click()}
-            title="Trocar foto"
-            aria-label="Trocar foto de perfil"
+            title={t('changePhoto')}
+            aria-label={t('changePhoto')}
             className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-full text-2xl font-black text-white"
             style={{ background: brand?.primary ?? '#6366f1' }}
           >
@@ -109,9 +111,9 @@ export function ProfileModal({
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg font-bold" title={email}>{email}</p>
             <p className="flex items-center gap-2 text-sm text-white/50">
-              Apresentador
+              {t('presenter')}
               {pic && (
-                <button onClick={removePhoto} className="text-white/40 underline hover:text-white/70">remover foto</button>
+                <button onClick={removePhoto} className="text-white/40 underline hover:text-white/70">{t('removePhoto')}</button>
               )}
             </p>
             {photoErr && <p className="text-xs text-red-300">{photoErr}</p>}
@@ -120,11 +122,11 @@ export function ProfileModal({
         </div>
 
         <div className="mb-5 grid grid-cols-3 gap-2 text-center">
-          {[
-            [stats.quizzes, 'quizzes'],
-            [stats.games, 'partidas'],
-            [stats.players, 'jogadores'],
-          ].map(([n, label]) => (
+          {([
+            [stats.quizzes, t('statQuizzes')],
+            [stats.games, t('statGames')],
+            [stats.players, t('statPlayers')],
+          ] as const).map(([n, label]) => (
             <div key={label} className="rounded-xl bg-white/5 p-3">
               <p className="text-2xl font-black" style={{ color: brand?.primary ?? '#a5b4fc' }}>{n}</p>
               <p className="text-xs text-white/50">{label}</p>
@@ -133,9 +135,9 @@ export function ProfileModal({
         </div>
 
         <div className="mb-5 rounded-xl bg-white/5 p-4">
-          <p className="mb-2 font-bold">📌 Minha sala permanente</p>
+          <p className="mb-2 font-bold">{t('myRoom')}</p>
           {!loaded ? (
-            <p className="text-sm text-white/50">Carregando…</p>
+            <p className="text-sm text-white/50">{t('loading')}</p>
           ) : fixedPin ? (
             <div className="flex items-center gap-4">
               <div className="shrink-0 rounded-lg bg-white p-1">
@@ -145,16 +147,18 @@ export function ProfileModal({
                 <p className="text-3xl font-black tracking-widest" style={{ color: brand?.primary ?? '#a5b4fc' }}>{fixedPin}</p>
                 <p className="mb-2 truncate text-xs text-white/40" title={joinUrl}>{joinUrl}</p>
                 <button onClick={copyLink} className="rounded-lg bg-white/10 px-3 py-2 text-sm font-bold hover:bg-white/20">
-                  {copied ? '✓ Link copiado!' : '📋 Copiar link'}
+                  {copied ? t('linkCopied') : t('copyLink')}
                 </button>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-white/60">
-              Você ainda não tem um PIN fixo. Ao criar uma sala, marque{' '}
-              <b>📌 Sala permanente</b> — o mesmo código e link valerão para todas as suas partidas.
-            </p>
+            <p className="text-sm text-white/60">{t('noFixedPin')}</p>
           )}
+        </div>
+
+        <div className="mb-4 flex items-center justify-between">
+          <span className="text-sm text-white/50">🌐</span>
+          <LangSwitcher />
         </div>
 
         <div className="flex gap-2">
@@ -162,13 +166,13 @@ export function ProfileModal({
             onClick={onBranding}
             className="flex-1 rounded-lg bg-white/10 p-3 font-bold hover:bg-white/20"
           >
-            🎨 Personalizar marca
+            {t('customizeBrand')}
           </button>
           <button
             onClick={onLogout}
             className="rounded-lg bg-red-500/20 px-4 py-3 font-bold text-red-300 hover:bg-red-500/30"
           >
-            Sair
+            {t('logout')}
           </button>
         </div>
       </div>

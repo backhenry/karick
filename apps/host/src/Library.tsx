@@ -3,6 +3,7 @@ import type { Brand, QuizDraft, QuizSummary, GameHistoryEntry } from '@karick/sh
 import { BrandMark } from './BrandMark.js';
 import { ReportModal } from './ReportModal.js';
 import { ProfileModal } from './ProfileModal.js';
+import { useI18n } from './i18n.js';
 import { api } from './lib/api.js';
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onToggleSimple, onLogout, onBranding, onBank, onGallery }: Props) {
+  const { t } = useI18n();
   const [quizzes, setQuizzes] = useState<QuizSummary[] | null>(null);
   const [history, setHistory] = useState<GameHistoryEntry[]>([]);
   const [dbEnabled, setDbEnabled] = useState(true);
@@ -77,7 +79,7 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
   };
 
   const remove = async (id: string) => {
-    if (!confirm('Excluir este quiz?')) return;
+    if (!confirm(t('confirmDelete'))) return;
     try {
       await api.deleteQuiz(id);
       refresh();
@@ -128,22 +130,22 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
         <BrandMark brand={brand} imgClass="max-h-12" nameClass="text-4xl font-black" />
         <div className="flex items-center gap-2">
           {!simple && onGallery && (
-            <button onClick={onGallery} title="Galeria pública" className="rounded-lg bg-white/10 px-3 py-2 text-sm transition hover:bg-white/20">
-              🌐 Galeria
+            <button onClick={onGallery} title={t('gallery')} className="rounded-lg bg-white/10 px-3 py-2 text-sm transition hover:bg-white/20">
+              {t('gallery')}
             </button>
           )}
           {!simple && onBank && (
-            <button onClick={onBank} title="Banco de perguntas" className="rounded-lg bg-white/10 px-3 py-2 text-sm transition hover:bg-white/20">
-              🎲 Banco
+            <button onClick={onBank} title={t('bank')} className="rounded-lg bg-white/10 px-3 py-2 text-sm transition hover:bg-white/20">
+              {t('bank')}
             </button>
           )}
           <button onClick={onNew} className="rounded-lg bg-green-500 px-4 py-2.5 font-bold text-white transition hover:bg-green-400">
-            + Novo quiz
+            {t('newQuiz')}
           </button>
           <button
             onClick={() => setShowProfile(true)}
             title={userEmail ?? 'Perfil'}
-            aria-label="Abrir perfil"
+            aria-label={t('openProfile')}
             className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full font-black text-white ring-2 ring-white/20 transition hover:ring-white/50"
             style={{ background: brand?.primary ?? '#6366f1' }}
           >
@@ -163,33 +165,26 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
               onClick={() => onToggleSimple(true)}
               className={`rounded-md px-3 py-1.5 transition ${simple ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'}`}
             >
-              🎯 Clássico
+              {t('classic')}
             </button>
             <button
               onClick={() => onToggleSimple(false)}
               className={`rounded-md px-3 py-1.5 transition ${!simple ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'}`}
             >
-              🚀 Completo
+              {t('complete')}
             </button>
           </div>
-          <p className="text-sm text-white/50">
-            {simple
-              ? 'Só perguntas e respostas — começa a partida com um clique.'
-              : 'Todos os recursos: mídia, modos de jogo, tipos de pergunta, banco e galeria.'}
-          </p>
+          <p className="text-sm text-white/50">{simple ? t('classicHint') : t('completeHint')}</p>
         </div>
       )}
 
       {!dbEnabled && (
-        <p className="mb-4 rounded-lg bg-amber-500/20 p-3 text-sm text-amber-200">
-          ⚠️ Banco de dados não configurado — os quizzes salvos não persistem entre reinícios do servidor.
-          Configure a variável <code>DATABASE_URL</code> para ativar a persistência.
-        </p>
+        <p className="mb-4 rounded-lg bg-amber-500/20 p-3 text-sm text-amber-200">{t('dbWarning')}</p>
       )}
       {error && <p className="mb-4 rounded-lg bg-red-500/20 p-3 text-red-300">{error}</p>}
 
       <h2 className="mb-3 text-lg font-bold text-white/70">
-        Meus quizzes {quizzes && quizzes.length > 0 && <span className="text-white/40">({quizzes.length})</span>}
+        {t('myQuizzes')} {quizzes && quizzes.length > 0 && <span className="text-white/40">({quizzes.length})</span>}
       </h2>
 
       {allTags.length > 0 && (
@@ -198,34 +193,34 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
             onClick={() => setActiveTag(null)}
             className={`rounded-full px-3 py-1 text-sm ${activeTag === null ? 'bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}
           >
-            Todos
+            {t('allTag')}
           </button>
-          {allTags.map((t) => (
+          {allTags.map((tag) => (
             <button
-              key={t}
-              onClick={() => setActiveTag(t)}
-              className={`rounded-full px-3 py-1 text-sm ${activeTag === t ? 'bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}
+              key={tag}
+              onClick={() => setActiveTag(tag)}
+              className={`rounded-full px-3 py-1 text-sm ${activeTag === tag ? 'bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}
             >
-              #{t}
+              #{tag}
             </button>
           ))}
         </div>
       )}
 
       {quizzes === null ? (
-        <p className="text-white/50">Carregando…</p>
+        <p className="text-white/50">{t('loading')}</p>
       ) : shown.length === 0 ? (
         <div className="rounded-xl bg-white/5 p-8 text-center text-white/50">
           {quizzes.length === 0 ? (
             <>
               <p className="mb-1 text-3xl">🧩</p>
-              <p className="mb-4">Nenhum quiz salvo ainda.</p>
+              <p className="mb-4">{t('noQuizzesYet')}</p>
               <button onClick={onNew} className="rounded-lg bg-green-500 px-5 py-3 font-bold text-white transition hover:bg-green-400">
-                Criar meu primeiro quiz
+                {t('createFirst')}
               </button>
             </>
           ) : (
-            <>Nenhum quiz com a tag <b>#{activeTag}</b>.</>
+            t('noQuizzesTag', { tag: activeTag ?? '' })
           )}
         </div>
       ) : (
@@ -235,16 +230,16 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
               <div className="min-w-0">
                 <p className="truncate text-lg font-bold">
                   {q.title}
-                  {q.isPublic && <span className="ml-2 rounded bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">🌐 público</span>}
+                  {q.isPublic && <span className="ml-2 rounded bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">{t('public')}</span>}
                 </p>
                 <p className="text-sm text-white/40">
-                  {q.questionCount} pergunta{q.questionCount !== 1 ? 's' : ''} · {fmt(q.updatedAt)}
+                  {t('questionsCount', { n: q.questionCount })} · {fmt(q.updatedAt)}
                 </p>
                 {q.tags.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1">
-                    {q.tags.map((t) => (
-                      <span key={t} className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-200">
-                        #{t}
+                    {q.tags.map((tag) => (
+                      <span key={tag} className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-200">
+                        #{tag}
                       </span>
                     ))}
                   </div>
@@ -256,27 +251,27 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
                   disabled={busyId === q.id}
                   className="rounded bg-green-500 px-3 py-2 font-bold text-white hover:bg-green-400 disabled:opacity-50"
                 >
-                  Hospedar
+                  {t('host')}
                 </button>
                 <button
                   onClick={() => withQuiz(q.id, (d) => onEdit(q.id, d))}
                   disabled={busyId === q.id}
                   className="rounded bg-white/10 px-3 py-2 hover:bg-white/20 disabled:opacity-50"
                 >
-                  Editar
+                  {t('edit')}
                 </button>
                 <button
                   onClick={() => duplicate(q.id)}
                   disabled={busyId === q.id}
                   className="rounded bg-white/10 px-3 py-2 hover:bg-white/20 disabled:opacity-50"
                 >
-                  Duplicar
+                  {t('duplicate')}
                 </button>
                 <button
                   onClick={() => remove(q.id)}
                   className="rounded bg-red-500/20 px-3 py-2 text-red-300 hover:bg-red-500/30"
                 >
-                  Excluir
+                  {t('del')}
                 </button>
               </div>
             </li>
@@ -288,10 +283,10 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
         <>
           <div className="mb-3 mt-8 flex items-center justify-between">
             <h2 className="text-lg font-bold text-white/70">
-              Últimas partidas <span className="text-white/40">({history.length})</span>
+              {t('lastGames')} <span className="text-white/40">({history.length})</span>
             </h2>
             <button onClick={exportCsv} className="rounded bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
-              ⬇ Exportar CSV
+              {t('exportCsv')}
             </button>
           </div>
           <ul className="space-y-2">
@@ -303,7 +298,7 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
                 <span className="flex shrink-0 items-center gap-2 text-white/50">
                   🥇 {h.players[0]?.nickname ?? '—'} ({h.players[0]?.score ?? 0}) · {fmt(h.playedAt)}
                   <button onClick={() => setReport(h)} className="rounded bg-white/10 px-2 py-1 text-white hover:bg-white/20">
-                    📋 Relatório
+                    {t('report')}
                   </button>
                 </span>
               </li>

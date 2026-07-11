@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import type { Brand } from '@karick/shared';
 import { BrandMark } from './BrandMark.js';
+import { useI18n, LangSwitcher } from './i18n.js';
 import { api, type AuthUser } from './lib/api.js';
 
 /** Tela de login/cadastro do apresentador. */
 export function Auth({ onAuthed, brand }: { onAuthed: (user: AuthUser) => void; brand?: Brand }) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,14 +32,14 @@ export function Auth({ onAuthed, brand }: { onAuthed: (user: AuthUser) => void; 
       <form onSubmit={submit} className="w-full max-w-sm space-y-4">
         <BrandMark brand={brand} imgClass="mx-auto max-h-20" nameClass="text-center text-4xl font-black" />
         <p className="text-center text-white/60">
-          {mode === 'login' ? 'Entre para gerenciar seus quizzes' : 'Crie sua conta'}
+          {mode === 'login' ? t('loginSubtitle') : t('signupSubtitle')}
         </p>
 
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="E-mail"
+          placeholder={t('email')}
           autoComplete="email"
           className="w-full rounded-lg bg-white/10 p-4 outline-none placeholder:text-white/40"
         />
@@ -45,7 +47,7 @@ export function Auth({ onAuthed, brand }: { onAuthed: (user: AuthUser) => void; 
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder={mode === 'signup' ? 'Senha (mín. 8 caracteres)' : 'Senha'}
+          placeholder={mode === 'signup' ? t('passwordSignup') : t('password')}
           autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
           className="w-full rounded-lg bg-white/10 p-4 outline-none placeholder:text-white/40"
         />
@@ -58,7 +60,7 @@ export function Auth({ onAuthed, brand }: { onAuthed: (user: AuthUser) => void; 
           style={{ background: brand?.primary }}
           className="w-full rounded-lg p-4 text-lg font-bold text-white disabled:opacity-50"
         >
-          {busy ? '…' : mode === 'login' ? 'Entrar' : 'Criar conta'}
+          {busy ? '…' : mode === 'login' ? t('login') : t('signup')}
         </button>
 
         <button
@@ -69,8 +71,10 @@ export function Auth({ onAuthed, brand }: { onAuthed: (user: AuthUser) => void; 
           }}
           className="w-full text-center text-sm text-white/60 hover:text-white"
         >
-          {mode === 'login' ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Entrar'}
+          {mode === 'login' ? t('toSignup') : t('toLogin')}
         </button>
+
+        <LangSwitcher className="justify-center" />
       </form>
     </div>
   );

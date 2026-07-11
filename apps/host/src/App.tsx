@@ -22,6 +22,7 @@ import { reducedMotion } from './lib/motion.js';
 import { Confetti } from './Confetti.js';
 import { RevealImage, Hints } from './QuestionFx.js';
 import { emptyDraft } from './lib/quizStorage.js';
+import { useI18n } from './i18n.js';
 
 const pct = (s: QuestionStat) => (s.answered > 0 ? Math.round((s.correctCount / s.answered) * 100) : 0);
 
@@ -30,6 +31,7 @@ type PreGameView =
   | { screen: 'EDITOR'; draft: QuizDraft; quizId: string | null };
 
 export function App() {
+  const { t } = useI18n();
   const g = useHostSocket();
   const [view, setView] = useState<PreGameView>({ screen: 'LIBRARY' });
   const [authUser, setAuthUser] = useState<AuthUser | null | 'loading'>('loading');
@@ -108,7 +110,7 @@ export function App() {
   // ─── PRÉ-JOGO: exige login, depois biblioteca ou editor ───
   if (g.phase === 'PREGAME') {
     if (authUser === 'loading')
-      return <Screen dark>Carregando…</Screen>;
+      return <Screen dark>{t('loading')}</Screen>;
     if (authUser === null)
       return (
         <Auth
@@ -213,31 +215,31 @@ export function App() {
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-white" style={{ background: branding.bg }}>
         <div className="absolute right-4 top-4 flex gap-2">
-          <button onClick={toggleBigText} title="Fonte maior no telão" aria-label="Alternar fonte maior no telão" className={`rounded-lg px-3 py-2 font-bold hover:bg-white/20 ${bigText ? 'bg-white/25' : 'bg-white/10'}`}>
+          <button onClick={toggleBigText} title={t('biggerFont')} aria-label={t('biggerFont')} className={`rounded-lg px-3 py-2 font-bold hover:bg-white/20 ${bigText ? 'bg-white/25' : 'bg-white/10'}`}>
             A+
           </button>
-          <button onClick={() => setMusicOn((m) => !m)} title="Música do lobby" aria-label={musicOn ? 'Desligar música do lobby' : 'Ligar música do lobby'} className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
+          <button onClick={() => setMusicOn((m) => !m)} title={t('lobbyMusic')} aria-label={t('lobbyMusic')} className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
             {musicOn ? '🔊' : '🔇'}
           </button>
-          <button onClick={toggleFullscreen} title="Tela cheia" aria-label="Tela cheia" className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
+          <button onClick={toggleFullscreen} title={t('fullscreen')} aria-label={t('fullscreen')} className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
             ⛶
           </button>
         </div>
         <BrandMark brand={branding} imgClass="max-h-20" nameClass="text-4xl font-black tracking-wide" />
         {g.mode !== 'individual' && (
           <span className="rounded-full px-4 py-1 text-sm font-bold" style={{ background: `${branding.primary}33`, color: branding.primary }}>
-            Modo: {g.mode === 'teams' ? 'Equipes' : g.mode === 'betting' ? 'Aposta' : 'Sobrevivência'}
+            {t('mode', { mode: g.mode === 'teams' ? t('modeTeams') : g.mode === 'betting' ? t('modeBetting') : t('modeSurvival') })}
           </span>
         )}
         <div className="flex flex-wrap items-center justify-center gap-10">
           <div className="text-center">
-            <p className="mb-2 text-xl opacity-70">Acesse e use o PIN</p>
+            <p className="mb-2 text-xl opacity-70">{t('accessAndPin')}</p>
             <p className="text-lg opacity-50">{window.location.host}</p>
             <h1 className="text-7xl font-black tracking-[0.15em]" style={{ color: branding.primary }}>{g.pin || '…'}</h1>
           </div>
           <div className="text-center">
             {g.pin && <QRCodeView text={joinUrl} size={200} />}
-            <p className="mt-2 text-sm opacity-60">ou aponte a câmera</p>
+            <p className="mt-2 text-sm opacity-60">{t('orAimCamera')}</p>
           </div>
         </div>
 
@@ -253,7 +255,7 @@ export function App() {
                     <span key={p.nickname} className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
                       <span className="text-lg">{p.avatar}</span>
                       {p.nickname}
-                      <button onClick={() => g.kick(p.nickname)} title="Remover" aria-label={`Remover ${p.nickname}`} className="ml-auto text-white/30 hover:text-red-400">✕</button>
+                      <button onClick={() => g.kick(p.nickname)} title={t('remove')} aria-label={t('removePlayer', { name: p.nickname })} className="ml-auto text-white/30 hover:text-red-400">✕</button>
                     </span>
                   ))}
                 </div>
@@ -268,8 +270,8 @@ export function App() {
                 {p.nickname}
                 <button
                   onClick={() => g.kick(p.nickname)}
-                  title="Remover jogador"
-                  aria-label={`Remover ${p.nickname}`}
+                  title={t('remove')}
+                  aria-label={t('removePlayer', { name: p.nickname })}
                   className="ml-1 text-white/30 hover:text-red-400"
                 >
                   ✕
@@ -283,7 +285,7 @@ export function App() {
           disabled={g.players.length === 0}
           className="rounded-xl bg-green-500 px-10 py-4 text-2xl font-bold disabled:opacity-40"
         >
-          Iniciar ({g.players.length})
+          {t('start', { n: g.players.length })}
         </button>
       </div>
     );
@@ -296,25 +298,25 @@ export function App() {
         <FloatingReactions items={g.reactions} />
         <div className="flex items-center justify-between p-6 text-white/60">
           <span className="flex items-center gap-3 text-xl">
-            Pergunta {g.question.index + 1} de {g.question.total}
+            {t('questionOf', { i: g.question.index + 1, total: g.question.total })}
             {g.question.type === 'poll' && (
               <span className="rounded-full px-3 py-0.5 text-sm font-bold" style={{ background: `${branding.primary}33`, color: branding.primary }}>
-                🗳️ Enquete
+                {t('poll')}
               </span>
             )}
           </span>
           <div className="flex items-center gap-3">
             <span className="rounded-full bg-white/10 px-4 py-1 text-xl font-bold text-white">
-              {g.answeredCount}/{g.players.length} responderam
+              {t('answeredCount', { a: g.answeredCount, t: g.players.length })}
             </span>
             <button onClick={g.addTime} className="rounded-lg bg-white/10 px-3 py-1 font-bold text-white hover:bg-white/20">
-              +20s
+              {t('addTime')}
             </button>
             <button onClick={g.togglePause} className="rounded-lg bg-white/10 px-3 py-1 font-bold text-white hover:bg-white/20">
-              {g.paused ? '▶ Retomar' : '⏸ Pausar'}
+              {g.paused ? t('resume') : t('pause')}
             </button>
             <button onClick={g.revealNow} className="rounded-lg px-3 py-1 font-bold text-white" style={{ background: branding.primary }}>
-              Revelar agora ⏭
+              {t('revealNow')}
             </button>
           </div>
         </div>
@@ -323,7 +325,7 @@ export function App() {
           <TimerBar durationSec={g.timer.durationSec} resetKey={g.timer.key} paused={g.paused} />
           {g.paused && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="rounded-full bg-black/70 px-4 py-1 text-sm font-bold text-white">⏸ Pausado</span>
+              <span className="rounded-full bg-black/70 px-4 py-1 text-sm font-bold text-white">{t('paused')}</span>
             </div>
           )}
         </div>
@@ -365,7 +367,7 @@ export function App() {
         {g.question.type === 'text' ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-white/80">
             <span className="text-7xl">✍️</span>
-            <span className="text-3xl font-bold">Respondam digitando no celular</span>
+            <span className="text-3xl font-bold">{t('answerByTyping')}</span>
           </div>
         ) : (
           <div className="grid flex-1 grid-cols-2 gap-4 p-6">
@@ -391,7 +393,7 @@ export function App() {
       <div className="min-h-screen p-10 text-white" style={{ background: branding.bg }}>
         <FloatingReactions items={g.reactions} />
         <div className="mx-auto mb-6 max-w-2xl text-center">
-          <p className="mb-2 text-lg text-white/50">{qType === 'poll' ? '🗳️ Resultado da enquete' : 'Resposta certa'}</p>
+          <p className="mb-2 text-lg text-white/50">{qType === 'poll' ? t('pollResult') : t('correctAnswer')}</p>
           {qType !== 'poll' && (
             <div
               className="inline-flex items-center gap-3 rounded-xl px-8 py-4 text-3xl font-bold"
@@ -440,19 +442,19 @@ export function App() {
 
         {g.reveal.teamLeaderboard && g.reveal.teamLeaderboard.length > 0 && (
           <div className="mx-auto mb-6 max-w-2xl">
-            <h2 className="mb-3 text-center text-3xl font-bold">Placar por equipe <span className="text-lg font-normal text-white/50">(média por integrante)</span></h2>
+            <h2 className="mb-3 text-center text-3xl font-bold">{t('teamScore')} <span className="text-lg font-normal text-white/50">{t('perMember')}</span></h2>
             <ol className="space-y-2">
-              {g.reveal.teamLeaderboard.map((t) => (
-                <li key={t.name} className="flex justify-between rounded-lg px-6 py-3 text-2xl" style={{ background: `${branding.primary}2b` }}>
-                  <span>{t.rank}. {t.name} <span className="text-base text-white/50">({t.players})</span></span>
-                  <span className="font-bold">{t.score}</span>
+              {g.reveal.teamLeaderboard.map((tr) => (
+                <li key={tr.name} className="flex justify-between rounded-lg px-6 py-3 text-2xl" style={{ background: `${branding.primary}2b` }}>
+                  <span>{tr.rank}. {tr.name} <span className="text-base text-white/50">({tr.players})</span></span>
+                  <span className="font-bold">{tr.score}</span>
                 </li>
               ))}
             </ol>
           </div>
         )}
 
-        <h2 className="mb-4 text-center text-3xl font-bold">{g.reveal.teamLeaderboard ? 'Individual' : 'Placar'}</h2>
+        <h2 className="mb-4 text-center text-3xl font-bold">{g.reveal.teamLeaderboard ? t('individual') : t('scoreboard')}</h2>
         <Leaderboard rows={g.reveal.leaderboard} />
 
         <button
@@ -460,7 +462,7 @@ export function App() {
           className="mx-auto mt-10 block rounded-xl px-10 py-4 text-2xl font-bold text-white"
           style={{ background: branding.primary }}
         >
-          {isLast ? 'Ver pódio 🏆' : 'Próxima →'}
+          {isLast ? t('seePodium') : t('next')}
         </button>
       </div>
     );
@@ -477,28 +479,28 @@ export function App() {
       <div className="flex min-h-screen flex-col items-center gap-8 py-10 text-white" style={{ background: branding.bg }}>
         <Confetti colors={[branding.primary ?? '#6366f1', ...(branding.options ?? OPTION_COLORS), '#ffffff']} />
         <BrandMark brand={branding} imgClass="max-h-16" nameClass="text-3xl font-black" />
-        <h1 className="text-5xl font-black">🏆 Pódio</h1>
+        <h1 className="text-5xl font-black">{t('podium')}</h1>
         {g.teamPodium.length > 0 && (
           <div className="w-full max-w-md">
             <ol className="space-y-2">
-              {g.teamPodium.map((t) => (
-                <li key={t.name} className="flex justify-between rounded-lg px-6 py-3 text-2xl" style={{ background: `${branding.primary}2b` }}>
-                  <span>{['🥇', '🥈', '🥉'][t.rank - 1] ?? `${t.rank}.`} {t.name}</span>
-                  <span className="font-bold">{t.score}</span>
+              {g.teamPodium.map((tr) => (
+                <li key={tr.name} className="flex justify-between rounded-lg px-6 py-3 text-2xl" style={{ background: `${branding.primary}2b` }}>
+                  <span>{['🥇', '🥈', '🥉'][tr.rank - 1] ?? `${tr.rank}.`} {tr.name}</span>
+                  <span className="font-bold">{tr.score}</span>
                 </li>
               ))}
             </ol>
-            <p className="mt-2 text-center text-sm text-white/50">Ranking individual abaixo</p>
+            <p className="mt-2 text-center text-sm text-white/50">{t('individualBelow')}</p>
           </div>
         )}
         <Podium top={g.podium} />
 
         {g.stats.length > 0 && (
           <div className="w-full max-w-2xl px-6">
-            <h2 className="mb-2 text-center text-2xl font-bold text-white/80">Desempenho por pergunta</h2>
+            <h2 className="mb-2 text-center text-2xl font-bold text-white/80">{t('perQuestion')}</h2>
             <p className="mb-3 text-center text-white/60">
-              Média de acerto: <b>{Math.round(g.stats.reduce((a, s) => a + pct(s), 0) / g.stats.length)}%</b>
-              {hardest && <> · Mais difícil: “{hardest.text}” ({pct(hardest)}%)</>}
+              {t('avgCorrect', { n: Math.round(g.stats.reduce((a, s) => a + pct(s), 0) / g.stats.length) })}
+              {hardest && t('hardest', { text: hardest.text, n: pct(hardest) })}
             </p>
             <ul className="space-y-2">
               {g.stats.map((s, i) => {
@@ -508,14 +510,14 @@ export function App() {
                     <div className="flex items-center justify-between gap-3">
                       <span className="truncate">
                         {i + 1}. {s.text}
-                        {s === hardest && <span className="ml-2 rounded bg-red-500/30 px-2 py-0.5 text-xs text-red-200">mais difícil</span>}
+                        {s === hardest && <span className="ml-2 rounded bg-red-500/30 px-2 py-0.5 text-xs text-red-200">{t('hardestTag')}</span>}
                       </span>
                       <span className="shrink-0 font-bold">{p}%</span>
                     </div>
                     <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-white/10">
                       <div className="h-full bg-green-500" style={{ width: `${p}%` }} />
                     </div>
-                    <p className="mt-1 text-xs text-white/40">{s.correctCount} de {s.answered} acertaram</p>
+                    <p className="mt-1 text-xs text-white/40">{t('gotItRatio', { c: s.correctCount, a: s.answered })}</p>
                   </li>
                 );
               })}
@@ -527,13 +529,13 @@ export function App() {
           onClick={() => location.reload()}
           className="rounded-xl bg-white/10 px-8 py-3 text-xl hover:bg-white/20"
         >
-          Novo jogo
+          {t('newGame')}
         </button>
       </div>
     );
   }
 
-  return <Screen dark>Carregando…</Screen>;
+  return <Screen dark>{t('loading')}</Screen>;
 }
 
 /** Avatar que "pipoca" no telão quando o jogador responde (sem revelar a opção). */
