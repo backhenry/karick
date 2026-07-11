@@ -18,6 +18,7 @@ import { BankModal } from './BankModal.js';
 import { GalleryModal } from './GalleryModal.js';
 import { loadBranding, saveBranding } from './lib/branding.js';
 import { scheduleTension, startLobbyMusic } from './lib/sound.js';
+import { reducedMotion } from './lib/motion.js';
 import { Confetti } from './Confetti.js';
 import { RevealImage, Hints } from './QuestionFx.js';
 import { emptyDraft } from './lib/quizStorage.js';
@@ -77,6 +78,13 @@ export function App() {
     if (g.phase !== 'QUESTION') return;
     return scheduleTension(g.timer.durationSec);
   }, [g.phase, g.timer.key, g.timer.durationSec]);
+
+  // Fonte ampliada no telão (acessibilidade / projetores distantes).
+  const [bigText, setBigText] = useState(() => localStorage.getItem('karick.bigText') === '1');
+  const toggleBigText = () => setBigText((v) => {
+    localStorage.setItem('karick.bigText', v ? '0' : '1');
+    return !v;
+  });
 
   // Música ambiente enquanto os jogadores entram (com botão de mudo).
   const [musicOn, setMusicOn] = useState(true);
@@ -205,6 +213,9 @@ export function App() {
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-white" style={{ background: branding.bg }}>
         <div className="absolute right-4 top-4 flex gap-2">
+          <button onClick={toggleBigText} title="Fonte maior no telão" aria-label="Alternar fonte maior no telão" className={`rounded-lg px-3 py-2 font-bold hover:bg-white/20 ${bigText ? 'bg-white/25' : 'bg-white/10'}`}>
+            A+
+          </button>
           <button onClick={() => setMusicOn((m) => !m)} title="Música do lobby" aria-label={musicOn ? 'Desligar música do lobby' : 'Ligar música do lobby'} className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
             {musicOn ? '🔊' : '🔇'}
           </button>
@@ -324,7 +335,7 @@ export function App() {
           ))}
         </div>
 
-        <h2 className="px-10 pt-4 text-center text-5xl font-bold text-white">{g.question.text}</h2>
+        <h2 className={`px-10 pt-4 text-center font-bold text-white ${bigText ? 'text-7xl' : 'text-5xl'}`}>{g.question.text}</h2>
 
         {g.question.imageUrl && (
           <div className="flex justify-center px-10 py-4">
@@ -361,10 +372,10 @@ export function App() {
             {g.question.options.map((opt, i) => (
               <div
                 key={i}
-                className="flex items-center gap-4 rounded-xl p-6 text-3xl font-bold text-white"
+                className={`flex items-center gap-4 rounded-xl p-6 font-bold text-white ${bigText ? 'text-5xl' : 'text-3xl'}`}
                 style={{ background: oc(i) }}
               >
-                <span className="text-5xl">{OPTION_SHAPES[i]}</span> {opt}
+                <span className={bigText ? 'text-7xl' : 'text-5xl'}>{OPTION_SHAPES[i]}</span> {opt}
               </div>
             ))}
           </div>
@@ -527,7 +538,7 @@ export function App() {
 
 /** Avatar que "pipoca" no telão quando o jogador responde (sem revelar a opção). */
 function PopAvatar({ avatar, nickname }: { avatar?: string; nickname: string }) {
-  const [shown, setShown] = useState(false);
+  const [shown, setShown] = useState(reducedMotion());
   useEffect(() => {
     const id = requestAnimationFrame(() => setShown(true));
     return () => cancelAnimationFrame(id);
@@ -539,7 +550,7 @@ function PopAvatar({ avatar, nickname }: { avatar?: string; nickname: string }) 
       style={{
         transform: shown ? 'scale(1)' : 'scale(0.2)',
         opacity: shown ? 1 : 0,
-        transition: 'transform 350ms cubic-bezier(.34,1.56,.64,1), opacity 250ms',
+        transition: reducedMotion() ? 'none' : 'transform 350ms cubic-bezier(.34,1.56,.64,1), opacity 250ms',
       }}
     >
       {avatar ?? '👤'}

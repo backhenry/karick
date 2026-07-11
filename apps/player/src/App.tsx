@@ -105,6 +105,13 @@ export function App() {
   const [nickname, setNickname] = useState('');
   const [avatar, setAvatar] = useState(randomAvatar);
   const [showText, setShowText] = useState(false);
+  // Modo acessível (baixa visão): texto grande, alto contraste, texto das alternativas sempre visível.
+  const [a11y, setA11y] = useState(() => localStorage.getItem('karick.a11y') === '1');
+  const setAccessible = (v: boolean) => {
+    setA11y(v);
+    localStorage.setItem('karick.a11y', v ? '1' : '0');
+  };
+  const wantsText = showText || a11y; // modo acessível sempre mostra o texto no celular
   const [expired, setExpired] = useState(false);
   const [teamOptions, setTeamOptions] = useState<string[] | null>(null);
   const [powerups, setPowerups] = useState({ fiftyFifty: true, double: true, freeze: true });
@@ -210,7 +217,7 @@ export function App() {
         className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-3 p-6"
         onSubmit={async (e) => {
           e.preventDefault();
-          const res = await join(pin, nickname, avatar, undefined, showText);
+          const res = await join(pin, nickname, avatar, undefined, wantsText);
           if (res.needTeam) setTeamOptions(res.teams ?? []);
         }}
       >
@@ -277,6 +284,10 @@ export function App() {
           <input type="checkbox" checked={showText} onChange={(e) => setShowText(e.target.checked)} />
           Mostrar o texto das perguntas no meu celular
         </label>
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-slate-100 p-2 text-base font-bold text-slate-700">
+          <input type="checkbox" checked={a11y} onChange={(e) => setAccessible(e.target.checked)} className="h-5 w-5" />
+          ♿ Modo acessível — texto grande e alto contraste
+        </label>
 
         {teamOptions ? (
           <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
@@ -335,7 +346,7 @@ export function App() {
           onExpire={() => setExpired(true)}
         />
         {question.text && (
-          <h2 className="px-3 pt-1 text-center text-lg font-bold text-white">{question.text}</h2>
+          <h2 className={`px-3 pt-1 text-center font-bold text-white ${a11y ? 'text-2xl' : 'text-lg'}`}>{question.text}</h2>
         )}
         {question.imageUrl && (
           <div className="flex justify-center px-3 pb-1">
@@ -434,10 +445,10 @@ export function App() {
                   <button
                     key={i}
                     onClick={() => handleAnswer(i)}
-                    className={`flex items-center justify-center gap-2 rounded-xl px-3 text-white transition active:scale-95 ${question.options ? 'text-xl font-bold' : 'text-6xl'}`}
-                    style={{ background: optColor(i) }}
+                    className={`flex items-center justify-center gap-2 rounded-xl px-3 text-white transition active:scale-95 ${question.options ? (a11y ? 'text-3xl font-black' : 'text-xl font-bold') : 'text-6xl'}`}
+                    style={{ background: optColor(i), textShadow: a11y ? '0 2px 4px rgba(0,0,0,0.85)' : undefined }}
                   >
-                    <span className={question.options ? 'text-3xl' : ''}>{OPTION_SHAPES[i]}</span>
+                    <span className={question.options ? (a11y ? 'text-4xl' : 'text-3xl') : ''}>{OPTION_SHAPES[i]}</span>
                     {question.options && <span>{question.options[i]}</span>}
                   </button>
                 ))}

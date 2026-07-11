@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LeaderboardRow } from '@karick/shared';
+import { reducedMotion } from './lib/motion.js';
 
 function RankDelta({ delta }: { delta?: number }) {
   if (delta === undefined) return <span className="w-8 text-center text-sm text-white/30">•</span>;
@@ -49,9 +50,10 @@ const ROW_H = 68;
 export function Leaderboard({ rows }: { rows: LeaderboardRow[] }) {
   const shown = rows.slice(0, 8);
   const max = Math.max(1, ...shown.map((r) => r.score));
-  const [settled, setSettled] = useState(false);
+  const [settled, setSettled] = useState(reducedMotion());
 
   useEffect(() => {
+    if (reducedMotion()) return setSettled(true); // sem corrida: já nas posições finais
     setSettled(false);
     const id = setTimeout(() => setSettled(true), 350);
     return () => clearTimeout(id);
@@ -70,7 +72,7 @@ export function Leaderboard({ rows }: { rows: LeaderboardRow[] }) {
         <li
           key={r.nickname}
           className="absolute inset-x-0"
-          style={{ transform: `translateY(${yOf(r)}px)`, transition: 'transform 900ms cubic-bezier(.22,1,.36,1)' }}
+          style={{ transform: `translateY(${yOf(r)}px)`, transition: reducedMotion() ? 'none' : 'transform 900ms cubic-bezier(.22,1,.36,1)' }}
         >
           <Bar row={r} pct={(r.score / max) * 100} />
         </li>

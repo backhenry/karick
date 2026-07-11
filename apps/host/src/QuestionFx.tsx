@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { reducedMotion } from './lib/motion.js';
 
 /**
  * Imagem que se revela: começa borrada/ampliada e fica nítida ao longo
@@ -53,7 +54,7 @@ export function Hints({ hints, durationSec, resetKey }: { hints: string[]; durat
 }
 
 function HintRow({ n, text }: { n: number; text: string }) {
-  const [inScreen, setIn] = useState(false);
+  const [inScreen, setIn] = useState(reducedMotion());
   useEffect(() => {
     const id = requestAnimationFrame(() => setIn(true));
     return () => cancelAnimationFrame(id);
@@ -61,7 +62,7 @@ function HintRow({ n, text }: { n: number; text: string }) {
   return (
     <div
       className="rounded-lg bg-white/10 px-4 py-2 text-2xl text-white"
-      style={{ opacity: inScreen ? 1 : 0, transform: inScreen ? 'translateY(0)' : 'translateY(8px)', transition: 'opacity 400ms, transform 400ms' }}
+      style={{ opacity: inScreen ? 1 : 0, transform: inScreen ? 'translateY(0)' : 'translateY(8px)', transition: reducedMotion() ? 'none' : 'opacity 400ms, transform 400ms' }}
     >
       <b className="mr-2 text-white/50">Dica {n}:</b>
       {text}

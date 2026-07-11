@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { reducedMotion } from './lib/motion.js';
 
 export interface Reaction {
   id: number;
@@ -19,7 +20,7 @@ function Floating({ emoji, x }: { emoji: string; x: number }) {
         left: `${x}%`,
         transform: up ? 'translateY(-60vh) scale(1.4)' : 'translateY(0) scale(0.6)',
         opacity: up ? 0 : 1,
-        transition: 'transform 2.6s ease-out, opacity 2.6s ease-in',
+        transition: reducedMotion() ? 'opacity 800ms' : 'transform 2.6s ease-out, opacity 2.6s ease-in',
       }}
     >
       {emoji}

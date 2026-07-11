@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { type Brand, DEFAULT_BRAND, BRAND_PRESETS, OPTION_SHAPES, BRAND_IMPORT_PROMPT, parseBrandImport, extractImageUrl } from '@karick/shared';
 import { useEscape } from './lib/useEscape.js';
+import { contrastRatio } from './lib/contrast.js';
+
+/** Aviso de contraste ruim para texto branco sobre `color` (limiar padrão AA). */
+function ContrastWarn({ color, min = 3, label }: { color: string; min?: number; label: string }) {
+  if (contrastRatio('#ffffff', color) >= min) return null;
+  return <p className="mt-1 text-xs text-amber-300">⚠️ Contraste baixo: {label}</p>;
+}
 
 /** Configura marca do host: nome, logo e paleta de cores (aplicados no jogo todo). */
 export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; onSave: (b: Brand) => void; onClose: () => void }) {
@@ -137,29 +144,38 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
         </div>
 
         <label className="mb-1 block text-sm text-white/70">Cores</label>
-        <div className="mb-2 flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
-          <span className="text-sm">Fundo das telas</span>
-          <span className="flex items-center gap-2">
-            <span className="font-mono text-xs text-white/50">{bg}</span>
-            <input type="color" value={bg} onChange={(e) => setBg(e.target.value)} className="h-8 w-14 rounded bg-transparent" />
-          </span>
+        <div className="mb-2 rounded-lg bg-white/5 px-3 py-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm">Fundo das telas</span>
+            <span className="flex items-center gap-2">
+              <span className="font-mono text-xs text-white/50">{bg}</span>
+              <input type="color" value={bg} onChange={(e) => setBg(e.target.value)} className="h-8 w-14 rounded bg-transparent" />
+            </span>
+          </div>
+          <ContrastWarn color={bg} min={4.5} label="o texto branco das telas fica difícil de ler neste fundo." />
         </div>
-        <div className="mb-2 flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
-          <span className="text-sm">Destaque (PIN, botões, títulos)</span>
-          <span className="flex items-center gap-2">
-            <span className="font-mono text-xs text-white/50">{primary}</span>
-            <input type="color" value={primary} onChange={(e) => setPrimary(e.target.value)} className="h-8 w-14 rounded bg-transparent" />
-          </span>
+        <div className="mb-2 rounded-lg bg-white/5 px-3 py-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm">Destaque (PIN, botões, títulos)</span>
+            <span className="flex items-center gap-2">
+              <span className="font-mono text-xs text-white/50">{primary}</span>
+              <input type="color" value={primary} onChange={(e) => setPrimary(e.target.value)} className="h-8 w-14 rounded bg-transparent" />
+            </span>
+          </div>
+          <ContrastWarn color={primary} label="o texto branco em botões deste destaque fica difícil de ler." />
         </div>
         <div className="mb-4 rounded-lg bg-white/5 px-3 py-2">
           <span className="text-sm">Cores das alternativas</span>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {options.map((c, i) => (
-              <label key={i} className="flex items-center gap-1 rounded px-2 py-1" style={{ background: c }}>
-                <span className="text-lg font-bold text-white">{OPTION_SHAPES[i]}</span>
-                <span className="font-mono text-[10px] text-white/90">{c}</span>
-                <input type="color" value={c} onChange={(e) => setOpt(i, e.target.value)} className="ml-auto h-7 w-10 rounded bg-transparent" />
-              </label>
+              <div key={i}>
+                <label className="flex items-center gap-1 rounded px-2 py-1" style={{ background: c }}>
+                  <span className="text-lg font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>{OPTION_SHAPES[i]}</span>
+                  <span className="font-mono text-[10px] text-white/90">{c}</span>
+                  <input type="color" value={c} onChange={(e) => setOpt(i, e.target.value)} className="ml-auto h-7 w-10 rounded bg-transparent" />
+                </label>
+                <ContrastWarn color={c} label={`alternativa ${OPTION_SHAPES[i]} com texto branco tem pouco contraste.`} />
+              </div>
             ))}
           </div>
         </div>
