@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { type Brand, DEFAULT_BRAND, BRAND_PRESETS, OPTION_SHAPES, BRAND_IMPORT_PROMPT, parseBrandImport, extractImageUrl } from '@karick/shared';
 import { useEscape } from './lib/useEscape.js';
+import { useI18n } from './i18n.js';
 import { contrastRatio } from './lib/contrast.js';
 
 /** Aviso de contraste ruim para texto branco sobre `color` (limiar padrão AA). */
 function ContrastWarn({ color, min = 3, label }: { color: string; min?: number; label: string }) {
+  const { t } = useI18n();
   if (contrastRatio('#ffffff', color) >= min) return null;
-  return <p className="mt-1 text-xs text-amber-300">⚠️ Contraste baixo: {label}</p>;
+  return <p className="mt-1 text-xs text-amber-300">{t('contrastLow', { label })}</p>;
 }
 
 /** Configura marca do host: nome, logo e paleta de cores (aplicados no jogo todo). */
 export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; onSave: (b: Brand) => void; onClose: () => void }) {
+  const { t } = useI18n();
   const [name, setName] = useState(initial.name ?? '');
   const [logo, setLogo] = useState(initial.logo ?? '');
   const [bg, setBg] = useState(initial.bg ?? DEFAULT_BRAND.bg!);
@@ -46,13 +49,13 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
     }
     setImportErr(null);
     const got: string[] = [];
-    if (r.brand.name !== undefined) { setName(r.brand.name); got.push('nome'); }
-    if (r.brand.logo !== undefined) { setLogo(r.brand.logo); got.push('logo'); }
-    if (r.brand.bg) { setBg(r.brand.bg); got.push('fundo'); }
-    if (r.brand.primary) { setPrimary(r.brand.primary); got.push('destaque'); }
-    if (r.brand.options) { setOptions(r.brand.options); got.push('cores das alternativas'); }
-    const missing = ['nome', 'logo', 'fundo', 'destaque', 'cores das alternativas'].filter((f) => !got.includes(f));
-    setImportOk(`✔ Aplicado: ${got.join(', ')}.${missing.length ? ` Não reconhecido no JSON: ${missing.join(', ')}.` : ''}`);
+    if (r.brand.name !== undefined) { setName(r.brand.name); got.push(t('fieldName')); }
+    if (r.brand.logo !== undefined) { setLogo(r.brand.logo); got.push(t('fieldLogo')); }
+    if (r.brand.bg) { setBg(r.brand.bg); got.push(t('fieldBg')); }
+    if (r.brand.primary) { setPrimary(r.brand.primary); got.push(t('fieldPrimary')); }
+    if (r.brand.options) { setOptions(r.brand.options); got.push(t('fieldOptions')); }
+    const missing = [t('fieldName'), t('fieldLogo'), t('fieldBg'), t('fieldPrimary'), t('fieldOptions')].filter((f) => !got.includes(f));
+    setImportOk(t('brandApplied', { got: got.join(', ') }) + (missing.length ? t('brandNotRecognized', { missing: missing.join(', ') }) : ''));
     setImportText('');
   };
 
@@ -71,26 +74,23 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" role="dialog" aria-modal="true">
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-slate-800 p-6 text-slate-100">
-        <h2 className="mb-4 text-2xl font-bold">Personalização (marca)</h2>
+        <h2 className="mb-4 text-2xl font-bold">{t('brandTitle')}</h2>
 
         <div className="mb-4 rounded-lg border border-white/10 p-3">
           <button onClick={() => setShowImport((v) => !v)} className="flex w-full items-center justify-between font-bold">
-            <span>✨ Importar identidade visual (com ajuda de IA)</span>
+            <span>{t('brandImportToggle')}</span>
             <span className="text-white/50">{showImport ? '▲' : '▼'}</span>
           </button>
           {showImport && (
             <div className="mt-3 space-y-2">
-              <p className="text-xs text-white/60">
-                1. Copie o prompt e cole numa IA (ChatGPT, Claude…), trocando <b>[DESCREVA AQUI]</b> pela sua marca.
-                2. Cole aqui o JSON que ela devolver e clique em <b>Aplicar</b>.
-              </p>
+              <p className="text-xs text-white/60">{t('brandImportStep')}</p>
               <button onClick={copyPrompt} className="w-full rounded-lg bg-white/10 px-3 py-2 text-sm font-bold hover:bg-white/20">
-                📋 {promptCopied ? 'Prompt copiado!' : 'Copiar prompt para IA'}
+                {promptCopied ? t('brandPromptCopied') : t('copyAiPrompt')}
               </button>
               <textarea
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
-                placeholder={'Cole aqui o JSON, ex.:\n{ "name": "Marca", "bg": "#0f172a", "primary": "#6366f1", "options": ["#e21b3c","#1368ce","#d89e00","#26890c"] }'}
+                placeholder={t('brandImportPlaceholder')}
                 rows={5}
                 spellCheck={false}
                 className="w-full resize-y rounded-lg bg-black/30 p-2 font-mono text-xs outline-none placeholder:text-white/30"
@@ -98,22 +98,22 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
               {importErr && <p className="text-xs text-red-300">⚠️ {importErr}</p>}
               {importOk && <p className="text-xs text-emerald-300">{importOk}</p>}
               <button onClick={applyImport} className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-bold hover:bg-indigo-500">
-                Aplicar JSON aos campos
+                {t('brandApply')}
               </button>
             </div>
           )}
         </div>
 
-        <label className="mb-1 block text-sm text-white/70">Nome (substitui “Karick”)</label>
+        <label className="mb-1 block text-sm text-white/70">{t('brandNameLabel')}</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={40}
-          placeholder="Ex.: Quiz da Empresa X"
+          placeholder={t('brandNamePlaceholder')}
           className="mb-3 w-full rounded-lg bg-white/10 p-2 outline-none placeholder:text-white/40"
         />
 
-        <label className="mb-1 block text-sm text-white/70">URL do logo (opcional)</label>
+        <label className="mb-1 block text-sm text-white/70">{t('brandLogoLabel')}</label>
         <input
           value={logo}
           onChange={(e) => setLogo(e.target.value)}
@@ -125,7 +125,7 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
           <img key={logoUrl} src={logoUrl} alt="prévia do logo" className="mb-3 h-12 max-w-full rounded bg-white/10 object-contain p-1" onError={(e) => (e.currentTarget.style.display = 'none')} />
         )}
 
-        <label className="mb-1 mt-2 block text-sm text-white/70">Paletas prontas</label>
+        <label className="mb-1 mt-2 block text-sm text-white/70">{t('brandPresets')}</label>
         <div className="mb-4 flex flex-wrap gap-2">
           {BRAND_PRESETS.map((p) => (
             <button
@@ -143,29 +143,29 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
           ))}
         </div>
 
-        <label className="mb-1 block text-sm text-white/70">Cores</label>
+        <label className="mb-1 block text-sm text-white/70">{t('brandColorsLabel')}</label>
         <div className="mb-2 rounded-lg bg-white/5 px-3 py-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm">Fundo das telas</span>
+            <span className="text-sm">{t('brandBgLabel')}</span>
             <span className="flex items-center gap-2">
               <span className="font-mono text-xs text-white/50">{bg}</span>
               <input type="color" value={bg} onChange={(e) => setBg(e.target.value)} className="h-8 w-14 rounded bg-transparent" />
             </span>
           </div>
-          <ContrastWarn color={bg} min={4.5} label="o texto branco das telas fica difícil de ler neste fundo." />
+          <ContrastWarn color={bg} min={4.5} label={t('contrastBg')} />
         </div>
         <div className="mb-2 rounded-lg bg-white/5 px-3 py-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm">Destaque (PIN, botões, títulos)</span>
+            <span className="text-sm">{t('brandPrimaryLabel')}</span>
             <span className="flex items-center gap-2">
               <span className="font-mono text-xs text-white/50">{primary}</span>
               <input type="color" value={primary} onChange={(e) => setPrimary(e.target.value)} className="h-8 w-14 rounded bg-transparent" />
             </span>
           </div>
-          <ContrastWarn color={primary} label="o texto branco em botões deste destaque fica difícil de ler." />
+          <ContrastWarn color={primary} label={t('contrastPrimary')} />
         </div>
         <div className="mb-4 rounded-lg bg-white/5 px-3 py-2">
-          <span className="text-sm">Cores das alternativas</span>
+          <span className="text-sm">{t('brandOptionsLabel')}</span>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {options.map((c, i) => (
               <div key={i}>
@@ -174,7 +174,7 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
                   <span className="font-mono text-[10px] text-white/90">{c}</span>
                   <input type="color" value={c} onChange={(e) => setOpt(i, e.target.value)} className="ml-auto h-7 w-10 rounded bg-transparent" />
                 </label>
-                <ContrastWarn color={c} label={`alternativa ${OPTION_SHAPES[i]} com texto branco tem pouco contraste.`} />
+                <ContrastWarn color={c} label={t('contrastOption', { shape: OPTION_SHAPES[i] })} />
               </div>
             ))}
           </div>
@@ -187,16 +187,16 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
 
         <div className="flex gap-2">
           <button onClick={onClose} className="rounded-lg bg-white/10 px-4 py-3 hover:bg-white/20">
-            Cancelar
+            {t('cancel')}
           </button>
-          <button onClick={resetAll} className="rounded-lg bg-white/10 px-4 py-3 hover:bg-white/20" title="Voltar ao padrão">
-            Padrão
+          <button onClick={resetAll} className="rounded-lg bg-white/10 px-4 py-3 hover:bg-white/20" title={t('brandDefaultBtn')}>
+            {t('brandDefaultBtn')}
           </button>
           <button
             onClick={() => onSave({ name: name.trim() || undefined, logo: extractImageUrl(logo) || undefined, bg, primary, options })}
             className="flex-1 rounded-lg bg-green-500 p-3 font-bold text-white hover:bg-green-400"
           >
-            Salvar
+            {t('brandSave')}
           </button>
         </div>
       </div>

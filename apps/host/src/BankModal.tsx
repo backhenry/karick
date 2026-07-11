@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import type { BankQuestion, QuizDraft } from '@karick/shared';
 import { api } from './lib/api.js';
 import { useEscape } from './lib/useEscape.js';
+import { useI18n } from './i18n.js';
 
 /** Banco de perguntas: sortear N de uma tag para montar um quiz, ou remover perguntas. */
 export function BankModal({ onDraw, onClose }: { onDraw: (draft: QuizDraft) => void; onClose: () => void }) {
+  const { t } = useI18n();
   useEscape(onClose);
   const [items, setItems] = useState<BankQuestion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export function BankModal({ onDraw, onClose }: { onDraw: (draft: QuizDraft) => v
   const draw = () => {
     const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, Math.max(1, count));
     onDraw({
-      title: tag === '__all__' ? 'Sorteio do banco' : `Sorteio: ${tag}`,
+      title: tag === '__all__' ? t('bankDrawTitleAll') : t('bankDrawTitle', { tag }),
       questions: shuffled.map((i) => i.question),
       tags: tag === '__all__' ? [] : [tag],
     });
@@ -37,25 +39,23 @@ export function BankModal({ onDraw, onClose }: { onDraw: (draft: QuizDraft) => v
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" role="dialog" aria-modal="true">
       <div className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-slate-800 p-6 text-slate-100">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Banco de perguntas</h2>
-          <button onClick={onClose} className="rounded-lg bg-white/10 px-3 py-1 hover:bg-white/20">Fechar ✕</button>
+          <h2 className="text-2xl font-bold">{t('bankTitle')}</h2>
+          <button onClick={onClose} className="rounded-lg bg-white/10 px-3 py-1 hover:bg-white/20">{t('closeX')}</button>
         </div>
 
         {error && <p className="mb-3 rounded bg-red-500/20 p-2 text-sm text-red-300">{error}</p>}
 
         {items === null ? (
-          <p className="text-white/50">Carregando…</p>
+          <p className="text-white/50">{t('loading')}</p>
         ) : items.length === 0 ? (
-          <p className="rounded-lg bg-white/5 p-6 text-center text-white/50">
-            Banco vazio. No editor, use <b>“Enviar ao banco”</b> para guardar perguntas aqui.
-          </p>
+          <p className="rounded-lg bg-white/5 p-6 text-center text-white/50">{t('bankEmpty')}</p>
         ) : (
           <>
             <div className="mb-3 rounded-lg bg-white/5 p-3">
-              <p className="mb-2 text-sm text-white/70">Sortear perguntas e montar um quiz:</p>
+              <p className="mb-2 text-sm text-white/70">{t('bankDrawHint')}</p>
               <div className="flex flex-wrap items-center gap-2">
                 <select value={tag} onChange={(e) => setTag(e.target.value)} className="rounded bg-white/10 p-2 text-sm">
-                  <option value="__all__">Todas ({items.length})</option>
+                  <option value="__all__">{t('bankAll', { n: items.length })}</option>
                   {allTags.map((t) => (
                     <option key={t} value={t}>
                       #{t} ({items.filter((i) => i.tags.includes(t)).length})
@@ -78,7 +78,7 @@ export function BankModal({ onDraw, onClose }: { onDraw: (draft: QuizDraft) => v
                   disabled={pool.length === 0}
                   className="rounded-lg bg-green-500 px-4 py-2 text-sm font-bold text-white hover:bg-green-400 disabled:opacity-40"
                 >
-                  🎲 Sortear {Math.min(count, pool.length)} de {pool.length}
+                  {t('bankDraw', { n: Math.min(count, pool.length), total: pool.length })}
                 </button>
               </div>
             </div>
@@ -87,7 +87,7 @@ export function BankModal({ onDraw, onClose }: { onDraw: (draft: QuizDraft) => v
               {items.map((i) => (
                 <li key={i.id} className="flex items-center justify-between gap-2 rounded bg-white/5 p-2 text-sm">
                   <span className="min-w-0">
-                    <span className="truncate">{i.question.text || '(sem enunciado)'}</span>
+                    <span className="truncate">{i.question.text || t('noStatement')}</span>
                     {i.tags.length > 0 && <span className="ml-2 text-xs text-indigo-300">{i.tags.map((t) => `#${t}`).join(' ')}</span>}
                   </span>
                   <button onClick={() => remove(i.id)} className="shrink-0 text-white/30 hover:text-red-400">✕</button>

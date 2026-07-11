@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { reducedMotion } from './lib/motion.js';
+import { useI18n } from './i18n.js';
 
 /**
  * Imagem que se revela: começa borrada/ampliada e fica nítida ao longo
@@ -34,6 +35,7 @@ export function RevealImage({ src, durationSec, resetKey, className }: { src: st
  * pergunta (a 1ª é imediata) — cada dica nova derruba o valor de responder.
  */
 export function Hints({ hints, durationSec, resetKey }: { hints: string[]; durationSec: number; resetKey: number | string }) {
+  const { t } = useI18n();
   const [shown, setShown] = useState(1);
   useEffect(() => {
     setShown(1);
@@ -44,16 +46,16 @@ export function Hints({ hints, durationSec, resetKey }: { hints: string[]; durat
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-10 py-3">
       {hints.slice(0, shown).map((h, i) => (
-        <HintRow key={i} n={i + 1} text={h} />
+        <HintRow key={i} label={t('hintN', { n: i + 1 })} text={h} />
       ))}
       {shown < hints.length && (
-        <p className="text-center text-sm text-white/40">próxima dica em instantes… ({shown}/{hints.length})</p>
+        <p className="text-center text-sm text-white/40">{t('nextHint', { shown, total: hints.length })}</p>
       )}
     </div>
   );
 }
 
-function HintRow({ n, text }: { n: number; text: string }) {
+function HintRow({ label, text }: { label: string; text: string }) {
   const [inScreen, setIn] = useState(reducedMotion());
   useEffect(() => {
     const id = requestAnimationFrame(() => setIn(true));
@@ -64,7 +66,7 @@ function HintRow({ n, text }: { n: number; text: string }) {
       className="rounded-lg bg-white/10 px-4 py-2 text-2xl text-white"
       style={{ opacity: inScreen ? 1 : 0, transform: inScreen ? 'translateY(0)' : 'translateY(8px)', transition: reducedMotion() ? 'none' : 'opacity 400ms, transform 400ms' }}
     >
-      <b className="mr-2 text-white/50">Dica {n}:</b>
+      <b className="mr-2 text-white/50">{label}</b>
       {text}
     </div>
   );

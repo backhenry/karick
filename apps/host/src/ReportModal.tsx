@@ -1,11 +1,13 @@
 import type { GameHistoryEntry } from '@karick/shared';
 import { useEscape } from './lib/useEscape.js';
+import { useI18n } from './i18n.js';
 
 /**
  * Relatório individual pós-jogo: matriz jogador × pergunta (✓/✗/—),
  * com aproveitamento por jogador. Usa o detalhe `answers` das estatísticas.
  */
 export function ReportModal({ entry, onClose }: { entry: GameHistoryEntry; onClose: () => void }) {
+  const { t } = useI18n();
   useEscape(onClose);
   const stats = (entry.stats ?? []).filter((s) => s.answers?.length);
   // Linhas na ordem do ranking final; jogadores fora do pódio entram ao final.
@@ -28,26 +30,24 @@ export function ReportModal({ entry, onClose }: { entry: GameHistoryEntry; onClo
       <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl bg-slate-800 p-6 text-slate-100">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-bold">📋 Relatório — {entry.quizTitle}</h2>
-            <p className="text-sm text-white/50">PIN {entry.pin} · {new Date(entry.playedAt).toLocaleString('pt-BR')}</p>
+            <h2 className="text-2xl font-bold">{t('reportTitle', { title: entry.quizTitle })}</h2>
+            <p className="text-sm text-white/50">{t('reportMeta', { pin: entry.pin, date: new Date(entry.playedAt).toLocaleString() })}</p>
           </div>
-          <button onClick={onClose} className="rounded-lg bg-white/10 px-4 py-2 hover:bg-white/20">Fechar ✕</button>
+          <button onClick={onClose} className="rounded-lg bg-white/10 px-4 py-2 hover:bg-white/20">{t('closeX')}</button>
         </div>
 
         {stats.length === 0 ? (
-          <p className="rounded-lg bg-white/5 p-6 text-center text-white/50">
-            Esta partida não tem detalhe por jogador (partidas antigas não guardavam).
-          </p>
+          <p className="rounded-lg bg-white/5 p-6 text-center text-white/50">{t('reportNoDetail')}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-white/50">
-                  <th className="p-2">Jogador</th>
+                  <th className="p-2">{t('colPlayer')}</th>
                   {stats.map((s, i) => (
                     <th key={i} className="p-2 text-center" title={s.text}>Q{i + 1}</th>
                   ))}
-                  <th className="p-2 text-right">Acertos</th>
+                  <th className="p-2 text-right">{t('colCorrect')}</th>
                 </tr>
               </thead>
               <tbody>

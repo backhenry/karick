@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Katex } from './Katex.js';
+import { useI18n } from './i18n.js';
 
 function youtubeId(url: string): string | null {
   const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
@@ -8,6 +9,7 @@ function youtubeId(url: string): string | null {
 
 /** "Adivinhe a música": toca o áudio do YouTube com o vídeo e o título escondidos. */
 function YouTubeAudioOnly({ id }: { id: string }) {
+  const { t } = useI18n();
   const [nonce, setNonce] = useState(0); // >0 = tocando; muda para repetir
   return (
     <div className="relative aspect-video w-full max-w-2xl overflow-hidden rounded-xl bg-slate-800">
@@ -23,14 +25,14 @@ function YouTubeAudioOnly({ id }: { id: string }) {
       {/* Capa opaca por cima: esconde o vídeo e o título; o áudio toca por baixo. */}
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-800 text-white">
         <span className="text-6xl">🎵</span>
-        <span className="text-xl font-bold">Adivinhe a música</span>
+        <span className="text-xl font-bold">{t('guessSong')}</span>
         <button
           onClick={() => setNonce((n) => n + 1)}
           className="rounded-full bg-indigo-600 px-6 py-2 font-bold hover:bg-indigo-500"
         >
-          {nonce > 0 ? '⟲ Repetir' : '▶ Tocar'}
+          {nonce > 0 ? t('replayAudio') : t('playAudio')}
         </button>
-        {nonce > 0 && <span className="animate-pulse text-sm opacity-70">tocando… 🔊</span>}
+        {nonce > 0 && <span className="animate-pulse text-sm opacity-70">{t('playingAudio')}</span>}
       </div>
     </div>
   );
@@ -38,12 +40,12 @@ function YouTubeAudioOnly({ id }: { id: string }) {
 
 /** Player de áudio (arquivo direto) com mensagem amigável se falhar. */
 function AudioPlayer({ src }: { src: string }) {
+  const { t } = useI18n();
   const [err, setErr] = useState(false);
   if (err) {
     return (
       <div className="w-full max-w-xl rounded-lg bg-amber-100 p-3 text-center text-sm text-amber-800">
-        ⚠️ Não consegui tocar este áudio. Use um <b>link direto de arquivo</b> (ex.: …/musica.mp3).
-        Para YouTube, cole no campo <b>Vídeo</b> e marque <b>“Só áudio”</b>.
+        {t('audioError')}
       </div>
     );
   }
