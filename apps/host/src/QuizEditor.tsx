@@ -55,9 +55,11 @@ interface Props {
   onStart: (quiz: QuizDraft) => Promise<string | null>;
   onBack: () => void;
   onSavedId: (id: string) => void;
+  /** Modo clássico: esconde mídia, tipos, tags e demais campos avançados. */
+  simple?: boolean;
 }
 
-export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, onSavedId }: Props) {
+export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, onSavedId, simple = false }: Props) {
   const [draft, setDraft] = useState<QuizDraft>(initialDraft);
   const [tagsInput, setTagsInput] = useState((initialDraft.tags ?? []).join(', '));
   const [id, setId] = useState<string | null>(quizId);
@@ -180,15 +182,19 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
           >
             👁 Prévia
           </button>
-          <button
-            onClick={() => setShowImport((s) => !s)}
-            className="rounded bg-indigo-500/80 px-3 py-2 font-semibold hover:bg-indigo-500"
-          >
-            Importar JSON
-          </button>
-          <button onClick={sendToBank} className="rounded bg-white/10 px-3 py-2 hover:bg-white/20">
-            Enviar ao banco
-          </button>
+          {!simple && (
+            <>
+              <button
+                onClick={() => setShowImport((s) => !s)}
+                className="rounded bg-indigo-500/80 px-3 py-2 font-semibold hover:bg-indigo-500"
+              >
+                Importar JSON
+              </button>
+              <button onClick={sendToBank} className="rounded bg-white/10 px-3 py-2 hover:bg-white/20">
+                Enviar ao banco
+              </button>
+            </>
+          )}
           <button onClick={() => setDraft(exampleQuiz())} className="rounded bg-white/10 px-3 py-2 hover:bg-white/20">
             Carregar exemplo
           </button>
@@ -257,20 +263,25 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
         placeholder="Título do quiz"
         className="mb-3 w-full rounded-lg bg-white/10 p-4 text-2xl font-bold outline-none placeholder:text-white/40"
       />
-      <input
-        value={tagsInput}
-        onChange={(e) => setTagsInput(e.target.value)}
-        placeholder="Tags (separadas por vírgula) — ex.: geografia, fácil"
-        className="mb-3 w-full rounded-lg bg-white/10 p-3 text-sm outline-none placeholder:text-white/40"
-      />
-      <label className="mb-6 flex cursor-pointer items-center gap-2 text-sm text-white/70">
-        <input
-          type="checkbox"
-          checked={!!draft.isPublic}
-          onChange={(e) => update((d) => (d.isPublic = e.target.checked || undefined))}
-        />
-        🌐 Público — aparece na galeria para outros descobrirem e clonarem
-      </label>
+      {!simple && (
+        <>
+          <input
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            placeholder="Tags (separadas por vírgula) — ex.: geografia, fácil"
+            className="mb-3 w-full rounded-lg bg-white/10 p-3 text-sm outline-none placeholder:text-white/40"
+          />
+          <label className="mb-6 flex cursor-pointer items-center gap-2 text-sm text-white/70">
+            <input
+              type="checkbox"
+              checked={!!draft.isPublic}
+              onChange={(e) => update((d) => (d.isPublic = e.target.checked || undefined))}
+            />
+            🌐 Público — aparece na galeria para outros descobrirem e clonarem
+          </label>
+        </>
+      )}
+      {simple && <div className="mb-6" />}
 
       <div className="space-y-6">
         {draft.questions.map((q, qi) => (
@@ -321,6 +332,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               className="mb-3 w-full resize-none rounded-lg bg-white/10 p-3 outline-none placeholder:text-white/40"
             />
 
+            {!simple && (
             <div className="mb-3 flex flex-wrap gap-2 text-sm">
               {([
                 ['choice', '🔘 Alternativas'],
@@ -341,7 +353,9 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
                 </button>
               ))}
             </div>
+            )}
 
+            {!simple && (<>
             <div className="mb-3 flex items-center gap-3">
               <input
                 value={q.imageUrl ?? ''}
@@ -436,6 +450,7 @@ export function QuizEditor({ connected, initialDraft, quizId, onStart, onBack, o
               spellCheck={false}
               className="mb-3 w-full rounded-lg bg-black/30 p-2 font-mono text-xs outline-none placeholder:text-white/40"
             />
+            </>)}
 
             {(q.type ?? 'choice') === 'text' && (
               <div className="rounded-lg bg-white/10 p-3">

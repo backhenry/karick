@@ -11,13 +11,15 @@ interface Props {
   onHost: (draft: QuizDraft) => void;
   brand?: Brand;
   userEmail?: string;
+  simple?: boolean;
+  onToggleSimple?: (v: boolean) => void;
   onLogout?: () => void;
   onBranding?: () => void;
   onBank?: () => void;
   onGallery?: () => void;
 }
 
-export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onBranding, onBank, onGallery }: Props) {
+export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onToggleSimple, onLogout, onBranding, onBank, onGallery }: Props) {
   const [quizzes, setQuizzes] = useState<QuizSummary[] | null>(null);
   const [history, setHistory] = useState<GameHistoryEntry[]>([]);
   const [dbEnabled, setDbEnabled] = useState(true);
@@ -120,12 +122,12 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onB
       <header className="mb-6 flex items-center justify-between gap-3">
         <BrandMark brand={brand} imgClass="max-h-12" nameClass="text-4xl font-black" />
         <div className="flex items-center gap-2">
-          {onGallery && (
+          {!simple && onGallery && (
             <button onClick={onGallery} title="Galeria pública" className="rounded-lg bg-white/10 px-3 py-2 text-sm transition hover:bg-white/20">
               🌐 Galeria
             </button>
           )}
-          {onBank && (
+          {!simple && onBank && (
             <button onClick={onBank} title="Banco de perguntas" className="rounded-lg bg-white/10 px-3 py-2 text-sm transition hover:bg-white/20">
               🎲 Banco
             </button>
@@ -143,6 +145,30 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onB
           </button>
         </div>
       </header>
+
+      {onToggleSimple && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl bg-white/5 p-3">
+          <div className="flex rounded-lg bg-black/20 p-1 text-sm font-bold">
+            <button
+              onClick={() => onToggleSimple(true)}
+              className={`rounded-md px-3 py-1.5 transition ${simple ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'}`}
+            >
+              🎯 Clássico
+            </button>
+            <button
+              onClick={() => onToggleSimple(false)}
+              className={`rounded-md px-3 py-1.5 transition ${!simple ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'}`}
+            >
+              🚀 Completo
+            </button>
+          </div>
+          <p className="text-sm text-white/50">
+            {simple
+              ? 'Só perguntas e respostas — começa a partida com um clique.'
+              : 'Todos os recursos: mídia, modos de jogo, tipos de pergunta, banco e galeria.'}
+          </p>
+        </div>
+      )}
 
       {!dbEnabled && (
         <p className="mb-4 rounded-lg bg-amber-500/20 p-3 text-sm text-amber-200">

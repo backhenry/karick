@@ -38,6 +38,12 @@ export function App() {
   const [showBank, setShowBank] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [libKey, setLibKey] = useState(0); // força recarregar a biblioteca (ex.: após clonar)
+  // Modo clássico: editor enxuto e host direto (individual), sem opções avançadas.
+  const [simple, setSimple] = useState(() => localStorage.getItem('karick.simpleMode') === '1');
+  const toggleSimple = (v: boolean) => {
+    setSimple(v);
+    localStorage.setItem('karick.simpleMode', v ? '1' : '0');
+  };
 
   // Cor de uma alternativa segundo a paleta da marca (fallback ao padrão).
   const oc = (i: number) => branding.options?.[i] ?? OPTION_COLORS[i];
@@ -105,6 +111,16 @@ export function App() {
           brand={branding}
         />
       );
+    // Modo clássico hospeda direto (individual); modo avançado abre o GameSetup.
+    const hostDraft = async (draft: QuizDraft) => {
+      if (simple) {
+        const err = await g.createRoom(draft, [], 'individual', false, branding, false);
+        if (err) alert(err);
+      } else {
+        setSetupDraft(draft);
+      }
+    };
+
     const setup = setupDraft && (
       <GameSetup
         onCancel={() => setSetupDraft(null)}
@@ -124,8 +140,9 @@ export function App() {
             connected={g.connected}
             initialDraft={view.draft}
             quizId={view.quizId}
+            simple={simple}
             onStart={async (draft) => {
-              setSetupDraft(draft);
+              await hostDraft(draft);
               return null;
             }}
             onBack={() => setView({ screen: 'LIBRARY' })}
@@ -140,13 +157,15 @@ export function App() {
           key={libKey}
           brand={branding}
           userEmail={authUser.email}
+          simple={simple}
+          onToggleSimple={toggleSimple}
           onLogout={logout}
           onBranding={() => setShowBranding(true)}
           onBank={() => setShowBank(true)}
           onGallery={() => setShowGallery(true)}
           onNew={() => setView({ screen: 'EDITOR', draft: emptyDraft(), quizId: null })}
           onEdit={(quizId, draft) => setView({ screen: 'EDITOR', draft, quizId })}
-          onHost={(draft) => setSetupDraft(draft)}
+          onHost={hostDraft}
         />
         {setup}
         {showBranding && (
