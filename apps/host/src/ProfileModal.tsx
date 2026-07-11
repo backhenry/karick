@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Brand } from '@karick/shared';
 import { QRCodeView } from './QRCode.js';
 import { useEscape } from './lib/useEscape.js';
+import { fileToSquareDataUrl } from './lib/resizeImage.js';
 import { api } from './lib/api.js';
 
 interface Stats {
@@ -15,6 +16,8 @@ export function ProfileModal({
   email,
   brand,
   stats,
+  photo,
+  onPhotoChange,
   onBranding,
   onLogout,
   onClose,
@@ -22,6 +25,8 @@ export function ProfileModal({
   email: string;
   brand?: Brand;
   stats: Stats;
+  photo?: string | null;
+  onPhotoChange?: (photo: string | null) => void;
   onBranding: () => void;
   onLogout: () => void;
   onClose: () => void;
@@ -29,15 +34,45 @@ export function ProfileModal({
   const [fixedPin, setFixedPin] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [pic, setPic] = useState<string | null>(photo ?? null);
+  const [photoErr, setPhotoErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   useEscape(onClose);
 
   useEffect(() => {
     api
       .profile()
-      .then((p) => setFixedPin(p.fixedPin))
+      .then((p) => {
+        setFixedPin(p.fixedPin);
+        setPic(p.photo);
+      })
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, []);
+
+  const onPickPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoErr(null);
+    try {
+      const dataUrl = await fileToSquareDataUrl(file);
+      const res = await api.setPhoto(dataUrl);
+      setPic(res.photo);
+      onPhotoChange?.(res.photo);
+    } catch {
+      setPhotoErr('Não consegui usar essa imagem. Tente outra.');
+    }
+  };
+  const removePhoto = async () => {
+    try {
+      await api.setPhoto(null);
+      setPic(null);
+      onPhotoChange?.(null);
+    } catch {
+      /* ignora */
+    }
+  };
 
   const joinUrl = fixedPin ? `${window.location.origin}/?pin=${fixedPin}` : '';
   const copyLink = async () => {
@@ -54,17 +89,34 @@ export function ProfileModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" role="dialog" aria-modal="true">
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-slate-800 p-6 text-slate-100">
         <div className="mb-5 flex items-center gap-3">
-          <span
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl font-black text-white"
+          <button
+            onClick={() => fileRef.current?.click()}
+            title="Trocar foto"
+            aria-label="Trocar foto de perfil"
+            className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-full text-2xl font-black text-white"
             style={{ background: brand?.primary ?? '#6366f1' }}
           >
-            {(email[0] ?? '?').toUpperCase()}
-          </span>
+            {pic ? (
+              <img src={pic} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center">{(email[0] ?? '?').toUpperCase()}</span>
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-xs opacity-0 transition group-hover:opacity-100">
+              📷
+            </span>
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" onChange={onPickPhoto} className="hidden" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg font-bold" title={email}>{email}</p>
-            <p className="text-sm text-white/50">Apresentador</p>
+            <p className="flex items-center gap-2 text-sm text-white/50">
+              Apresentador
+              {pic && (
+                <button onClick={removePhoto} className="text-white/40 underline hover:text-white/70">remover foto</button>
+              )}
+            </p>
+            {photoErr && <p className="text-xs text-red-300">{photoErr}</p>}
           </div>
-          <button onClick={onClose} className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">✕</button>
+          <button onClick={onClose} aria-label="Fechar" className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">✕</button>
         </div>
 
         <div className="mb-5 grid grid-cols-3 gap-2 text-center">

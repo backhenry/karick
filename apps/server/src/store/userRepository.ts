@@ -17,6 +17,9 @@ export interface UserRepository {
   /** PIN fixo da "sala permanente" do usuário (null = nunca usado). */
   getFixedPin(userId: string): Promise<string | null>;
   setFixedPin(userId: string, pin: string): Promise<void>;
+  /** Foto de perfil (data URL) do usuário (null = sem foto). */
+  getPhoto(userId: string): Promise<string | null>;
+  setPhoto(userId: string, photo: string | null): Promise<void>;
 }
 
 const genId = () => 'u_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -59,6 +62,13 @@ export class PostgresUserRepository implements UserRepository {
   async setFixedPin(userId: string, pin: string): Promise<void> {
     await this.pool.query(`UPDATE users SET fixed_pin = $2 WHERE id = $1`, [userId, pin]);
   }
+  async getPhoto(userId: string): Promise<string | null> {
+    const { rows } = await this.pool.query(`SELECT photo FROM users WHERE id = $1`, [userId]);
+    return rows[0]?.photo ?? null;
+  }
+  async setPhoto(userId: string, photo: string | null): Promise<void> {
+    await this.pool.query(`UPDATE users SET photo = $2 WHERE id = $1`, [userId, photo]);
+  }
 }
 
 function row(r: { id: string; email: string; password_hash: string }): User {
@@ -69,6 +79,7 @@ export class InMemoryUserRepository implements UserRepository {
   private byId = new Map<string, User>();
   private brands = new Map<string, Brand>();
   private pins = new Map<string, string>();
+  private photos = new Map<string, string>();
 
   async findByEmail(email: string): Promise<User | null> {
     return [...this.byId.values()].find((u) => u.email === email) ?? null;
@@ -92,5 +103,12 @@ export class InMemoryUserRepository implements UserRepository {
   }
   async setFixedPin(userId: string, pin: string): Promise<void> {
     this.pins.set(userId, pin);
+  }
+  async getPhoto(userId: string): Promise<string | null> {
+    return this.photos.get(userId) ?? null;
+  }
+  async setPhoto(userId: string, photo: string | null): Promise<void> {
+    if (photo) this.photos.set(userId, photo);
+    else this.photos.delete(userId);
   }
 }

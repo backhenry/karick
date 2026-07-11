@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { OPTION_SHAPES, MAX_NICKNAME_LENGTH, AVATARS, REACTIONS, optColor } from '@karick/shared';
+import { OPTION_SHAPES, MAX_NICKNAME_LENGTH, AVATARS, REACTIONS, optColor, applyBrandVars, brandName as toBrandName, type Brand } from '@karick/shared';
+
+const SERVER_URL =
+  import.meta.env.VITE_SERVER_URL ?? (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin);
+
+/** PIN inicial: aceita /sala/123456 (link permanente) e ?pin=123456. */
+function initialPin(): string {
+  const m = window.location.pathname.match(/\/sala\/(\d{4,8})/);
+  return m ? m[1] : new URLSearchParams(window.location.search).get('pin') ?? '';
+}
 import { usePlayerSocket } from './hooks/usePlayerSocket.js';
 import { TimerBar } from './TimerBar.js';
 import { sfx } from './lib/sound.js';
@@ -74,7 +83,25 @@ function ReactionBar({ onReact }: { onReact: (emoji: string) => void }) {
 
 export function App() {
   const { screen, error, reconnecting, question, timer, feedback, reveal, paused, join, answer, react, usePowerup, team, brandName } = usePlayerSocket();
-  const [pin, setPin] = useState(() => new URLSearchParams(window.location.search).get('pin') ?? '');
+  const [pin, setPin] = useState(initialPin);
+  // Marca da sala buscada por PIN (página pública /sala/:pin), antes de entrar.
+  const [roomBrand, setRoomBrand] = useState<Brand | null>(null);
+  const [roomMissing, setRoomMissing] = useState(false);
+  const [logoErr, setLogoErr] = useState(false);
+  useEffect(() => {
+    const p = initialPin();
+    if (!p) return;
+    fetch(`${SERVER_URL}/api/room/${p}`)
+      .then((r) => r.json())
+      .then((data: { exists: boolean; brand?: Brand | null }) => {
+        if (!data.exists) return setRoomMissing(true);
+        if (data.brand) {
+          setRoomBrand(data.brand);
+          applyBrandVars(data.brand);
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [nickname, setNickname] = useState('');
   const [avatar, setAvatar] = useState(randomAvatar);
   const [showText, setShowText] = useState(false);
@@ -187,7 +214,25 @@ export function App() {
           if (res.needTeam) setTeamOptions(res.teams ?? []);
         }}
       >
-        <h1 className="mb-4 text-center text-4xl font-black text-indigo-600">{brandName}</h1>
+        {roomBrand ? (
+          <div className="mb-4 flex flex-col items-center gap-2 rounded-2xl p-5 text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
+            {roomBrand.logo && /^https?:\/\//i.test(roomBrand.logo) && !logoErr ? (
+              <img src={roomBrand.logo} alt="" className="max-h-16 object-contain" onError={() => setLogoErr(true)} />
+            ) : (
+              <h1 className="text-3xl font-black" style={{ color: 'var(--k-primary, #a5b4fc)' }}>
+                {toBrandName(roomBrand) === 'Karick' ? brandName : toBrandName(roomBrand)}
+              </h1>
+            )}
+            <p className="text-sm text-white/70">Entre para jogar</p>
+          </div>
+        ) : (
+          <h1 className="mb-4 text-center text-4xl font-black text-indigo-600">{brandName}</h1>
+        )}
+        {roomMissing && (
+          <p className="mb-1 rounded-lg bg-amber-100 p-2 text-center text-sm text-amber-800">
+            Sala não encontrada — confira o PIN com o apresentador.
+          </p>
+        )}
         <input
           value={pin}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}

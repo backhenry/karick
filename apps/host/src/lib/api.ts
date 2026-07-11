@@ -47,7 +47,8 @@ export const api = {
   addBank: (questions: Question[], tags: string[]) =>
     req<BankQuestion[]>('/bank', { method: 'POST', body: JSON.stringify({ questions, tags }) }),
   removeBank: (id: string) => req<void>(`/bank/${id}`, { method: 'DELETE' }),
-  profile: () => req<{ email: string; fixedPin: string | null }>('/profile'),
+  profile: () => req<{ email: string; fixedPin: string | null; photo: string | null }>('/profile'),
+  setPhoto: (photo: string | null) => req<{ photo: string | null }>('/profile/photo', { method: 'PUT', body: JSON.stringify({ photo }) }),
   getBrand: () => req<Brand | null>('/brand'),
   setBrand: (brand: Brand) => req<Brand>('/brand', { method: 'PUT', body: JSON.stringify(brand) }),
 };

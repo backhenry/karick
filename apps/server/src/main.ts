@@ -82,6 +82,27 @@ app.use('/api', (req, res, next) => {
   if (!apiLimiter.allow(ip)) return res.status(429).json({ error: 'Muitas requisições, tente novamente em instantes.' });
   next();
 });
+// Redis (opcional): adapter de broadcast + estado das salas atômico.
+const redis = await connectRedis();
+let roomStore: RoomStore;
+if (redis) {
+  roomStore = new RedisRoomStore(redis);
+} else {
+  roomStore = new InMemoryRoomStore();
+}
+
+// Público: marca da sala por PIN (página /sala/:pin, antes de entrar).
+// Registrado ANTES do router autenticado, senão o requireAuth dele o bloqueia.
+app.get('/api/room/:pin', async (req, res, next) => {
+  try {
+    const room = await roomStore.get(req.params.pin);
+    if (!room) return res.json({ exists: false });
+    res.json({ exists: true, status: room.status, brand: room.brand ?? null });
+  } catch (e) {
+    next(e);
+  }
+});
+
 app.use('/api/auth', createAuthRouter(userRepo));
 app.use('/api', createApiRouter(quizRepo, historyRepo, bankRepo, userRepo, dbEnabled));
 
@@ -103,15 +124,8 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents, Record<string,
   { cors: { origin: CORS_ORIGIN } },
 );
 
-// Redis (opcional): adapter de broadcast + estado das salas atômico.
-const redis = await connectRedis();
-let roomStore: RoomStore;
-if (redis) {
-  io.adapter(createAdapter(redis, redis.duplicate()));
-  roomStore = new RedisRoomStore(redis);
-} else {
-  roomStore = new InMemoryRoomStore();
-}
+// Redis (opcional): adapter de broadcast entre instâncias.
+if (redis) io.adapter(createAdapter(redis, redis.duplicate()));
 
 registerGameGateway(io, roomStore, historyRepo, userRepo);
 

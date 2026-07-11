@@ -26,11 +26,33 @@ export function createApiRouter(
   r.use(requireAuth);
   const uid = (res: Response): string => res.locals.userId;
 
-  // ─── Perfil do usuário (e-mail + PIN fixo da sala permanente) ───
+  // ─── Perfil do usuário (e-mail + PIN fixo da sala permanente + foto) ───
   r.get('/profile', async (_req, res, next) => {
     try {
       const user = await users.findById(uid(res));
-      res.json({ email: user?.email ?? '', fixedPin: await users.getFixedPin(uid(res)) });
+      res.json({
+        email: user?.email ?? '',
+        fixedPin: await users.getFixedPin(uid(res)),
+        photo: await users.getPhoto(uid(res)),
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // Foto de perfil: data URL de imagem, já redimensionada no cliente (limite ~200KB).
+  r.put('/profile/photo', async (req, res, next) => {
+    try {
+      const photo = req.body?.photo;
+      if (photo === null || photo === '') {
+        await users.setPhoto(uid(res), null);
+        return res.json({ photo: null });
+      }
+      if (typeof photo !== 'string' || !/^data:image\/(png|jpeg|webp);base64,/.test(photo) || photo.length > 200_000) {
+        return res.status(400).json({ error: 'Imagem inválida (use PNG/JPEG/WebP até ~150KB).' });
+      }
+      await users.setPhoto(uid(res), photo);
+      res.json({ photo });
     } catch (e) {
       next(e);
     }

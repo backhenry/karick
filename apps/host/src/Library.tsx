@@ -28,6 +28,11 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [report, setReport] = useState<GameHistoryEntry | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.profile().then((p) => setPhoto(p.photo)).catch(() => {});
+  }, []);
 
   const refresh = async () => {
     try {
@@ -139,10 +144,14 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
             onClick={() => setShowProfile(true)}
             title={userEmail ?? 'Perfil'}
             aria-label="Abrir perfil"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-black text-white ring-2 ring-white/20 transition hover:ring-white/50"
+            className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full font-black text-white ring-2 ring-white/20 transition hover:ring-white/50"
             style={{ background: brand?.primary ?? '#6366f1' }}
           >
-            {(userEmail?.[0] ?? '?').toUpperCase()}
+            {photo ? (
+              <img src={photo} alt="" className="h-full w-full object-cover" />
+            ) : (
+              (userEmail?.[0] ?? '?').toUpperCase()
+            )}
           </button>
         </div>
       </header>
@@ -313,6 +322,8 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
             games: history.length,
             players: history.reduce((a, h) => a + h.players.length, 0),
           }}
+          photo={photo}
+          onPhotoChange={setPhoto}
           onBranding={() => {
             setShowProfile(false);
             onBranding?.();
