@@ -47,6 +47,7 @@ export const api = {
   addBank: (questions: Question[], tags: string[]) =>
     req<BankQuestion[]>('/bank', { method: 'POST', body: JSON.stringify({ questions, tags }) }),
   removeBank: (id: string) => req<void>(`/bank/${id}`, { method: 'DELETE' }),
+  profile: () => req<{ email: string; fixedPin: string | null }>('/profile'),
   getBrand: () => req<Brand | null>('/brand'),
   setBrand: (brand: Brand) => req<Brand>('/brand', { method: 'PUT', body: JSON.stringify(brand) }),
 };

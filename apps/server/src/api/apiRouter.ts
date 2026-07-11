@@ -26,6 +26,16 @@ export function createApiRouter(
   r.use(requireAuth);
   const uid = (res: Response): string => res.locals.userId;
 
+  // ─── Perfil do usuário (e-mail + PIN fixo da sala permanente) ───
+  r.get('/profile', async (_req, res, next) => {
+    try {
+      const user = await users.findById(uid(res));
+      res.json({ email: user?.email ?? '', fixedPin: await users.getFixedPin(uid(res)) });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   // ─── Marca (identidade visual) persistida por usuário ───
   r.get('/brand', async (_req, res, next) => {
     try {

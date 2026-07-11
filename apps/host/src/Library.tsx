@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Brand, QuizDraft, QuizSummary, GameHistoryEntry } from '@karick/shared';
 import { BrandMark } from './BrandMark.js';
 import { ReportModal } from './ReportModal.js';
+import { ProfileModal } from './ProfileModal.js';
 import { api } from './lib/api.js';
 
 interface Props {
@@ -24,6 +25,7 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onB
   const [busyId, setBusyId] = useState<string | null>(null);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [report, setReport] = useState<GameHistoryEntry | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
 
   const refresh = async () => {
     try {
@@ -117,34 +119,27 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onB
     <div className="mx-auto max-w-3xl p-6 text-slate-100">
       <header className="mb-6 flex items-center justify-between gap-3">
         <BrandMark brand={brand} imgClass="max-h-12" nameClass="text-4xl font-black" />
-        <div className="flex items-center gap-3">
-          {userEmail && (
-            <span className="hidden text-sm text-white/50 sm:inline" title={userEmail}>
-              {userEmail}
-            </span>
-          )}
+        <div className="flex items-center gap-2">
           {onGallery && (
-            <button onClick={onGallery} title="Galeria pública" className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
+            <button onClick={onGallery} title="Galeria pública" className="rounded-lg bg-white/10 px-3 py-2 text-sm transition hover:bg-white/20">
               🌐 Galeria
             </button>
           )}
           {onBank && (
-            <button onClick={onBank} title="Banco de perguntas" className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
+            <button onClick={onBank} title="Banco de perguntas" className="rounded-lg bg-white/10 px-3 py-2 text-sm transition hover:bg-white/20">
               🎲 Banco
             </button>
           )}
-          {onBranding && (
-            <button onClick={onBranding} title="Personalizar (logo e cor)" className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
-              ⚙
-            </button>
-          )}
-          {onLogout && (
-            <button onClick={onLogout} className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
-              Sair
-            </button>
-          )}
-          <button onClick={onNew} className="rounded-lg bg-green-500 px-5 py-3 font-bold text-white hover:bg-green-400">
+          <button onClick={onNew} className="rounded-lg bg-green-500 px-4 py-2.5 font-bold text-white transition hover:bg-green-400">
             + Novo quiz
+          </button>
+          <button
+            onClick={() => setShowProfile(true)}
+            title={userEmail ?? 'Perfil'}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-black text-white ring-2 ring-white/20 transition hover:ring-white/50"
+            style={{ background: brand?.primary ?? '#6366f1' }}
+          >
+            {(userEmail?.[0] ?? '?').toUpperCase()}
           </button>
         </div>
       </header>
@@ -157,7 +152,9 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onB
       )}
       {error && <p className="mb-4 rounded-lg bg-red-500/20 p-3 text-red-300">{error}</p>}
 
-      <h2 className="mb-3 text-lg font-bold text-white/70">Meus quizzes</h2>
+      <h2 className="mb-3 text-lg font-bold text-white/70">
+        Meus quizzes {quizzes && quizzes.length > 0 && <span className="text-white/40">({quizzes.length})</span>}
+      </h2>
 
       {allTags.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2">
@@ -182,17 +179,23 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onB
       {quizzes === null ? (
         <p className="text-white/50">Carregando…</p>
       ) : shown.length === 0 ? (
-        <p className="rounded-lg bg-white/5 p-6 text-center text-white/50">
+        <div className="rounded-xl bg-white/5 p-8 text-center text-white/50">
           {quizzes.length === 0 ? (
-            <>Nenhum quiz salvo ainda. Clique em <b>Novo quiz</b> para começar.</>
+            <>
+              <p className="mb-1 text-3xl">🧩</p>
+              <p className="mb-4">Nenhum quiz salvo ainda.</p>
+              <button onClick={onNew} className="rounded-lg bg-green-500 px-5 py-3 font-bold text-white transition hover:bg-green-400">
+                Criar meu primeiro quiz
+              </button>
+            </>
           ) : (
             <>Nenhum quiz com a tag <b>#{activeTag}</b>.</>
           )}
-        </p>
+        </div>
       ) : (
         <ul className="space-y-2">
           {shown.map((q) => (
-            <li key={q.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/5 p-4">
+            <li key={q.id} className="flex items-center justify-between gap-3 rounded-xl bg-white/5 p-4 transition hover:bg-white/10">
               <div className="min-w-0">
                 <p className="truncate text-lg font-bold">
                   {q.title}
@@ -248,7 +251,9 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onB
       {history.length > 0 && (
         <>
           <div className="mb-3 mt-8 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white/70">Últimas partidas</h2>
+            <h2 className="text-lg font-bold text-white/70">
+              Últimas partidas <span className="text-white/40">({history.length})</span>
+            </h2>
             <button onClick={exportCsv} className="rounded bg-white/10 px-3 py-2 text-sm hover:bg-white/20">
               ⬇ Exportar CSV
             </button>
@@ -272,6 +277,23 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onB
       )}
 
       {report && <ReportModal entry={report} onClose={() => setReport(null)} />}
+      {showProfile && (
+        <ProfileModal
+          email={userEmail ?? ''}
+          brand={brand}
+          stats={{
+            quizzes: quizzes?.length ?? 0,
+            games: history.length,
+            players: history.reduce((a, h) => a + h.players.length, 0),
+          }}
+          onBranding={() => {
+            setShowProfile(false);
+            onBranding?.();
+          }}
+          onLogout={() => onLogout?.()}
+          onClose={() => setShowProfile(false)}
+        />
+      )}
     </div>
   );
 }
