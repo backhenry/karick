@@ -8,23 +8,8 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from '@karick/shared';
-import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS, REACTIONS, normalizeTeams, STARTING_BANK, optionPermutation, normalizeAnswer } from '@karick/shared';
-import type { GameMode, Brand } from '@karick/shared';
-
-const HEX = /^#[0-9a-fA-F]{6}$/;
-const isHex = (v: unknown): v is string => typeof v === 'string' && HEX.test(v);
-
-/** Higieniza a marca recebida do host: só hex válidos, URL http(s), nome curto. */
-function sanitizeBrand(b?: Brand): Brand | undefined {
-  if (!b || typeof b !== 'object') return undefined;
-  const out: Brand = {};
-  if (typeof b.name === 'string' && b.name.trim()) out.name = b.name.trim().slice(0, 40);
-  if (typeof b.logo === 'string' && /^https?:\/\//i.test(b.logo)) out.logo = b.logo.slice(0, 500);
-  if (isHex(b.bg)) out.bg = b.bg;
-  if (isHex(b.primary)) out.primary = b.primary;
-  if (Array.isArray(b.options) && b.options.length === 4 && b.options.every(isHex)) out.options = b.options.slice(0, 4);
-  return Object.keys(out).length ? out : undefined;
-}
+import { MAX_NICKNAME_LENGTH, validateQuiz, AVATARS, ADD_TIME_SECONDS, REACTIONS, normalizeTeams, STARTING_BANK, optionPermutation, normalizeAnswer, sanitizeBrand } from '@karick/shared';
+import type { GameMode } from '@karick/shared';
 
 /** Permutação determinística das opções para um jogador numa pergunta (perm[exibida]=original). */
 const permFor = (playerId: string, qIndex: number, n: number) => optionPermutation(`${playerId}:${qIndex}`, n);
@@ -54,6 +39,7 @@ function playerQuestion(room: GameRoom, p: Player, q: Question): PlayerQuestionP
 }
 import { generatePin, type RoomStore } from '../store/roomStore.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
+import type { UserRepository } from '../store/userRepository.js';
 import { RateLimiter } from '../util/rateLimiter.js';
 import { isOffensive } from '../util/nickname.js';
 import { userIdFromCookieHeader } from '../auth/session.js';
@@ -88,7 +74,7 @@ function clearRoomTimer(pin: string) {
   }
 }
 
-export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRepository) {
+export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRepository, users: UserRepository) {
   // Emissões (somente leitura do room já obtido) ────────────────
   function broadcastLobby(room: GameRoom) {
     const players = Object.values(room.players).map((p) => ({
@@ -213,12 +199,21 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       r.lastReveal = payload;
       // Enquete fica fora das estatísticas de acerto (não é medição de conhecimento).
       if (q && qType !== 'poll') {
-        const answeredPlayers = Object.values(r.players).filter((p) => p.currentAnswer !== null);
+        const all = Object.values(r.players);
+        const answeredPlayers = all.filter((p) => p.currentAnswer !== null);
         r.stats.push({
           text: q.text,
           correctCount: answeredPlayers.filter((p) => p.currentAnswer!.isCorrect).length,
           answered: answeredPlayers.length,
-          total: Object.keys(r.players).length,
+          total: all.length,
+          // Detalhe por jogador — alimenta o relatório individual pós-jogo.
+          answers: all.map((p) => ({
+            nickname: p.nickname,
+            avatar: p.avatar,
+            answered: p.currentAnswer !== null,
+            correct: !!p.currentAnswer?.isCorrect,
+            gained: p.currentAnswer?.pointsAwarded ?? 0,
+          })),
         });
       }
     });
@@ -262,7 +257,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
 
   io.on('connection', (socket: IOSocket) => {
     // ─── HOST: cria a sala ───────────────────────────────
-    socket.on('host:createRoom', async ({ quiz, teams, mode, shuffle, brand }, ack) => {
+    socket.on('host:createRoom', async ({ quiz, teams, mode, shuffle, brand, fixedPin }, ack) => {
       if (!createRoomLimiter.allow(socket.handshake.address)) {
         return ack?.({ ok: false, error: 'Muitas salas criadas, aguarde um instante.' });
       }
@@ -273,11 +268,34 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       const valid: GameMode[] = ['individual', 'teams', 'betting', 'survival'];
       let gameMode: GameMode = mode && valid.includes(mode) ? mode : 'individual';
       if (gameMode === 'teams' && normTeams.length < 2) gameMode = 'individual';
-      const pin = await generatePin(store);
+
+      const hostUserId = userIdFromCookieHeader(socket.handshake.headers.cookie);
+      let pin: string;
+      if (fixedPin && hostUserId) {
+        // Sala permanente: mesmo PIN em todas as partidas do usuário.
+        let fp = await users.getFixedPin(hostUserId);
+        if (!fp) {
+          fp = await generatePin(store);
+          await users.setFixedPin(hostUserId, fp);
+        }
+        const existing = await store.get(fp);
+        if (existing && existing.hostUserId !== hostUserId) {
+          return ack?.({ ok: false, error: 'Seu PIN fixo está em uso por outra sala; tente novamente em instantes.' });
+        }
+        if (existing) {
+          // Substitui a sala anterior do próprio usuário (partida antiga).
+          clearRoomTimer(fp);
+          await store.delete(fp);
+        }
+        pin = fp;
+      } else {
+        pin = await generatePin(store);
+      }
+
       await store.create({
         pin,
         hostSocketId: socket.id,
-        hostUserId: userIdFromCookieHeader(socket.handshake.headers.cookie),
+        hostUserId,
         quiz: { id: pin, title: quiz.title.trim(), questions: quiz.questions },
         status: 'LOBBY',
         currentQuestionIndex: -1,

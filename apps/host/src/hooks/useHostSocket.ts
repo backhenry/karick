@@ -98,11 +98,23 @@ export function useHostSocket() {
     };
   }, []);
 
-  const createRoom = (quiz: QuizDraft, teams?: string[], gameMode: GameMode = 'individual', shuffle = false, brand?: Brand): Promise<string | null> =>
+  /**
+   * Refaz o handshake do socket. Necessário após login/logout: o cookie de
+   * sessão só é lido na conexão, e a página não recarrega ao autenticar —
+   * sem isso a partida ficaria sem dono (fora do histórico e do PIN fixo).
+   */
+  const reauth = () => {
+    const socket = socketRef.current;
+    if (!socket) return;
+    socket.disconnect();
+    socket.connect();
+  };
+
+  const createRoom = (quiz: QuizDraft, teams?: string[], gameMode: GameMode = 'individual', shuffle = false, brand?: Brand, fixedPin = false): Promise<string | null> =>
     new Promise((resolve) => {
       const socket = socketRef.current;
       if (!socket) return resolve('Sem conexão com o servidor.');
-      socket.emit('host:createRoom', { quiz, teams, mode: gameMode, shuffle, brand }, (res) => {
+      socket.emit('host:createRoom', { quiz, teams, mode: gameMode, shuffle, brand, fixedPin }, (res) => {
         if (res.ok && res.pin) {
           setPin(res.pin);
           setMode(gameMode);
@@ -131,6 +143,7 @@ export function useHostSocket() {
     stats,
     reactions,
     createRoom,
+    reauth,
     start: () => socketRef.current?.emit('host:startGame'),
     next: () => socketRef.current?.emit('host:nextQuestion'),
     revealNow: () => socketRef.current?.emit('host:revealNow'),

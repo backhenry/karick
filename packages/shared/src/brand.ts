@@ -38,6 +38,21 @@ export function applyBrandVars(b?: Brand | null): void {
   opts.forEach((c, i) => s.setProperty(`--k-opt-${i}`, c));
 }
 
+const STRICT_HEX = /^#[0-9a-fA-F]{6}$/;
+const isStrictHex = (v: unknown): v is string => typeof v === 'string' && STRICT_HEX.test(v);
+
+/** Higieniza uma marca vinda do cliente: só hex válidos, URL http(s), nome curto. */
+export function sanitizeBrand(b?: Brand | null): Brand | undefined {
+  if (!b || typeof b !== 'object') return undefined;
+  const out: Brand = {};
+  if (typeof b.name === 'string' && b.name.trim()) out.name = b.name.trim().slice(0, 40);
+  if (typeof b.logo === 'string' && /^https?:\/\//i.test(b.logo)) out.logo = b.logo.slice(0, 500);
+  if (isStrictHex(b.bg)) out.bg = b.bg;
+  if (isStrictHex(b.primary)) out.primary = b.primary;
+  if (Array.isArray(b.options) && b.options.length === 4 && b.options.every(isStrictHex)) out.options = b.options.slice(0, 4);
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** Normaliza uma cor para #rrggbb (aceita #rgb, sem #, maiúsculas, rgb(), hex embutido em texto). */
 function normalizeHex(v: unknown): string | undefined {
   if (typeof v !== 'string') return undefined;

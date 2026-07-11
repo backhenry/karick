@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Brand, QuizDraft, QuizSummary, GameHistoryEntry } from '@karick/shared';
 import { BrandMark } from './BrandMark.js';
+import { ReportModal } from './ReportModal.js';
 import { api } from './lib/api.js';
 
 interface Props {
@@ -22,6 +23,7 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onB
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [report, setReport] = useState<GameHistoryEntry | null>(null);
 
   const refresh = async () => {
     try {
@@ -253,18 +255,23 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, onLogout, onB
           </div>
           <ul className="space-y-2">
             {history.map((h) => (
-              <li key={h.id} className="flex items-center justify-between rounded-lg bg-white/5 p-3 text-sm">
+              <li key={h.id} className="flex items-center justify-between gap-2 rounded-lg bg-white/5 p-3 text-sm">
                 <span className="truncate">
                   <b>{h.quizTitle}</b> · PIN {h.pin}
                 </span>
-                <span className="shrink-0 text-white/50">
+                <span className="flex shrink-0 items-center gap-2 text-white/50">
                   🥇 {h.players[0]?.nickname ?? '—'} ({h.players[0]?.score ?? 0}) · {fmt(h.playedAt)}
+                  <button onClick={() => setReport(h)} className="rounded bg-white/10 px-2 py-1 text-white hover:bg-white/20">
+                    📋 Relatório
+                  </button>
                 </span>
               </li>
             ))}
           </ul>
         </>
       )}
+
+      {report && <ReportModal entry={report} onClose={() => setReport(null)} />}
     </div>
   );
 }

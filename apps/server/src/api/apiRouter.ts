@@ -1,9 +1,10 @@
 import { Router, type Response } from 'express';
-import { validateQuiz } from '@karick/shared';
+import { validateQuiz, sanitizeBrand } from '@karick/shared';
 import type { Question } from '@karick/shared';
 import type { QuizRepository } from '../store/quizRepository.js';
 import type { HistoryRepository } from '../store/historyRepository.js';
 import type { BankRepository } from '../store/bankRepository.js';
+import type { UserRepository } from '../store/userRepository.js';
 import { requireAuth } from '../auth/authMiddleware.js';
 
 /**
@@ -14,6 +15,7 @@ export function createApiRouter(
   quizzes: QuizRepository,
   history: HistoryRepository,
   bank: BankRepository,
+  users: UserRepository,
   dbEnabled: boolean,
 ): Router {
   const r = Router();
@@ -23,6 +25,25 @@ export function createApiRouter(
   // Daqui em diante exige login.
   r.use(requireAuth);
   const uid = (res: Response): string => res.locals.userId;
+
+  // ─── Marca (identidade visual) persistida por usuário ───
+  r.get('/brand', async (_req, res, next) => {
+    try {
+      res.json(await users.getBrand(uid(res)));
+    } catch (e) {
+      next(e);
+    }
+  });
+  r.put('/brand', async (req, res, next) => {
+    try {
+      const brand = sanitizeBrand(req.body);
+      if (!brand) return res.status(400).json({ error: 'Marca inválida' });
+      await users.setBrand(uid(res), brand);
+      res.json(brand);
+    } catch (e) {
+      next(e);
+    }
+  });
 
   r.get('/quizzes', async (_req, res, next) => {
     try {

@@ -83,7 +83,7 @@ app.use('/api', (req, res, next) => {
   next();
 });
 app.use('/api/auth', createAuthRouter(userRepo));
-app.use('/api', createApiRouter(quizRepo, historyRepo, bankRepo, dbEnabled));
+app.use('/api', createApiRouter(quizRepo, historyRepo, bankRepo, userRepo, dbEnabled));
 
 if (FRONTENDS_BUILT) {
   app.use('/host', express.static(HOST_DIST));
@@ -113,7 +113,7 @@ if (redis) {
   roomStore = new InMemoryRoomStore();
 }
 
-registerGameGateway(io, roomStore, historyRepo);
+registerGameGateway(io, roomStore, historyRepo, userRepo);
 
 httpServer.listen(PORT, () => {
   console.log(`🚀 Karick server pronto na porta ${PORT}`);

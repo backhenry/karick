@@ -1,4 +1,4 @@
-import type { QuizDraft, QuizSummary, SavedQuiz, GameHistoryEntry, BankQuestion, Question } from '@karick/shared';
+import type { QuizDraft, QuizSummary, SavedQuiz, GameHistoryEntry, BankQuestion, Question, Brand } from '@karick/shared';
 
 const API_BASE =
   (import.meta.env.VITE_SERVER_URL ??
@@ -47,4 +47,6 @@ export const api = {
   addBank: (questions: Question[], tags: string[]) =>
     req<BankQuestion[]>('/bank', { method: 'POST', body: JSON.stringify({ questions, tags }) }),
   removeBank: (id: string) => req<void>(`/bank/${id}`, { method: 'DELETE' }),
+  getBrand: () => req<Brand | null>('/brand'),
+  setBrand: (brand: Brand) => req<Brand>('/brand', { method: 'PUT', body: JSON.stringify(brand) }),
 };

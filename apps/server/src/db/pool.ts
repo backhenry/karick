@@ -49,6 +49,8 @@ export async function initSchema(pool: pg.Pool): Promise<void> {
     ALTER TABLE quizzes      ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE game_history ADD COLUMN IF NOT EXISTS owner_id TEXT;
     ALTER TABLE game_history ADD COLUMN IF NOT EXISTS stats JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE users        ADD COLUMN IF NOT EXISTS brand JSONB;
+    ALTER TABLE users        ADD COLUMN IF NOT EXISTS fixed_pin TEXT;
     CREATE INDEX IF NOT EXISTS idx_quizzes_owner ON quizzes (owner_id);
 
     CREATE TABLE IF NOT EXISTS bank_questions (

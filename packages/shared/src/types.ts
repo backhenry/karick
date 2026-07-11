@@ -99,6 +99,8 @@ export interface QuestionStat {
   correctCount: number;
   answered: number;
   total: number;
+  /** Detalhe por jogador (para o relatório individual pós-jogo). */
+  answers?: { nickname: string; avatar?: string; answered: boolean; correct: boolean; gained: number }[];
 }
 
 /** Uma partida registrada no histórico. */

@@ -46,6 +46,21 @@ export function App() {
     api.me().then(setAuthUser).catch(() => setAuthUser(null));
   }, []);
 
+  // Marca persistida no servidor vence a cópia local (vale em qualquer máquina).
+  useEffect(() => {
+    if (authUser === 'loading' || authUser === null) return;
+    api
+      .getBrand()
+      .then((b) => {
+        if (b) {
+          const merged = { ...loadBranding(), ...b };
+          setBranding(merged);
+          saveBranding(merged);
+        }
+      })
+      .catch(() => {});
+  }, [authUser]);
+
   // Aplica a paleta da marca como variáveis CSS do documento.
   useEffect(() => {
     applyBrandVars(branding);
@@ -68,6 +83,7 @@ export function App() {
     await api.logout().catch(() => {});
     setAuthUser(null);
     setView({ screen: 'LIBRARY' });
+    g.reauth(); // handshake sem o cookie antigo
   };
 
   const toggleFullscreen = () => {
@@ -79,14 +95,23 @@ export function App() {
   if (g.phase === 'PREGAME') {
     if (authUser === 'loading')
       return <Screen dark>Carregando…</Screen>;
-    if (authUser === null) return <Auth onAuthed={setAuthUser} brand={branding} />;
+    if (authUser === null)
+      return (
+        <Auth
+          onAuthed={(u) => {
+            setAuthUser(u);
+            g.reauth(); // o cookie de sessão só entra num handshake novo
+          }}
+          brand={branding}
+        />
+      );
     const setup = setupDraft && (
       <GameSetup
         onCancel={() => setSetupDraft(null)}
-        onConfirm={async (mode, teams, shuffle) => {
+        onConfirm={async (mode, teams, shuffle, fixedPin) => {
           const draft = setupDraft;
           setSetupDraft(null);
-          const err = await g.createRoom(draft, teams, mode, shuffle, branding);
+          const err = await g.createRoom(draft, teams, mode, shuffle, branding, fixedPin);
           if (err) alert(err);
         }}
       />
@@ -132,6 +157,7 @@ export function App() {
               saveBranding(b);
               setBranding(b);
               setShowBranding(false);
+              api.setBrand(b).catch(() => {}); // persiste no servidor (melhor esforço)
             }}
           />
         )}
