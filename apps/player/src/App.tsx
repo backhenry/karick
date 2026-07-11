@@ -62,6 +62,7 @@ function ReactionBar({ onReact }: { onReact: (emoji: string) => void }) {
         <button
           key={e}
           onClick={() => onReact(e)}
+          aria-label={`Reagir com ${e}`}
           className="rounded-full px-2 py-1 text-2xl transition active:scale-125"
         >
           {e}
@@ -139,6 +140,19 @@ export function App() {
     if (screen === 'QUESTION') setExpired(false);
   }, [screen, question?.index, timer.key]);
 
+  // Acessibilidade: responder pelo teclado (1–4) em perguntas de alternativas.
+  useEffect(() => {
+    if (screen !== 'QUESTION' || !question || paused || expired || question.type === 'text') return;
+    const onKey = (e: KeyboardEvent) => {
+      const n = Number(e.key);
+      const opts = keep ?? Array.from({ length: question.optionsCount }, (_, i) => i);
+      if (n >= 1 && n <= opts.length) handleAnswer(opts[n - 1]);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, question, paused, expired, keep]);
+
   // Som + vibração de acerto/erro ao receber o feedback.
   useEffect(() => {
     if (screen === 'FEEDBACK' && feedback) {
@@ -193,6 +207,7 @@ export function App() {
             type="button"
             onClick={() => setNickname(randomNickname())}
             title="Surpreenda-me"
+            aria-label="Gerar apelido aleatório"
             className="rounded-lg border px-4 text-2xl"
           >
             🎲

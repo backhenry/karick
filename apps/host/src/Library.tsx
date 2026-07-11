@@ -138,6 +138,7 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
           <button
             onClick={() => setShowProfile(true)}
             title={userEmail ?? 'Perfil'}
+            aria-label="Abrir perfil"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-black text-white ring-2 ring-white/20 transition hover:ring-white/50"
             style={{ background: brand?.primary ?? '#6366f1' }}
           >

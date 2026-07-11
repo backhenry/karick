@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MIN_TEAMS, MAX_TEAMS, MAX_TEAM_NAME_LENGTH, normalizeTeams, type GameMode } from '@karick/shared';
+import { useEscape } from './lib/useEscape.js';
 
 const MODES: { id: GameMode; label: string; desc: string }[] = [
   { id: 'individual', label: 'Individual', desc: 'Cada um por si (padrão)' },
@@ -14,6 +15,7 @@ export function GameSetup({ onConfirm, onCancel }: { onConfirm: (mode: GameMode,
   const [names, setNames] = useState<string[]>(['Time A', 'Time B']);
   const [shuffle, setShuffle] = useState(false);
   const [fixedPin, setFixedPin] = useState(false);
+  useEscape(onCancel);
 
   const setName = (i: number, v: string) => setNames((n) => n.map((x, j) => (j === i ? v : x)));
   const valid = mode !== 'teams' || normalizeTeams(names).length >= MIN_TEAMS;

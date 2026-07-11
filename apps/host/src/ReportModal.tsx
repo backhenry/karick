@@ -1,10 +1,12 @@
 import type { GameHistoryEntry } from '@karick/shared';
+import { useEscape } from './lib/useEscape.js';
 
 /**
  * Relatório individual pós-jogo: matriz jogador × pergunta (✓/✗/—),
  * com aproveitamento por jogador. Usa o detalhe `answers` das estatísticas.
  */
 export function ReportModal({ entry, onClose }: { entry: GameHistoryEntry; onClose: () => void }) {
+  useEscape(onClose);
   const stats = (entry.stats ?? []).filter((s) => s.answers?.length);
   // Linhas na ordem do ranking final; jogadores fora do pódio entram ao final.
   const ranked = entry.players.map((p) => p.nickname);

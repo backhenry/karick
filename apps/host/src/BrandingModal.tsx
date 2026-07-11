@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { type Brand, DEFAULT_BRAND, BRAND_PRESETS, OPTION_SHAPES, BRAND_IMPORT_PROMPT, parseBrandImport, extractImageUrl } from '@karick/shared';
+import { useEscape } from './lib/useEscape.js';
 
 /** Configura marca do host: nome, logo e paleta de cores (aplicados no jogo todo). */
 export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; onSave: (b: Brand) => void; onClose: () => void }) {
@@ -13,6 +14,7 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
   const [importErr, setImportErr] = useState<string | null>(null);
   const [importOk, setImportOk] = useState<string | null>(null);
   const [promptCopied, setPromptCopied] = useState(false);
+  useEscape(onClose);
 
   const setOpt = (i: number, v: string) => setOptions((o) => o.map((c, idx) => (idx === i ? v : c)));
 

@@ -205,10 +205,10 @@ export function App() {
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-white" style={{ background: branding.bg }}>
         <div className="absolute right-4 top-4 flex gap-2">
-          <button onClick={() => setMusicOn((m) => !m)} title="Música do lobby" className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
+          <button onClick={() => setMusicOn((m) => !m)} title="Música do lobby" aria-label={musicOn ? 'Desligar música do lobby' : 'Ligar música do lobby'} className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
             {musicOn ? '🔊' : '🔇'}
           </button>
-          <button onClick={toggleFullscreen} title="Tela cheia" className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
+          <button onClick={toggleFullscreen} title="Tela cheia" aria-label="Tela cheia" className="rounded-lg bg-white/10 px-3 py-2 hover:bg-white/20">
             ⛶
           </button>
         </div>
@@ -242,7 +242,7 @@ export function App() {
                     <span key={p.nickname} className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
                       <span className="text-lg">{p.avatar}</span>
                       {p.nickname}
-                      <button onClick={() => g.kick(p.nickname)} title="Remover" className="ml-auto text-white/30 hover:text-red-400">✕</button>
+                      <button onClick={() => g.kick(p.nickname)} title="Remover" aria-label={`Remover ${p.nickname}`} className="ml-auto text-white/30 hover:text-red-400">✕</button>
                     </span>
                   ))}
                 </div>
@@ -258,6 +258,7 @@ export function App() {
                 <button
                   onClick={() => g.kick(p.nickname)}
                   title="Remover jogador"
+                  aria-label={`Remover ${p.nickname}`}
                   className="ml-1 text-white/30 hover:text-red-400"
                 >
                   ✕

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { BankQuestion, QuizDraft } from '@karick/shared';
 import { api } from './lib/api.js';
+import { useEscape } from './lib/useEscape.js';
 
 /** Banco de perguntas: sortear N de uma tag para montar um quiz, ou remover perguntas. */
 export function BankModal({ onDraw, onClose }: { onDraw: (draft: QuizDraft) => void; onClose: () => void }) {
+  useEscape(onClose);
   const [items, setItems] = useState<BankQuestion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tag, setTag] = useState<string>('__all__');

@@ -2,10 +2,12 @@ import { useState } from 'react';
 import type { QuizDraft } from '@karick/shared';
 import { OPTION_COLORS, OPTION_SHAPES } from '@karick/shared';
 import { QuestionMedia } from './QuestionMedia.js';
+import { useEscape } from './lib/useEscape.js';
 
 /** Prévia (somente leitura) de como as perguntas aparecem na tela do Host. */
 export function QuizPreview({ draft, onClose }: { draft: QuizDraft; onClose: () => void }) {
   const [i, setI] = useState(0);
+  useEscape(onClose);
   const q = draft.questions[i];
   if (!q) return null;
 

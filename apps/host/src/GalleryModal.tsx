@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { QuizSummary } from '@karick/shared';
 import { api } from './lib/api.js';
+import { useEscape } from './lib/useEscape.js';
 
 /** Galeria pública: descobrir quizzes de outros e clonar para a própria biblioteca. */
 export function GalleryModal({ onClose, onCloned }: { onClose: () => void; onCloned: () => void }) {
+  useEscape(onClose);
   const [items, setItems] = useState<QuizSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Brand } from '@karick/shared';
 import { QRCodeView } from './QRCode.js';
+import { useEscape } from './lib/useEscape.js';
 import { api } from './lib/api.js';
 
 interface Stats {
@@ -28,6 +29,7 @@ export function ProfileModal({
   const [fixedPin, setFixedPin] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [copied, setCopied] = useState(false);
+  useEscape(onClose);
 
   useEffect(() => {
     api
