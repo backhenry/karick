@@ -10,6 +10,7 @@ function initialPin(): string {
   return m ? m[1] : new URLSearchParams(window.location.search).get('pin') ?? '';
 }
 import { usePlayerSocket } from './hooks/usePlayerSocket.js';
+import { useI18n, LangSwitcher } from './i18n.js';
 import { TimerBar } from './TimerBar.js';
 import { sfx } from './lib/sound.js';
 import { buildResultCard } from './lib/resultCard.js';
@@ -57,9 +58,10 @@ function RevealImg({ src, durationSec, resetKey }: { src: string; durationSec: n
 }
 
 function ReconnectBanner() {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-x-0 top-0 z-50 bg-amber-500 py-1 text-center text-sm font-bold text-white">
-      Reconectando… ⏳
+      {t('reconnecting')}
     </div>
   );
 }
@@ -82,6 +84,7 @@ function ReactionBar({ onReact }: { onReact: (emoji: string) => void }) {
 }
 
 export function App() {
+  const { t } = useI18n();
   const { screen, error, reconnecting, question, timer, feedback, reveal, paused, join, answer, react, usePowerup, team, brandName } = usePlayerSocket();
   const [pin, setPin] = useState(initialPin);
   // Marca da sala buscada por PIN (página pública /sala/:pin), antes de entrar.
@@ -230,20 +233,20 @@ export function App() {
                 {toBrandName(roomBrand) === 'Karick' ? brandName : toBrandName(roomBrand)}
               </h1>
             )}
-            <p className="text-sm text-white/70">Entre para jogar</p>
+            <p className="text-sm text-white/70">{t('enterToPlay')}</p>
           </div>
         ) : (
           <h1 className="mb-4 text-center text-4xl font-black text-indigo-600">{brandName}</h1>
         )}
         {roomMissing && (
           <p className="mb-1 rounded-lg bg-amber-100 p-2 text-center text-sm text-amber-800">
-            Sala não encontrada — confira o PIN com o apresentador.
+            {t('roomNotFound')}
           </p>
         )}
         <input
           value={pin}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-          placeholder="PIN da sala"
+          placeholder={t('pinPlaceholder')}
           inputMode="numeric"
           className="rounded-lg border p-4 text-center text-xl"
         />
@@ -251,22 +254,22 @@ export function App() {
           <input
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            placeholder="Seu apelido"
+            placeholder={t('nickPlaceholder')}
             maxLength={MAX_NICKNAME_LENGTH}
             className="flex-1 rounded-lg border p-4 text-center text-xl"
           />
           <button
             type="button"
             onClick={() => setNickname(randomNickname())}
-            title="Surpreenda-me"
-            aria-label="Gerar apelido aleatório"
+            title={t('randomNick')}
+            aria-label={t('randomNick')}
             className="rounded-lg border px-4 text-2xl"
           >
             🎲
           </button>
         </div>
 
-        <p className="text-center text-sm text-slate-500">Escolha seu avatar</p>
+        <p className="text-center text-sm text-slate-500">{t('chooseAvatar')}</p>
         <div className="grid grid-cols-8 gap-1">
           {AVATARS.map((a) => (
             <button
@@ -282,35 +285,36 @@ export function App() {
 
         <label className="flex cursor-pointer items-center justify-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={showText} onChange={(e) => setShowText(e.target.checked)} />
-          Mostrar o texto das perguntas no meu celular
+          {t('showText')}
         </label>
         <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-slate-100 p-2 text-base font-bold text-slate-700">
           <input type="checkbox" checked={a11y} onChange={(e) => setAccessible(e.target.checked)} className="h-5 w-5" />
-          ♿ Modo acessível — texto grande e alto contraste
+          {t('a11yMode')}
         </label>
 
         {teamOptions ? (
           <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
-            <p className="mb-2 text-center text-sm font-bold text-indigo-700">Escolha sua equipe</p>
+            <p className="mb-2 text-center text-sm font-bold text-indigo-700">{t('chooseTeam')}</p>
             <div className="grid grid-cols-2 gap-2">
-              {teamOptions.map((t) => (
+              {teamOptions.map((tm) => (
                 <button
-                  key={t}
+                  key={tm}
                   type="button"
-                  onClick={() => join(pin, nickname, avatar, t, showText)}
+                  onClick={() => join(pin, nickname, avatar, tm, wantsText)}
                   className="rounded-lg bg-indigo-600 p-3 font-bold text-white active:scale-95"
                 >
-                  {t}
+                  {tm}
                 </button>
               ))}
             </div>
           </div>
         ) : (
           <button className="rounded-lg bg-indigo-600 p-4 text-lg font-bold text-white active:scale-95">
-            Entrar como {avatar}
+            {t('enterAs', { avatar })}
           </button>
         )}
         {error && <p className="text-center text-red-600">{error}</p>}
+        <LangSwitcher className="mt-2" />
       </form>
     );
   }
@@ -322,8 +326,8 @@ export function App() {
       <div className="flex min-h-screen items-center justify-center p-6 text-center text-xl text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
         <div>
           <p className="mb-2 text-2xl font-black" style={{ color: 'var(--k-primary, #a5b4fc)' }}>{brandName}</p>
-          ✅ Você entrou! Aguarde o apresentador iniciar…
-          {team && <p className="mt-3 text-lg font-bold" style={{ color: 'var(--k-primary, #a5b4fc)' }}>Equipe: {team}</p>}
+          {t('joinedWait')}
+          {team && <p className="mt-3 text-lg font-bold" style={{ color: 'var(--k-primary, #a5b4fc)' }}>{t('team', { name: team })}</p>}
         </div>
       </div>
     );
@@ -335,8 +339,8 @@ export function App() {
         {paused && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/70 text-white">
             <span className="text-6xl">⏸</span>
-            <span className="text-2xl font-bold">Pausado</span>
-            <span className="text-white/60">Aguarde o apresentador retomar</span>
+            <span className="text-2xl font-bold">{t('paused')}</span>
+            <span className="text-white/60">{t('pausedWait')}</span>
           </div>
         )}
         <ReactionBar onReact={react} />
@@ -365,19 +369,19 @@ export function App() {
         {eliminated && question.mode === 'survival' ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-white/60">
             <span className="text-5xl">💀</span>
-            <span className="text-2xl">Eliminado — assistindo</span>
+            <span className="text-2xl">{t('eliminated')}</span>
           </div>
         ) : expired ? (
           <div className="flex flex-1 items-center justify-center text-2xl text-white/60">
-            Tempo esgotado ⏰
+            {t('timeUp')}
           </div>
         ) : (
           <>
             {question.type === 'poll' ? (
-              <p className="px-3 pb-1 text-center text-sm text-white/70">🗳️ Enquete — vote na sua opção (sem pontos)</p>
+              <p className="px-3 pb-1 text-center text-sm text-white/70">{t('pollVote')}</p>
             ) : question.mode === 'betting' ? (
               <div className="px-3 pb-1 text-center">
-                <p className="text-sm text-white/70">Banco: <b>{bank}</b> · apostando <b>{wager}</b></p>
+                <p className="text-sm text-white/70">{t('bankBetting', { bank, wager })}</p>
                 <div className="mt-1 flex justify-center gap-2">
                   {[25, 50, 100].map((pct) => (
                     <button
@@ -386,7 +390,7 @@ export function App() {
                       className={`rounded-lg px-3 py-1 text-sm font-bold ${wagerPct === pct ? 'text-white' : 'bg-white/15 text-white'}`}
                       style={wagerPct === pct ? { background: 'var(--k-primary, #4f46e5)' } : undefined}
                     >
-                      {pct === 100 ? 'Tudo' : `${pct}%`}
+                      {pct === 100 ? t('all') : `${pct}%`}
                     </button>
                   ))}
                 </div>
@@ -407,20 +411,20 @@ export function App() {
                   disabled={!powerups.double || !!activeScoring}
                   className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'double' ? 'bg-green-500 text-white' : 'bg-white/15 text-white'}`}
                 >
-                  2× pontos
+                  {t('double')}
                 </button>
                 <button
                   onClick={() => doPowerup('freeze')}
                   disabled={!powerups.freeze || !!activeScoring}
                   className={`rounded-lg px-3 py-1 text-sm font-bold disabled:opacity-40 ${activeScoring === 'freeze' ? 'bg-cyan-500 text-white' : 'bg-white/15 text-white'}`}
                 >
-                  ⏱ congelar
+                  {t('freeze')}
                 </button>
               </div>
             )}
             {question.type === 'text' ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4">
-                <p className="text-sm text-white/70">✍️ Digite sua resposta</p>
+                <p className="text-sm text-white/70">{t('typeAnswer')}</p>
                 <input
                   value={typed}
                   onChange={(e) => setTyped(e.target.value)}
@@ -428,7 +432,7 @@ export function App() {
                   maxLength={200}
                   autoFocus
                   className="w-full max-w-md rounded-xl p-4 text-center text-xl text-slate-800 outline-none"
-                  placeholder="Sua resposta…"
+                  placeholder={t('answerPlaceholder')}
                 />
                 <button
                   onClick={handleTyped}
@@ -436,7 +440,7 @@ export function App() {
                   className="w-full max-w-md rounded-xl p-4 text-xl font-bold text-white active:scale-95 disabled:opacity-40"
                   style={{ background: 'var(--k-primary, #4f46e5)' }}
                 >
-                  Enviar
+                  {t('send')}
                 </button>
               </div>
             ) : (
@@ -465,7 +469,7 @@ export function App() {
       <>
         {reconnecting && <ReconnectBanner />}
         <div className="flex min-h-screen items-center justify-center p-6 text-center text-xl text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
-          Resposta enviada! Aguardando os outros… ⏳
+          {t('answerSent')}
         </div>
         <ReactionBar onReact={react} />
       </>
@@ -484,8 +488,8 @@ export function App() {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
           <h1 className="text-5xl font-black">🗳️</h1>
-          <p className="text-2xl font-bold">{answered ? 'Voto registrado!' : 'Enquete encerrada'}</p>
-          <p className="text-lg text-white/70">Veja o resultado no telão</p>
+          <p className="text-2xl font-bold">{answered ? t('voteRegistered') : t('pollClosed')}</p>
+          <p className="text-lg text-white/70">{t('seeScreen')}</p>
           <ReactionBar onReact={react} />
         </div>
       );
@@ -494,12 +498,12 @@ export function App() {
     return (
       <div className={`flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center text-white ${bg}`}>
         <h1 className="text-5xl font-black">
-          {!answered ? 'Tempo esgotado ⏰' : correct ? 'Acertou! 🎉' : 'Errou 😢'}
+          {!answered ? t('timeUp') : correct ? t('correct') : t('wrong')}
         </h1>
 
         {reveal && reveal.correctText && (
           <div className="flex items-center gap-2 rounded-lg bg-black/20 px-4 py-2 text-lg">
-            <span className="opacity-80">Resposta certa:</span>
+            <span className="opacity-80">{t('correctAnswer')}</span>
             {reveal.correctIndex >= 0 && (
               <span className="text-2xl" style={{ color: optColor(reveal.correctIndex) }}>
                 {OPTION_SHAPES[reveal.correctIndex]}
@@ -509,17 +513,17 @@ export function App() {
           </div>
         )}
 
-        <p className="text-2xl font-bold">{gained > 0 ? `+${gained} pontos` : 'sem pontos'}</p>
+        <p className="text-2xl font-bold">{gained > 0 ? t('pointsGained', { n: gained }) : t('noPoints')}</p>
         {feedback && feedback.streak > 1 && (
           <p className="rounded-full bg-black/20 px-4 py-1 text-lg font-bold">
-            🔥 {feedback.streak} seguidas!
-            {feedback.streakBonus > 0 && <span className="opacity-90"> (+{feedback.streakBonus} bônus)</span>}
+            {t('streak', { n: feedback.streak })}
+            {feedback.streakBonus > 0 && <span className="opacity-90">{t('streakBonus', { n: feedback.streakBonus })}</span>}
           </p>
         )}
         {total !== undefined && (
           <p className="text-lg opacity-90">
-            Total: <b>{total} pts</b>
-            {reveal?.rank !== undefined && <> · Você está em <b>{reveal.rank}º</b></>}
+            {t('total', { n: total })}
+            {reveal?.rank !== undefined && t('yourRank', { n: reveal.rank })}
           </p>
         )}
         {reveal?.explanation && (
@@ -534,14 +538,14 @@ export function App() {
     // Conquistas da partida — entram no cartão e como selos na tela.
     const finalRank = reveal?.rank;
     const badges: string[] = [];
-    if (finalRank === 1) badges.push('🥇 Campeão da sala');
-    if (journey.questions >= 3 && journey.corrects === journey.questions) badges.push('💯 Rodada perfeita');
-    if (journey.maxStreak >= 3) badges.push(`🔥 ${journey.maxStreak} seguidas`);
-    if (finalRank !== undefined && journey.worstRank - finalRank >= 2) badges.push('📈 Remontada');
+    if (finalRank === 1) badges.push(t('badgeChampion'));
+    if (journey.questions >= 3 && journey.corrects === journey.questions) badges.push(t('badgePerfect'));
+    if (journey.maxStreak >= 3) badges.push(t('badgeStreak', { n: journey.maxStreak }));
+    if (finalRank !== undefined && journey.worstRank - finalRank >= 2) badges.push(t('badgeComeback'));
     const card = buildResultCard({ nickname, avatar, rank: finalRank, score: reveal?.score ?? feedback?.totalScore, badges });
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
-        <h1 className="text-2xl font-bold">🏁 Fim de jogo!</h1>
+        <h1 className="text-2xl font-bold">{t('gameOver')}</h1>
         {badges.length > 0 && (
           <div className="flex max-w-sm flex-wrap justify-center gap-2">
             {badges.map((b) => (
@@ -557,12 +561,12 @@ export function App() {
             className="rounded-lg px-6 py-3 font-bold text-white"
             style={{ background: 'var(--k-primary, #4f46e5)' }}
           >
-            ⬇ Baixar meu resultado
+            {t('downloadResult')}
           </a>
         )}
       </div>
     );
   }
 
-  return <Center>Conectando…</Center>;
+  return <Center>{t('connecting')}</Center>;
 }
