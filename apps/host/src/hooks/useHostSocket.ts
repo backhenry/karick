@@ -33,6 +33,7 @@ export function useHostSocket() {
   const [question, setQuestion] = useState<HostQuestionPayload | null>(null);
   const [answeredCount, setAnsweredCount] = useState(0);
   const [answeredWho, setAnsweredWho] = useState<{ nickname: string; avatar?: string }[]>([]);
+  const [paused, setPaused] = useState(false);
   const [timer, setTimer] = useState<{ durationSec: number; key: string }>({ durationSec: 0, key: 'init' });
   const [reveal, setReveal] = useState<{
     correctIndex: number;
@@ -62,9 +63,15 @@ export function useHostSocket() {
       setQuestion(q);
       setAnsweredCount(0);
       setAnsweredWho([]);
+      setPaused(false);
       setTimer({ durationSec: q.timeLimitSec, key: `q${q.index}` });
       setPhase('QUESTION');
       sfx.questionStart();
+    });
+    socket.on('game:paused', ({ paused, remainingSec }) => {
+      setPaused(paused);
+      // Ao retomar, reinicia a barra com o tempo restante real.
+      if (!paused) setTimer({ durationSec: remainingSec, key: `resume${Date.now()}` });
     });
     socket.on('game:answerCount', ({ answered, nickname, avatar }) => {
       setAnsweredCount(answered);
@@ -148,6 +155,8 @@ export function useHostSocket() {
     next: () => socketRef.current?.emit('host:nextQuestion'),
     revealNow: () => socketRef.current?.emit('host:revealNow'),
     addTime: () => socketRef.current?.emit('host:addTime'),
+    paused,
+    togglePause: () => socketRef.current?.emit(paused ? 'host:resumeQuestion' : 'host:pauseQuestion'),
     kick: (nickname: string) => socketRef.current?.emit('host:kickPlayer', { nickname }),
   };
 }

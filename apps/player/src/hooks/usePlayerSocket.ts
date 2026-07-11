@@ -69,6 +69,7 @@ export function usePlayerSocket() {
   const [feedback, setFeedback] = useState<AnswerResult | null>(null);
   const [reveal, setReveal] = useState<RevealInfo | null>(null);
   const [brand, setBrand] = useState<Brand | null>(null);
+  const [paused, setPaused] = useState(false);
 
   // Aplica a paleta recebida do host (nome + cores) neste dispositivo.
   const applyBrand = (b?: Brand) => {
@@ -107,7 +108,12 @@ export function usePlayerSocket() {
       setTimer({ durationSec: q.timeLimitSec, key: `q${q.index}` });
       setFeedback(null);
       setReveal(null);
+      setPaused(false);
       setScreen('QUESTION');
+    });
+    socket.on('game:paused', ({ paused, remainingSec }) => {
+      setPaused(paused);
+      if (!paused) setTimer({ durationSec: remainingSec, key: `resume${Date.now()}` });
     });
     socket.on('game:timer', ({ remainingSec }) =>
       setTimer({ durationSec: remainingSec, key: `t${Date.now()}` }),
@@ -196,5 +202,5 @@ export function usePlayerSocket() {
     });
   };
 
-  return { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, usePowerup, team: joinParamsRef.current?.team, brandName: brandName(brand) };
+  return { screen, error, reconnecting, question, timer, feedback, reveal, paused, join, answer, react, usePowerup, team: joinParamsRef.current?.team, brandName: brandName(brand) };
 }

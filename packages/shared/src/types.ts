@@ -171,6 +171,9 @@ export interface GameRoom {
   questionStartedAt: number | null;
   /** Timestamp (ms) em que a pergunta atual expira (pode ser estendido pelo host). */
   questionEndsAt: number | null;
+  /** Pausa: se pausada, `pausedAt` guarda o instante para congelar tempo e pontuação. */
+  paused?: boolean;
+  pausedAt?: number | null;
   /** Última revelação (para re-sincronizar quem reconecta durante o REVEAL). */
   lastReveal?: { correctIndex: number; correctText: string; distribution: number[]; leaderboard: LeaderboardRow[]; teamLeaderboard?: TeamRow[]; explanation?: string };
   /** Estatística acumulada por pergunta revelada. */

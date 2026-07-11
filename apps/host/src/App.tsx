@@ -298,14 +298,22 @@ export function App() {
             <button onClick={g.addTime} className="rounded-lg bg-white/10 px-3 py-1 font-bold text-white hover:bg-white/20">
               +20s
             </button>
+            <button onClick={g.togglePause} className="rounded-lg bg-white/10 px-3 py-1 font-bold text-white hover:bg-white/20">
+              {g.paused ? '▶ Retomar' : '⏸ Pausar'}
+            </button>
             <button onClick={g.revealNow} className="rounded-lg px-3 py-1 font-bold text-white" style={{ background: branding.primary }}>
               Revelar agora ⏭
             </button>
           </div>
         </div>
 
-        <div className="px-10">
-          <TimerBar durationSec={g.timer.durationSec} resetKey={g.timer.key} />
+        <div className="relative px-10">
+          <TimerBar durationSec={g.timer.durationSec} resetKey={g.timer.key} paused={g.paused} />
+          {g.paused && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="rounded-full bg-black/70 px-4 py-1 text-sm font-bold text-white">⏸ Pausado</span>
+            </div>
+          )}
         </div>
 
         {/* Feed ao vivo: avatares de quem já respondeu (altura fixa para não pular o layout). */}

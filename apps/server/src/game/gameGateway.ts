@@ -91,8 +91,10 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
     const q = currentQuestion(room);
 
     if (room.status === 'QUESTION' && q) {
+      // Pausada: congela o restante no instante da pausa.
+      const ref = room.paused && room.pausedAt ? room.pausedAt : Date.now();
       const remainingSec = room.questionEndsAt
-        ? Math.max(0, Math.round((room.questionEndsAt - Date.now()) / 1000))
+        ? Math.max(0, Math.round((room.questionEndsAt - ref) / 1000))
         : q.timeLimitSec;
       return socket.emit('game:sync', {
         screen: player.currentAnswer ? 'ANSWERED' : 'QUESTION',
@@ -128,6 +130,8 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       r.status = 'QUESTION';
       r.questionStartedAt = Date.now();
       r.questionEndsAt = Date.now() + q.timeLimitSec * 1000;
+      r.paused = false;
+      r.pausedAt = null;
       Object.values(r.players).forEach((p) => {
         p.currentAnswer = null;
         p.fiftyUsedQ = false;
@@ -414,6 +418,42 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       io.to(room.pin).emit('game:timer', { remainingSec: Math.round(remainingMs / 1000) });
     });
 
+    // ─── HOST: pausar a pergunta (congela cronômetro + relógio de pontuação) ───
+    socket.on('host:pauseQuestion', async () => {
+      const room0 = await store.get(socket.data.pin ?? '');
+      if (!isHost(room0, socket) || room0.status !== 'QUESTION' || room0.paused || room0.questionEndsAt === null) return;
+      let remainingSec = 0;
+      const room = await store.update(room0.pin, (r) => {
+        if (r.questionEndsAt === null) return;
+        r.paused = true;
+        r.pausedAt = Date.now();
+        remainingSec = Math.max(0, Math.round((r.questionEndsAt - r.pausedAt) / 1000));
+      });
+      if (!room) return;
+      clearRoomTimer(room.pin); // segura o auto-reveal
+      io.to(room.pin).emit('game:paused', { paused: true, remainingSec });
+    });
+
+    // ─── HOST: retomar (desloca início e fim pelo tempo pausado, reagenda) ───
+    socket.on('host:resumeQuestion', async () => {
+      const room0 = await store.get(socket.data.pin ?? '');
+      if (!isHost(room0, socket) || room0.status !== 'QUESTION' || !room0.paused) return;
+      let remainingMs = 0;
+      const room = await store.update(room0.pin, (r) => {
+        if (!r.pausedAt || r.questionEndsAt === null) return;
+        const delta = Date.now() - r.pausedAt;
+        r.questionEndsAt += delta;
+        if (r.questionStartedAt !== null) r.questionStartedAt += delta; // pontuação por velocidade fica justa
+        r.paused = false;
+        r.pausedAt = null;
+        remainingMs = Math.max(0, r.questionEndsAt - Date.now());
+      });
+      if (!room) return;
+      clearRoomTimer(room.pin);
+      timers.set(room.pin, setTimeout(() => void revealAnswer(room.pin), remainingMs));
+      io.to(room.pin).emit('game:paused', { paused: false, remainingSec: Math.round(remainingMs / 1000) });
+    });
+
     // ─── HOST: remover jogador ───────────────────────────
     socket.on('host:kickPlayer', async ({ nickname }) => {
       const room0 = await store.get(socket.data.pin ?? '');
@@ -448,7 +488,7 @@ export function registerGameGateway(io: IO, store: RoomStore, history: HistoryRe
       const room = await store.update(pin, (r) => {
         outcome = 'ok';
         result = null;
-        if (r.status !== 'QUESTION' || r.questionStartedAt === null) return void (outcome = 'inactive');
+        if (r.status !== 'QUESTION' || r.questionStartedAt === null || r.paused) return void (outcome = 'inactive');
         const p = playerId ? r.players[playerId] : undefined;
         if (!p) return void (outcome = 'noplayer');
         if (p.eliminated) return void (outcome = 'eliminated');

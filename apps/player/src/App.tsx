@@ -72,7 +72,7 @@ function ReactionBar({ onReact }: { onReact: (emoji: string) => void }) {
 }
 
 export function App() {
-  const { screen, error, reconnecting, question, timer, feedback, reveal, join, answer, react, usePowerup, team, brandName } = usePlayerSocket();
+  const { screen, error, reconnecting, question, timer, feedback, reveal, paused, join, answer, react, usePowerup, team, brandName } = usePlayerSocket();
   const [pin, setPin] = useState(() => new URLSearchParams(window.location.search).get('pin') ?? '');
   const [nickname, setNickname] = useState('');
   const [avatar, setAvatar] = useState(randomAvatar);
@@ -261,6 +261,13 @@ export function App() {
     return (
       <div className="flex h-screen flex-col pb-12 text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
         {reconnecting && <ReconnectBanner />}
+        {paused && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/70 text-white">
+            <span className="text-6xl">⏸</span>
+            <span className="text-2xl font-bold">Pausado</span>
+            <span className="text-white/60">Aguarde o apresentador retomar</span>
+          </div>
+        )}
         <ReactionBar onReact={react} />
         <TimerBar
           durationSec={timer.durationSec || question.timeLimitSec}

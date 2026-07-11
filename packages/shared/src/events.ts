@@ -45,6 +45,8 @@ export interface ServerToClientEvents {
   'game:hostLeft': () => void;
   /** Tempo restante mudou (ex.: host adicionou tempo) — clientes re-sincronizam o cronômetro. */
   'game:timer': (data: { remainingSec: number }) => void;
+  /** Pergunta pausada/retomada pelo apresentador. */
+  'game:paused': (data: { paused: boolean; remainingSec: number }) => void;
   /** Este jogador foi removido pelo host. */
   'player:kicked': () => void;
   /** Re-sincroniza o estado do jogador ao (re)conectar no meio do jogo. */
@@ -69,6 +71,9 @@ export interface ClientToServerEvents {
   'host:revealNow': () => void;
   /** Adiciona tempo à pergunta atual. */
   'host:addTime': () => void;
+  /** Pausa/retoma a pergunta atual (congela o cronômetro e a pontuação). */
+  'host:pauseQuestion': () => void;
+  'host:resumeQuestion': () => void;
   /** Remove um jogador da sala (pelo apelido). */
   'host:kickPlayer': (payload: { nickname: string }) => void;
   'player:join': (
