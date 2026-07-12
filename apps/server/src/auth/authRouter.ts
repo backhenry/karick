@@ -1,12 +1,16 @@
 import { Router, type Response } from 'express';
+import { createHash, randomBytes } from 'node:crypto';
 import type { UserRepository } from '../store/userRepository.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { signSession, verifySession, SESSION_COOKIE, SESSION_MAX_AGE_MS } from './session.js';
+import { sendPasswordReset, mailConfigured } from './mail.js';
 import { RateLimiter } from '../util/rateLimiter.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
+const RESET_TTL_MS = 60 * 60 * 1000; // 1 hora
 const authLimiter = new RateLimiter(10, 60_000); // 10 tentativas/min por IP
+const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
 export function createAuthRouter(users: UserRepository): Router {
   const r = Router();
@@ -58,6 +62,54 @@ export function createAuthRouter(users: UserRepository): Router {
   r.post('/logout', (_req, res) => {
     res.clearCookie(SESSION_COOKIE, { path: '/' });
     res.status(204).end();
+  });
+
+  // Solicita a redefinição de senha. Sempre responde 200 (não revela se o e-mail
+  // existe). Em dev sem provedor de e-mail, devolve o link para dar para testar.
+  r.post('/forgot', async (req, res, next) => {
+    try {
+      if (!authLimiter.allow(req.ip ?? 'x')) return res.status(429).json({ error: 'Muitas tentativas, aguarde.' });
+      const email = String(req.body?.email ?? '').trim().toLowerCase();
+      const resp: { ok: true; devLink?: string } = { ok: true };
+      if (EMAIL_RE.test(email)) {
+        const user = await users.findByEmail(email);
+        if (user) {
+          const rawToken = randomBytes(32).toString('hex');
+          await users.saveResetToken(sha256(rawToken), user.id, Date.now() + RESET_TTL_MS);
+          const base = process.env.APP_URL?.replace(/\/$/, '') || `${req.protocol}://${req.get('host')}`;
+          const link = `${base}/host/?reset=${rawToken}`;
+          try {
+            await sendPasswordReset(user.email, link);
+          } catch (err) {
+            console.error('Falha ao enviar e-mail de redefinição:', err);
+          }
+          // Só expõe o link quando não há provedor e não estamos em produção.
+          if (!mailConfigured() && !isProd) resp.devLink = link;
+        }
+      }
+      res.json(resp);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // Consome o token e troca a senha. Faz login automático em seguida.
+  r.post('/reset', async (req, res, next) => {
+    try {
+      if (!authLimiter.allow(req.ip ?? 'x')) return res.status(429).json({ error: 'Muitas tentativas, aguarde.' });
+      const token = String(req.body?.token ?? '');
+      const password = String(req.body?.password ?? '');
+      if (password.length < MIN_PASSWORD) return res.status(400).json({ error: `A senha precisa de ao menos ${MIN_PASSWORD} caracteres.` });
+      const userId = token ? await users.takeResetToken(sha256(token)) : null;
+      if (!userId) return res.status(400).json({ error: 'Link inválido ou expirado. Peça um novo.', errorCode: 'resetInvalid' });
+      await users.updatePassword(userId, hashPassword(password));
+      const user = await users.findById(userId);
+      if (!user) return res.status(400).json({ error: 'Conta não encontrada.' });
+      setCookie(res, user.id);
+      res.json({ id: user.id, email: user.email });
+    } catch (e) {
+      next(e);
+    }
   });
 
   r.get('/me', async (req, res, next) => {

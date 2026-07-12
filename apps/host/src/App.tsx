@@ -5,6 +5,7 @@ import { useHostSocket } from './hooks/useHostSocket.js';
 import { QuizEditor } from './QuizEditor.js';
 import { Library } from './Library.js';
 import { Auth } from './Auth.js';
+import { ResetPassword } from './ResetPassword.js';
 import { GameSetup } from './GameSetup.js';
 import { api, type AuthUser } from './lib/api.js';
 import { TimerBar } from './TimerBar.js';
@@ -41,6 +42,8 @@ export function App() {
   const [showBank, setShowBank] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [libKey, setLibKey] = useState(0); // força recarregar a biblioteca (ex.: após clonar)
+  // Token de redefinição de senha vindo do link do e-mail (/host/?reset=TOKEN).
+  const [resetToken, setResetToken] = useState<string | null>(() => new URLSearchParams(window.location.search).get('reset'));
   // Modo clássico: editor enxuto e host direto (individual), sem opções avançadas.
   const [simple, setSimple] = useState(() => localStorage.getItem('karick.simpleMode') === '1');
   const toggleSimple = (v: boolean) => {
@@ -109,6 +112,21 @@ export function App() {
 
   // ─── PRÉ-JOGO: exige login, depois biblioteca ou editor ───
   if (g.phase === 'PREGAME') {
+    // Link de redefinição de senha tem prioridade sobre o login.
+    if (resetToken)
+      return (
+        <ResetPassword
+          token={resetToken}
+          brand={branding}
+          onDone={(u) => {
+            // Limpa o ?reset= da URL e entra logado.
+            window.history.replaceState(null, '', '/host/');
+            setResetToken(null);
+            setAuthUser(u);
+            g.reauth();
+          }}
+        />
+      );
     if (authUser === 'loading')
       return <Screen dark>{t('loading')}</Screen>;
     if (authUser === null)

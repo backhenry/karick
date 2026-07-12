@@ -62,5 +62,11 @@ export async function initSchema(pool: pg.Pool): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_bank_owner ON bank_questions (owner_id);
+
+    CREATE TABLE IF NOT EXISTS password_resets (
+      token_hash TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL,
+      expires_at BIGINT NOT NULL
+    );
   `);
 }

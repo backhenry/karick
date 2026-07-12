@@ -22,6 +22,12 @@ export interface UserRepository {
   setPhoto(userId: string, photo: string | null): Promise<void>;
   /** Remove a conta do usuário (dados relacionados são apagados pelos outros repos). */
   deleteAccount(userId: string): Promise<void>;
+  /** Troca a senha (hash já pronto). */
+  updatePassword(userId: string, passwordHash: string): Promise<void>;
+  /** Guarda um token de redefinição (hash) com validade. */
+  saveResetToken(tokenHash: string, userId: string, expiresAt: number): Promise<void>;
+  /** Consome o token (uso único): retorna o userId se válido e não expirado. */
+  takeResetToken(tokenHash: string): Promise<string | null>;
 }
 
 const genId = () => 'u_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -72,7 +78,25 @@ export class PostgresUserRepository implements UserRepository {
     await this.pool.query(`UPDATE users SET photo = $2 WHERE id = $1`, [userId, photo]);
   }
   async deleteAccount(userId: string): Promise<void> {
+    await this.pool.query(`DELETE FROM password_resets WHERE user_id = $1`, [userId]);
     await this.pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
+  }
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.pool.query(`UPDATE users SET password_hash = $2 WHERE id = $1`, [userId, passwordHash]);
+  }
+  async saveResetToken(tokenHash: string, userId: string, expiresAt: number): Promise<void> {
+    // Um pedido ativo por usuário: descarta tokens anteriores.
+    await this.pool.query(`DELETE FROM password_resets WHERE user_id = $1`, [userId]);
+    await this.pool.query(
+      `INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
+      [tokenHash, userId, expiresAt],
+    );
+  }
+  async takeResetToken(tokenHash: string): Promise<string | null> {
+    const { rows } = await this.pool.query(`DELETE FROM password_resets WHERE token_hash = $1 RETURNING user_id, expires_at`, [tokenHash]);
+    const row = rows[0];
+    if (!row || Number(row.expires_at) < Date.now()) return null;
+    return row.user_id;
   }
 }
 
@@ -85,6 +109,7 @@ export class InMemoryUserRepository implements UserRepository {
   private brands = new Map<string, Brand>();
   private pins = new Map<string, string>();
   private photos = new Map<string, string>();
+  private resets = new Map<string, { userId: string; expiresAt: number }>();
 
   async findByEmail(email: string): Promise<User | null> {
     return [...this.byId.values()].find((u) => u.email === email) ?? null;
@@ -121,5 +146,20 @@ export class InMemoryUserRepository implements UserRepository {
     this.brands.delete(userId);
     this.pins.delete(userId);
     this.photos.delete(userId);
+    for (const [h, t] of this.resets) if (t.userId === userId) this.resets.delete(h);
+  }
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    const u = this.byId.get(userId);
+    if (u) u.passwordHash = passwordHash;
+  }
+  async saveResetToken(tokenHash: string, userId: string, expiresAt: number): Promise<void> {
+    for (const [h, t] of this.resets) if (t.userId === userId) this.resets.delete(h);
+    this.resets.set(tokenHash, { userId, expiresAt });
+  }
+  async takeResetToken(tokenHash: string): Promise<string | null> {
+    const t = this.resets.get(tokenHash);
+    if (!t) return null;
+    this.resets.delete(tokenHash);
+    return t.expiresAt < Date.now() ? null : t.userId;
   }
 }
