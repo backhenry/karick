@@ -6,6 +6,7 @@ export interface BankRepository {
   list(ownerId: string): Promise<BankQuestion[]>;
   add(ownerId: string, question: Question, tags: string[]): Promise<BankQuestion>;
   remove(id: string, ownerId: string): Promise<boolean>;
+  removeAllByOwner(ownerId: string): Promise<void>;
 }
 
 const genId = () => 'bq_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -42,6 +43,9 @@ export class PostgresBankRepository implements BankRepository {
     const { rowCount } = await this.pool.query(`DELETE FROM bank_questions WHERE id = $1 AND owner_id = $2`, [id, ownerId]);
     return (rowCount ?? 0) > 0;
   }
+  async removeAllByOwner(ownerId: string): Promise<void> {
+    await this.pool.query(`DELETE FROM bank_questions WHERE owner_id = $1`, [ownerId]);
+  }
 }
 
 export class InMemoryBankRepository implements BankRepository {
@@ -63,5 +67,8 @@ export class InMemoryBankRepository implements BankRepository {
     const it = this.items.get(id);
     if (!it || it.ownerId !== ownerId) return false;
     return this.items.delete(id);
+  }
+  async removeAllByOwner(ownerId: string): Promise<void> {
+    for (const [id, it] of this.items) if (it.ownerId === ownerId) this.items.delete(id);
   }
 }

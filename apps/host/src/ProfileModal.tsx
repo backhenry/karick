@@ -76,6 +76,17 @@ export function ProfileModal({
     }
   };
 
+  const deleteAccount = async () => {
+    const typed = window.prompt(t('confirmDeleteAccount'));
+    if (typed?.trim().toUpperCase() !== t('confirmDeleteWord')) return;
+    try {
+      await api.deleteAccount();
+      onLogout(); // limpa a sessão local e volta ao login
+    } catch {
+      /* ignora */
+    }
+  };
+
   const joinUrl = fixedPin ? `${window.location.origin}/?pin=${fixedPin}` : '';
   const copyLink = async () => {
     try {
@@ -173,6 +184,12 @@ export function ProfileModal({
             className="rounded-lg bg-red-500/20 px-4 py-3 font-bold text-red-300 hover:bg-red-500/30"
           >
             {t('logout')}
+          </button>
+        </div>
+
+        <div className="mt-4 border-t border-white/10 pt-3 text-center">
+          <button onClick={deleteAccount} className="text-sm text-red-400/70 underline hover:text-red-300">
+            {t('deleteAccount')}
           </button>
         </div>
       </div>

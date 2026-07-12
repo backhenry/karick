@@ -6,6 +6,7 @@ import type { HistoryRepository } from '../store/historyRepository.js';
 import type { BankRepository } from '../store/bankRepository.js';
 import type { UserRepository } from '../store/userRepository.js';
 import { requireAuth } from '../auth/authMiddleware.js';
+import { SESSION_COOKIE } from '../auth/session.js';
 
 /**
  * API REST da biblioteca de quizzes e do histórico — tudo escopado ao usuário
@@ -25,6 +26,19 @@ export function createApiRouter(
   // Daqui em diante exige login.
   r.use(requireAuth);
   const uid = (res: Response): string => res.locals.userId;
+
+  // ─── Excluir a conta (apaga quizzes, banco, histórico e o usuário) ───
+  r.delete('/account', async (_req, res, next) => {
+    try {
+      const id = uid(res);
+      await Promise.all([quizzes.removeAllByOwner(id), bank.removeAllByOwner(id), history.clear(id)]);
+      await users.deleteAccount(id);
+      res.clearCookie(SESSION_COOKIE, { path: '/' });
+      res.status(204).end();
+    } catch (e) {
+      next(e);
+    }
+  });
 
   // ─── Perfil do usuário (e-mail + PIN fixo da sala permanente + foto) ───
   r.get('/profile', async (_req, res, next) => {

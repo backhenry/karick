@@ -8,6 +8,8 @@ export interface QuizRepository {
   create(draft: QuizDraft, ownerId: string): Promise<SavedQuiz>;
   update(id: string, draft: QuizDraft, ownerId: string): Promise<SavedQuiz | null>;
   remove(id: string, ownerId: string): Promise<boolean>;
+  /** Apaga todos os quizzes do usuário (exclusão de conta). */
+  removeAllByOwner(ownerId: string): Promise<void>;
   /** Quizzes públicos de qualquer usuário (galeria). */
   listPublic(): Promise<QuizSummary[]>;
   /** Um quiz público qualquer (para clonar). */
@@ -78,6 +80,9 @@ export class PostgresQuizRepository implements QuizRepository {
   async remove(id: string, ownerId: string): Promise<boolean> {
     const { rowCount } = await this.pool.query(`DELETE FROM quizzes WHERE id = $1 AND owner_id = $2`, [id, ownerId]);
     return (rowCount ?? 0) > 0;
+  }
+  async removeAllByOwner(ownerId: string): Promise<void> {
+    await this.pool.query(`DELETE FROM quizzes WHERE owner_id = $1`, [ownerId]);
   }
 }
 
@@ -173,5 +178,8 @@ export class InMemoryQuizRepository implements QuizRepository {
     const q = this.store.get(id);
     if (!q || q.ownerId !== ownerId) return false;
     return this.store.delete(id);
+  }
+  async removeAllByOwner(ownerId: string): Promise<void> {
+    for (const [id, q] of this.store) if (q.ownerId === ownerId) this.store.delete(id);
   }
 }

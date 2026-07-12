@@ -34,6 +34,7 @@ export const api = {
   login: (email: string, password: string) =>
     req<AuthUser>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   logout: () => req<void>('/auth/logout', { method: 'POST' }),
+  deleteAccount: () => req<void>('/account', { method: 'DELETE' }),
   listQuizzes: () => req<QuizSummary[]>('/quizzes'),
   getQuiz: (id: string) => req<SavedQuiz>(`/quizzes/${id}`),
   createQuiz: (draft: QuizDraft) => req<SavedQuiz>('/quizzes', { method: 'POST', body: JSON.stringify(draft) }),

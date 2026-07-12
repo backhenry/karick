@@ -20,6 +20,8 @@ export interface UserRepository {
   /** Foto de perfil (data URL) do usuário (null = sem foto). */
   getPhoto(userId: string): Promise<string | null>;
   setPhoto(userId: string, photo: string | null): Promise<void>;
+  /** Remove a conta do usuário (dados relacionados são apagados pelos outros repos). */
+  deleteAccount(userId: string): Promise<void>;
 }
 
 const genId = () => 'u_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -69,6 +71,9 @@ export class PostgresUserRepository implements UserRepository {
   async setPhoto(userId: string, photo: string | null): Promise<void> {
     await this.pool.query(`UPDATE users SET photo = $2 WHERE id = $1`, [userId, photo]);
   }
+  async deleteAccount(userId: string): Promise<void> {
+    await this.pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
+  }
 }
 
 function row(r: { id: string; email: string; password_hash: string }): User {
@@ -110,5 +115,11 @@ export class InMemoryUserRepository implements UserRepository {
   async setPhoto(userId: string, photo: string | null): Promise<void> {
     if (photo) this.photos.set(userId, photo);
     else this.photos.delete(userId);
+  }
+  async deleteAccount(userId: string): Promise<void> {
+    this.byId.delete(userId);
+    this.brands.delete(userId);
+    this.pins.delete(userId);
+    this.photos.delete(userId);
   }
 }
