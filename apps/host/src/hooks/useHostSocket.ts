@@ -45,6 +45,9 @@ export function useHostSocket() {
   } | null>(null);
   const [podium, setPodium] = useState<LeaderboardRow[]>([]);
   const [teamPodium, setTeamPodium] = useState<TeamRow[]>([]);
+  // Quantos jogadores exibir no ranking do telão (0 = todos). Preferência do host
+  // para não projetar quem está em posições mais baixas.
+  const [leaderboardLimit, setLeaderboardLimit] = useState(0);
   const [stats, setStats] = useState<QuestionStat[]>([]);
   const [reactions, setReactions] = useState<{ id: number; emoji: string; x: number }[]>([]);
 
@@ -117,7 +120,7 @@ export function useHostSocket() {
     socket.connect();
   };
 
-  const createRoom = (quiz: QuizDraft, teams?: string[], gameMode: GameMode = 'individual', shuffle = false, brand?: Brand, fixedPin = false): Promise<string | null> =>
+  const createRoom = (quiz: QuizDraft, teams?: string[], gameMode: GameMode = 'individual', shuffle = false, brand?: Brand, fixedPin = false, topN = 0): Promise<string | null> =>
     new Promise((resolve) => {
       const socket = socketRef.current;
       if (!socket) return resolve('Sem conexão com o servidor.');
@@ -125,6 +128,7 @@ export function useHostSocket() {
         if (res.ok && res.pin) {
           setPin(res.pin);
           setMode(gameMode);
+          setLeaderboardLimit(topN);
           setPhase('LOBBY');
           resolve(null);
         } else {
@@ -149,6 +153,7 @@ export function useHostSocket() {
     teamPodium,
     stats,
     reactions,
+    leaderboardLimit,
     createRoom,
     reauth,
     start: () => socketRef.current?.emit('host:startGame'),

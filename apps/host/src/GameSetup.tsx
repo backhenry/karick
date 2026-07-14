@@ -10,13 +10,22 @@ const MODES: { id: GameMode; labelKey: 'modeIndividual' | 'modeTeams' | 'modeBet
   { id: 'survival', labelKey: 'modeSurvival', descKey: 'modeSurvivalDesc' },
 ];
 
+// Opções de quantos jogadores mostrar no ranking do telão (0 = todos).
+const LEADERBOARD_LIMITS: { value: number; labelKey: 'rankAll' | 'rankTop10' | 'rankTop5' | 'rankTop3' }[] = [
+  { value: 0, labelKey: 'rankAll' },
+  { value: 10, labelKey: 'rankTop10' },
+  { value: 5, labelKey: 'rankTop5' },
+  { value: 3, labelKey: 'rankTop3' },
+];
+
 /** Modal de opções ao iniciar a partida: escolha do modo de jogo. */
-export function GameSetup({ onConfirm, onCancel }: { onConfirm: (mode: GameMode, teams: string[], shuffle: boolean, fixedPin: boolean) => void; onCancel: () => void }) {
+export function GameSetup({ onConfirm, onCancel }: { onConfirm: (mode: GameMode, teams: string[], shuffle: boolean, fixedPin: boolean, leaderboardLimit: number) => void; onCancel: () => void }) {
   const { t } = useI18n();
   const [mode, setMode] = useState<GameMode>('individual');
   const [names, setNames] = useState<string[]>(['Time A', 'Time B']);
   const [shuffle, setShuffle] = useState(false);
   const [fixedPin, setFixedPin] = useState(false);
+  const [leaderboardLimit, setLeaderboardLimit] = useState(0);
   useEscape(onCancel);
 
   const setName = (i: number, v: string) => setNames((n) => n.map((x, j) => (j === i ? v : x)));
@@ -66,6 +75,22 @@ export function GameSetup({ onConfirm, onCancel }: { onConfirm: (mode: GameMode,
           </div>
         )}
 
+        <div className="mb-4">
+          <p className="mb-1 text-sm font-bold text-white/80">{t('rankVisibility')}</p>
+          <p className="mb-2 text-xs text-white/50">{t('rankVisibilityHint')}</p>
+          <div className="grid grid-cols-4 gap-2">
+            {LEADERBOARD_LIMITS.map((o) => (
+              <button
+                key={o.value}
+                onClick={() => setLeaderboardLimit(o.value)}
+                className={`rounded-lg p-2 text-sm font-bold ${leaderboardLimit === o.value ? 'bg-indigo-600' : 'bg-white/10 hover:bg-white/20'}`}
+              >
+                {t(o.labelKey)}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <label className="mb-2 flex cursor-pointer items-center gap-2 text-sm text-white/80">
           <input type="checkbox" checked={shuffle} onChange={(e) => setShuffle(e.target.checked)} />
           {t('antiCheat')}
@@ -81,7 +106,7 @@ export function GameSetup({ onConfirm, onCancel }: { onConfirm: (mode: GameMode,
             {t('cancel')}
           </button>
           <button
-            onClick={() => onConfirm(mode, mode === 'teams' ? normalizeTeams(names) : [], shuffle, fixedPin)}
+            onClick={() => onConfirm(mode, mode === 'teams' ? normalizeTeams(names) : [], shuffle, fixedPin, leaderboardLimit)}
             disabled={!valid}
             className="flex-1 rounded-lg bg-green-500 p-3 font-bold text-white hover:bg-green-400 disabled:opacity-40"
           >

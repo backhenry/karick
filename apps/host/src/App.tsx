@@ -153,10 +153,10 @@ export function App() {
     const setup = setupDraft && (
       <GameSetup
         onCancel={() => setSetupDraft(null)}
-        onConfirm={async (mode, teams, shuffle, fixedPin) => {
+        onConfirm={async (mode, teams, shuffle, fixedPin, leaderboardLimit) => {
           const draft = setupDraft;
           setSetupDraft(null);
-          const err = await g.createRoom(draft, teams, mode, shuffle, branding, fixedPin);
+          const err = await g.createRoom(draft, teams, mode, shuffle, branding, fixedPin, leaderboardLimit);
           if (err) alert(err);
         }}
       />
@@ -473,8 +473,10 @@ export function App() {
           </div>
         )}
 
-        <h2 className="mb-4 text-center text-3xl font-bold">{g.reveal.teamLeaderboard ? t('individual') : t('scoreboard')}</h2>
-        <Leaderboard rows={g.reveal.leaderboard} />
+        <h2 className="mb-4 text-center text-3xl font-bold">
+          {g.reveal.teamLeaderboard ? t('individual') : g.leaderboardLimit ? t('scoreboardTop', { n: g.leaderboardLimit }) : t('scoreboard')}
+        </h2>
+        <Leaderboard rows={g.leaderboardLimit ? g.reveal.leaderboard.slice(0, g.leaderboardLimit) : g.reveal.leaderboard} />
 
         <button
           onClick={g.next}
