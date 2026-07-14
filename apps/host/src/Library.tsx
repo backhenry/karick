@@ -4,6 +4,7 @@ import { BrandMark } from './BrandMark.js';
 import { ReportModal } from './ReportModal.js';
 import { ProfileModal } from './ProfileModal.js';
 import { useI18n } from './i18n.js';
+import { LEADERBOARD_LIMITS } from './GameSetup.js';
 import { api } from './lib/api.js';
 
 interface Props {
@@ -14,13 +15,15 @@ interface Props {
   userEmail?: string;
   simple?: boolean;
   onToggleSimple?: (v: boolean) => void;
+  leaderboardLimit?: number;
+  onLeaderboardLimit?: (v: number) => void;
   onLogout?: () => void;
   onBranding?: () => void;
   onBank?: () => void;
   onGallery?: () => void;
 }
 
-export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onToggleSimple, onLogout, onBranding, onBank, onGallery }: Props) {
+export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onToggleSimple, leaderboardLimit = 0, onLeaderboardLimit, onLogout, onBranding, onBank, onGallery }: Props) {
   const { t } = useI18n();
   const [quizzes, setQuizzes] = useState<QuizSummary[] | null>(null);
   const [history, setHistory] = useState<GameHistoryEntry[]>([]);
@@ -185,6 +188,25 @@ export function Library({ onNew, onEdit, onHost, brand, userEmail, simple, onTog
             </button>
           </div>
           <p className="text-sm text-white/50">{simple ? t('classicHint') : t('completeHint')}</p>
+        </div>
+      )}
+
+      {/* No clássico não há modal de opções, então o ranking do telão fica aqui. */}
+      {simple && onLeaderboardLimit && (
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-white/5 p-3">
+          <span className="text-sm font-bold text-white/80">{t('rankVisibility')}</span>
+          <div className="flex rounded-lg bg-black/20 p-1 text-sm font-bold">
+            {LEADERBOARD_LIMITS.map((o) => (
+              <button
+                key={o.value}
+                onClick={() => onLeaderboardLimit(o.value)}
+                className={`rounded-md px-3 py-1.5 transition ${leaderboardLimit === o.value ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'}`}
+              >
+                {t(o.labelKey)}
+              </button>
+            ))}
+          </div>
+          <p className="w-full text-xs text-white/40">{t('rankVisibilityHint')}</p>
         </div>
       )}
 

@@ -11,7 +11,7 @@ const MODES: { id: GameMode; labelKey: 'modeIndividual' | 'modeTeams' | 'modeBet
 ];
 
 // Opções de quantos jogadores mostrar no ranking do telão (0 = todos).
-const LEADERBOARD_LIMITS: { value: number; labelKey: 'rankAll' | 'rankTop10' | 'rankTop5' | 'rankTop3' }[] = [
+export const LEADERBOARD_LIMITS: { value: number; labelKey: 'rankAll' | 'rankTop10' | 'rankTop5' | 'rankTop3' }[] = [
   { value: 0, labelKey: 'rankAll' },
   { value: 10, labelKey: 'rankTop10' },
   { value: 5, labelKey: 'rankTop5' },
@@ -19,13 +19,13 @@ const LEADERBOARD_LIMITS: { value: number; labelKey: 'rankAll' | 'rankTop10' | '
 ];
 
 /** Modal de opções ao iniciar a partida: escolha do modo de jogo. */
-export function GameSetup({ onConfirm, onCancel }: { onConfirm: (mode: GameMode, teams: string[], shuffle: boolean, fixedPin: boolean, leaderboardLimit: number) => void; onCancel: () => void }) {
+export function GameSetup({ onConfirm, onCancel, initialLimit = 0 }: { onConfirm: (mode: GameMode, teams: string[], shuffle: boolean, fixedPin: boolean, leaderboardLimit: number) => void; onCancel: () => void; initialLimit?: number }) {
   const { t } = useI18n();
   const [mode, setMode] = useState<GameMode>('individual');
   const [names, setNames] = useState<string[]>(['Time A', 'Time B']);
   const [shuffle, setShuffle] = useState(false);
   const [fixedPin, setFixedPin] = useState(false);
-  const [leaderboardLimit, setLeaderboardLimit] = useState(0);
+  const [leaderboardLimit, setLeaderboardLimit] = useState(initialLimit);
   useEscape(onCancel);
 
   const setName = (i: number, v: string) => setNames((n) => n.map((x, j) => (j === i ? v : x)));

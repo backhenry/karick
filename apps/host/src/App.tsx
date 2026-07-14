@@ -51,6 +51,13 @@ export function App() {
     setSimple(v);
     localStorage.setItem('karick.simpleMode', v ? '1' : '0');
   };
+  // Quantos jogadores exibir no ranking do telão (0 = todos). Preferência salva,
+  // usada tanto no modo clássico quanto como padrão do modo completo.
+  const [leaderboardLimit, setLeaderboardLimit] = useState(() => Number(localStorage.getItem('karick.leaderboardLimit')) || 0);
+  const changeLeaderboardLimit = (v: number) => {
+    setLeaderboardLimit(v);
+    localStorage.setItem('karick.leaderboardLimit', String(v));
+  };
 
   // Cor de uma alternativa segundo a paleta da marca (fallback ao padrão).
   const oc = (i: number) => branding.options?.[i] ?? OPTION_COLORS[i];
@@ -143,7 +150,7 @@ export function App() {
     // Modo clássico hospeda direto (individual); modo avançado abre o GameSetup.
     const hostDraft = async (draft: QuizDraft) => {
       if (simple) {
-        const err = await g.createRoom(draft, [], 'individual', false, branding, false);
+        const err = await g.createRoom(draft, [], 'individual', false, branding, false, leaderboardLimit);
         if (err) alert(err);
       } else {
         setSetupDraft(draft);
@@ -152,11 +159,13 @@ export function App() {
 
     const setup = setupDraft && (
       <GameSetup
+        initialLimit={leaderboardLimit}
         onCancel={() => setSetupDraft(null)}
-        onConfirm={async (mode, teams, shuffle, fixedPin, leaderboardLimit) => {
+        onConfirm={async (mode, teams, shuffle, fixedPin, limit) => {
           const draft = setupDraft;
           setSetupDraft(null);
-          const err = await g.createRoom(draft, teams, mode, shuffle, branding, fixedPin, leaderboardLimit);
+          changeLeaderboardLimit(limit); // lembra a escolha para a próxima vez
+          const err = await g.createRoom(draft, teams, mode, shuffle, branding, fixedPin, limit);
           if (err) alert(err);
         }}
       />
@@ -188,6 +197,8 @@ export function App() {
           userEmail={authUser.email}
           simple={simple}
           onToggleSimple={toggleSimple}
+          leaderboardLimit={leaderboardLimit}
+          onLeaderboardLimit={changeLeaderboardLimit}
           onLogout={logout}
           onBranding={() => setShowBranding(true)}
           onBank={() => setShowBank(true)}
