@@ -76,6 +76,25 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-slate-800 p-6 text-slate-100">
         <h2 className="mb-4 text-2xl font-bold">{t('brandTitle')}</h2>
 
+        {/* Temas prontos no topo: troca rápida de visual com um clique. */}
+        <label className="mb-1 block text-sm font-bold text-white/80">{t('brandPresets')}</label>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {BRAND_PRESETS.map((p) => (
+            <button
+              key={p.name}
+              onClick={() => applyPreset(p)}
+              className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1.5 text-xs hover:bg-white/10"
+              title={p.name}
+            >
+              <span className="h-4 w-4 rounded" style={{ background: p.bg }} />
+              {p.options.map((c, i) => (
+                <span key={i} className="h-4 w-4 rounded" style={{ background: c }} />
+              ))}
+              <span className="ml-1">{p.name}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="mb-4 rounded-lg border border-white/10 p-3">
           <button onClick={() => setShowImport((v) => !v)} className="flex w-full items-center justify-between font-bold">
             <span>{t('brandImportToggle')}</span>
@@ -124,24 +143,6 @@ export function BrandingModal({ initial, onSave, onClose }: { initial: Brand; on
           // key remonta o <img> quando a URL muda — senão um display:none de erro anterior fica preso.
           <img key={logoUrl} src={logoUrl} alt="prévia do logo" className="mb-3 h-12 max-w-full rounded bg-white/10 object-contain p-1" onError={(e) => (e.currentTarget.style.display = 'none')} />
         )}
-
-        <label className="mb-1 mt-2 block text-sm text-white/70">{t('brandPresets')}</label>
-        <div className="mb-4 flex flex-wrap gap-2">
-          {BRAND_PRESETS.map((p) => (
-            <button
-              key={p.name}
-              onClick={() => applyPreset(p)}
-              className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-xs hover:bg-white/10"
-              title={p.name}
-            >
-              <span className="h-4 w-4 rounded" style={{ background: p.bg }} />
-              {p.options.map((c, i) => (
-                <span key={i} className="h-4 w-4 rounded" style={{ background: c }} />
-              ))}
-              <span className="ml-1">{p.name}</span>
-            </button>
-          ))}
-        </div>
 
         <label className="mb-1 block text-sm text-white/70">{t('brandColorsLabel')}</label>
         <div className="mb-2 rounded-lg bg-white/5 px-3 py-2">

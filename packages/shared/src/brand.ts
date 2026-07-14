@@ -94,7 +94,7 @@ export function extractImageUrl(v: unknown): string | undefined {
 export const BRAND_IMPORT_PROMPT = `Aja como especialista em identidade visual de marcas.
 Quero a identidade visual da seguinte marca: [DESCREVA AQUI — nome, site ou setor da marca].
 
-Responda APENAS com um JSON válido (sem markdown, sem comentários, sem texto antes ou depois), exatamente neste formato:
+Responda com um ÚNICO objeto JSON puro, exatamente neste formato:
 
 {
   "name": "Nome da marca",
@@ -104,13 +104,32 @@ Responda APENAS com um JSON válido (sem markdown, sem comentários, sem texto a
   "options": ["#e21b3c", "#1368ce", "#d89e00", "#26890c"]
 }
 
-Regras:
+Formato da resposta (MUITO IMPORTANTE para o texto colar sem erro):
+- Comece com { e termine com }. Nada antes nem depois.
+- NÃO use blocos de código, crases (\`\`\`), markdown, comentários nem texto explicativo.
+- NÃO use barras invertidas (\\) e NÃO escape nenhum caractere. Escreva as URLs normalmente (ex.: https://site.com/logo.png).
+- Use apenas aspas retas normais (") — nunca aspas curvas (“ ”).
+
+Regras de conteúdo:
 - Todas as cores em hexadecimal no formato #rrggbb.
 - "bg": cor de fundo ESCURA (o texto por cima é branco) — use um tom bem escuro da paleta da marca.
 - "primary": cor de destaque principal da marca (usada em PIN, botões e títulos).
 - "options": 4 cores VIBRANTES e bem distintas entre si para as alternativas do quiz (podem derivar da paleta da marca).
 - "logo": URL http(s) pública do logo; se não tiver certeza de uma URL real, use "".
 - Não invente URLs de logo que possam não existir.`;
+
+/**
+ * Conserta problemas comuns em JSON gerado por IA e colado à mão:
+ * aspas tipográficas, vírgula sobrando e — principal — barras invertidas soltas
+ * (ex.: a IA "escapa" `\#`, `\_`, `\-`), que causam "Unrecognized token '\'".
+ */
+function repairJsonish(s: string): string {
+  return s
+    .replace(/[“”]/g, '"') // “ ” → "
+    .replace(/[‘’]/g, "'") // ‘ ’ → '
+    .replace(/\\(?![\\/"bfnrtu])/g, '') // remove `\` que não inicia um escape JSON válido
+    .replace(/,(\s*[}\]])/g, '$1'); // vírgula sobrando antes de } ou ]
+}
 
 /** Interpreta um JSON de identidade visual (tolerante a apelidos e cercas de markdown). */
 export function parseBrandImport(raw: string): { ok: true; brand: Brand } | { ok: false; error: string } {
@@ -125,7 +144,12 @@ export function parseBrandImport(raw: string): { ok: true; brand: Brand } | { ok
   try {
     obj = JSON.parse(text) as Record<string, unknown>;
   } catch {
-    return { ok: false, error: 'JSON inválido — verifique o texto colado.' };
+    // Segunda tentativa após consertar escapes/aspas/vírgulas comuns de IA.
+    try {
+      obj = JSON.parse(repairJsonish(text)) as Record<string, unknown>;
+    } catch {
+      return { ok: false, error: 'JSON inválido — verifique o texto colado.' };
+    }
   }
   if (!obj || typeof obj !== 'object') return { ok: false, error: 'O JSON precisa ser um objeto.' };
   // Achata objetos aninhados comuns (ex.: { "colors": { "primary": … } }).
