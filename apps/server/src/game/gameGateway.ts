@@ -35,6 +35,8 @@ function playerQuestion(room: GameRoom, p: Player, q: Question): PlayerQuestionP
     ...(room.mode === 'betting' ? { bank: p.score } : {}),
     ...(options ? { options } : {}),
     ...(wantsText ? { text: q.text } : {}),
+    // Dicas são o conteúdo da pergunta "Quem sou eu?": vão sempre ao celular.
+    ...(q.hints && q.hints.length ? { hints: q.hints } : {}),
   };
 }
 import { generatePin, type RoomStore } from '../store/roomStore.js';

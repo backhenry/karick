@@ -250,6 +250,8 @@ export interface PlayerQuestionPayload {
   options?: string[];
   /** Enunciado, enviado quando o jogador optou por ver o texto no celular. */
   text?: string;
+  /** Dicas progressivas ("Quem sou eu?"), reveladas ao longo do tempo — espelham o telão. */
+  hints?: string[];
 }
 
 export interface AnswerResult {

@@ -57,6 +57,31 @@ function RevealImg({ src, durationSec, resetKey }: { src: string; durationSec: n
   );
 }
 
+/** Dicas de "Quem sou eu?" reveladas progressivamente no celular (espelha o telão). */
+function PlayerHints({ hints, durationSec, resetKey, big }: { hints: string[]; durationSec: number; resetKey: number | string; big?: boolean }) {
+  const { t } = useI18n();
+  const [shown, setShown] = useState(1);
+  useEffect(() => {
+    setShown(1);
+    const stepMs = (durationSec * 1000) / hints.length;
+    const ids = hints.slice(1).map((_, i) => setTimeout(() => setShown((s) => Math.max(s, i + 2)), stepMs * (i + 1)));
+    return () => ids.forEach(clearTimeout);
+  }, [resetKey, durationSec, hints.length]);
+  return (
+    <div className="flex flex-col gap-1.5 px-3 pt-1">
+      {hints.slice(0, shown).map((h, i) => (
+        <div key={i} className={`rounded-lg bg-white/10 px-3 py-2 text-white ${big ? 'text-xl' : 'text-base'}`}>
+          <b className="mr-2 text-white/50">{t('hintN', { n: i + 1 })}</b>
+          {h}
+        </div>
+      ))}
+      {shown < hints.length && (
+        <p className="text-center text-xs text-white/40">{t('nextHint', { shown, total: hints.length })}</p>
+      )}
+    </div>
+  );
+}
+
 function ReconnectBanner() {
   const { t } = useI18n();
   return (
@@ -365,6 +390,14 @@ export function App() {
               />
             )}
           </div>
+        )}
+        {question.hints && question.hints.length > 0 && (
+          <PlayerHints
+            hints={question.hints}
+            durationSec={timer.durationSec || question.timeLimitSec}
+            resetKey={timer.key}
+            big={a11y}
+          />
         )}
         {eliminated && question.mode === 'survival' ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-white/60">
