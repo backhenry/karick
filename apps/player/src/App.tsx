@@ -83,6 +83,42 @@ function PlayerHints({ hints, durationSec, resetKey, big }: { hints: string[]; d
   );
 }
 
+/** Tela de fim de jogo com o cartão de resultado (gerado de forma assíncrona). */
+function ResultScreen({ nickname, avatar, rank, score, badges }: { nickname: string; avatar: string; rank?: number; score?: number; badges: string[] }) {
+  const { t } = useI18n();
+  const [card, setCard] = useState('');
+  useEffect(() => {
+    let alive = true;
+    buildResultCard({ nickname, avatar, rank, score, badges }).then((url) => alive && setCard(url)).catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [nickname, avatar, rank, score, badges.join('|')]);
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
+      <h1 className="text-2xl font-bold">{t('gameOver')}</h1>
+      {badges.length > 0 && (
+        <div className="flex max-w-sm flex-wrap justify-center gap-2">
+          {badges.map((b) => (
+            <span key={b} className="rounded-full bg-white/15 px-3 py-1 text-sm font-bold">{b}</span>
+          ))}
+        </div>
+      )}
+      {card && <img src={card} alt="Seu resultado" className="w-full max-w-sm rounded-xl shadow-lg" />}
+      {card && (
+        <a
+          href={card}
+          download="karick-resultado.png"
+          className="rounded-lg px-6 py-3 font-bold text-white"
+          style={{ background: 'var(--k-primary, #4f46e5)' }}
+        >
+          {t('downloadResult')}
+        </a>
+      )}
+    </div>
+  );
+}
+
 function ReconnectBanner() {
   const { t } = useI18n();
   return (
@@ -576,29 +612,14 @@ export function App() {
     if (journey.questions >= 3 && journey.corrects === journey.questions) badges.push(t('badgePerfect'));
     if (journey.maxStreak >= 3) badges.push(t('badgeStreak', { n: journey.maxStreak }));
     if (finalRank !== undefined && journey.worstRank - finalRank >= 2) badges.push(t('badgeComeback'));
-    const card = buildResultCard({ nickname, avatar, rank: finalRank, score: reveal?.score ?? feedback?.totalScore, badges });
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center text-white" style={{ background: 'var(--k-bg, #0f172a)' }}>
-        <h1 className="text-2xl font-bold">{t('gameOver')}</h1>
-        {badges.length > 0 && (
-          <div className="flex max-w-sm flex-wrap justify-center gap-2">
-            {badges.map((b) => (
-              <span key={b} className="rounded-full bg-white/15 px-3 py-1 text-sm font-bold">{b}</span>
-            ))}
-          </div>
-        )}
-        {card && <img src={card} alt="Seu resultado" className="w-full max-w-sm rounded-xl shadow-lg" />}
-        {card && (
-          <a
-            href={card}
-            download="karick-resultado.png"
-            className="rounded-lg px-6 py-3 font-bold text-white"
-            style={{ background: 'var(--k-primary, #4f46e5)' }}
-          >
-            {t('downloadResult')}
-          </a>
-        )}
-      </div>
+      <ResultScreen
+        nickname={nickname}
+        avatar={avatar}
+        rank={finalRank}
+        score={reveal?.score ?? feedback?.totalScore}
+        badges={badges}
+      />
     );
   }
 
