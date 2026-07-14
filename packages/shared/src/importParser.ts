@@ -27,14 +27,54 @@ export type ImportResult = { ok: true; draft: QuizDraft } | { ok: false; error: 
  *  - resposta certa por texto: "correctAnswer"/"correct"/"answer"/"resposta"
  *    (deve casar exatamente com uma das opções).
  */
+/**
+ * Conserta problemas comuns em JSON gerado por IA e colado à mão. O principal:
+ * barras invertidas SOZINHAS (ex.: LaTeX "\frac", "\sqrt") são inválidas em JSON
+ * e causam "Unrecognized token '\'". Aqui elas são DOBRADAS ("\\frac"), o que o
+ * JSON.parse lê de volta como "\frac" — preservando a fórmula. Também corrige
+ * aspas curvas e vírgula sobrando.
+ */
+function repairJsonish(s: string): string {
+  return s
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    // dobra barras soltas, preservando escapes válidos (\" \\ \/) e \uXXXX.
+    .replace(/\\(u[0-9a-fA-F]{4}|[\s\S])/g, (m, g: string) =>
+      g === '"' || g === '\\' || g === '/' || /^u[0-9a-fA-F]{4}$/.test(g) ? m : '\\\\' + g,
+    )
+    .replace(/,(\s*[}\]])/g, '$1');
+}
+
+/** JSON.parse tolerante: tira cercas de markdown, recorta o corpo e repara escapes. */
+function parseJsonLoose(raw: string): { ok: true; data: unknown } | { ok: false } {
+  let text = raw.trim();
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) text = fence[1].trim();
+  // Recorta do primeiro { ou [ até o último } ou ] (descarta texto ao redor).
+  const starts = ['{', '['].map((c) => text.indexOf(c)).filter((i) => i >= 0);
+  const s = starts.length ? Math.min(...starts) : -1;
+  const e = Math.max(text.lastIndexOf('}'), text.lastIndexOf(']'));
+  if (s >= 0 && e > s) text = text.slice(s, e + 1);
+  try {
+    return { ok: true, data: JSON.parse(text) };
+  } catch {
+    /* tenta reparar abaixo */
+  }
+  try {
+    return { ok: true, data: JSON.parse(repairJsonish(text)) };
+  } catch {
+    return { ok: false };
+  }
+}
+
 export function parseQuizImport(raw: string | unknown): ImportResult {
   let data: unknown = raw;
   if (typeof raw === 'string') {
-    try {
-      data = JSON.parse(raw);
-    } catch (e) {
-      return { ok: false, error: 'JSON inválido: ' + (e as Error).message };
+    const parsed = parseJsonLoose(raw);
+    if (!parsed.ok) {
+      return { ok: false, error: 'JSON inválido — verifique o texto colado (tire crases de markdown; em LaTeX/código, cada "\\" deve aparecer dobrado como "\\\\").' };
     }
+    data = parsed.data;
   }
 
   let title: unknown = 'Quiz importado';

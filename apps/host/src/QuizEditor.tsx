@@ -17,22 +17,32 @@ import { api } from './lib/api.js';
 import { QuizPreview } from './QuizPreview.js';
 import { useI18n } from './i18n.js';
 
-const AI_PROMPT = `Crie um quiz no formato JSON EXATO abaixo (responda só com o JSON, sem texto extra).
-Regras: "correctIndex" é o índice 0-based da opção correta; use 2 a 4 opções por pergunta;
-"timeLimitSec" e "points" são opcionais.
-Para imagens, NÃO invente URLs: use "imageQuery" com 1 a 3 palavras-chave (de preferência
-em inglês) que descrevam uma imagem relevante — o app gera a imagem a partir disso.
-(Se você tiver uma URL de imagem real e pública, pode usar "imageUrl" no lugar.)
-Inclua também "explanation": uma frase curta explicando por que a resposta certa está certa.
-Campos opcionais por pergunta: "latex" (fórmula LaTeX, ex.: "x = \\frac{-b}{2a}") e
-"code" (trecho de código) — use quando o tema pedir. No topo, "tags": ["tema", "nível"].
-Tipos: o padrão é alternativas; "type": "text" + "acceptedAnswers": ["resposta", "variação"]
-faz o jogador DIGITAR a resposta (sem "options"); "type": "poll" é enquete sem resposta
-certa (tem "options", dispensa "correctIndex"). Misture os tipos quando fizer sentido.
-Efeitos opcionais: "imageReveal": true faz a imagem começar borrada e abrir com o tempo;
-"hints": ["dica 1", "dica 2", …] cria um "Quem sou eu?" com dicas progressivas no telão
-(até 6 — combine com type "text" para o jogador digitar quem/o que é).
-Tema do quiz: [DESCREVA O TEMA] com [N] perguntas.
+const AI_PROMPT = `TEMA DO QUIZ: [DESCREVA O TEMA] — [N] perguntas.
+(👆 troque o tema acima antes de enviar.)
+
+Crie um quiz no formato JSON EXATO mostrado no fim deste texto.
+
+Formato da resposta (IMPORTANTE, para o texto colar sem erro):
+- Responda SÓ com o JSON: comece com { e termine com }. Nada antes nem depois.
+- NÃO use blocos de código, crases (\`\`\`) nem markdown. Use só aspas retas (").
+- Em "latex" e "code", cada barra invertida precisa vir DUPLICADA (\\\\).
+  Ex.: "latex": "x = \\\\frac{-b}{2a}", "\\\\sqrt{2}", "\\\\alpha". Nunca use uma barra sozinha.
+
+Regras de conteúdo:
+- "correctIndex" é o índice 0-based da opção correta; use 2 a 4 opções por pergunta.
+- "timeLimitSec" e "points" são opcionais.
+- Para imagens, NÃO invente URLs: use "imageQuery" com 1 a 3 palavras-chave (de preferência
+  em inglês) que descrevam uma imagem relevante — o app gera a imagem a partir disso.
+  (Se você tiver uma URL de imagem real e pública, pode usar "imageUrl" no lugar.)
+- Inclua "explanation": uma frase curta explicando por que a resposta certa está certa.
+- Campos opcionais por pergunta: "latex" (fórmula LaTeX) e "code" (trecho de código) —
+  use quando o tema pedir. No topo, "tags": ["tema", "nível"].
+- Tipos: o padrão é alternativas; "type": "text" + "acceptedAnswers": ["resposta", "variação"]
+  faz o jogador DIGITAR a resposta (sem "options"); "type": "poll" é enquete sem resposta
+  certa (tem "options", dispensa "correctIndex"). Misture os tipos quando fizer sentido.
+- Efeitos opcionais: "imageReveal": true faz a imagem começar borrada e abrir com o tempo;
+  "hints": ["dica 1", "dica 2", …] cria um "Quem sou eu?" com dicas progressivas no telão
+  (até 6 — combine com type "text" para o jogador digitar quem/o que é).
 
 {
   "title": "Título do quiz",
