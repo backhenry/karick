@@ -1,6 +1,7 @@
 import type { GameHistoryEntry } from '@karick/shared';
 import { useEscape } from './lib/useEscape.js';
 import { useI18n } from './i18n.js';
+import { Avatar } from './Avatar.js';
 
 /**
  * Relatório individual pós-jogo: matriz jogador × pergunta (✓/✗/—),
@@ -57,7 +58,7 @@ export function ReportModal({ entry, onClose }: { entry: GameHistoryEntry; onClo
                   return (
                     <tr key={nick} className="border-t border-white/10">
                       <td className="p-2">
-                        <span className="mr-1">{avatar}</span>
+                        <Avatar value={avatar} className="mr-1" />
                         <b>{nick}</b>
                         {player && <span className="ml-2 text-white/40">{player.rank}º · {player.score} pts</span>}
                       </td>

@@ -15,10 +15,14 @@ export const DEFAULT_POINTS = 1000;
 export const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'] as const;
 export const OPTION_SHAPES = ['▲', '◆', '●', '■'] as const;
 
-/** Emojis disponíveis como avatar do jogador. */
+/**
+ * Avatares disponíveis para o jogador. Quase todos são emoji, mas alguns são
+ * "tokens" desenhados como SVG pelo componente Avatar (ex.: 'orca', que não tem
+ * emoji no Unicode).
+ */
 export const AVATARS = [
   '🦊', '🐼', '🐸', '🦉', '🐙', '🦄', '🐝', '🐧', '🦁', '🐢', '🐺', '🐨', '🦖', '🐬', '🦋', '🐹',
-  '🐋', '🐳', '🦈', '🦭', '🦦', '🐊', '🦥', '🦩', '🦜', '🐡', '🦑', '🦀',
+  '🐋', '🐳', 'orca', '🦈', '🦭', '🦦', '🐊', '🦥', '🦩', '🦜', '🐡', '🦑', '🦀', '🪼',
 ] as const;
 
 /** Emojis que os jogadores podem enviar como reação durante o jogo. */

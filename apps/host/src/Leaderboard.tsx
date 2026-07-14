@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { LeaderboardRow } from '@karick/shared';
 import { reducedMotion } from './lib/motion.js';
+import { Avatar } from './Avatar.js';
 
 function RankDelta({ delta }: { delta?: number }) {
   if (delta === undefined) return <span className="w-8 text-center text-sm text-white/30">•</span>;
@@ -25,7 +26,7 @@ function Bar({ row, pct }: { row: LeaderboardRow; pct: number }) {
       <div className="relative flex items-center justify-between">
         <span className="flex items-center gap-3">
           <RankDelta delta={row.rankDelta} />
-          {row.rank}. <span className="text-2xl">{row.avatar}</span> {row.nickname}
+          {row.rank}. <Avatar value={row.avatar} className="text-2xl" /> {row.nickname}
         </span>
         <span className="flex items-baseline gap-3">
           {row.gained ? (

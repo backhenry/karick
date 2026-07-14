@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LeaderboardRow } from '@karick/shared';
+import { Avatar } from './Avatar.js';
 
 const HEIGHT: Record<number, number> = { 1: 190, 2: 140, 3: 95 };
 const MEDAL = ['🥇', '🥈', '🥉'];
@@ -16,7 +17,7 @@ function Column({ row }: { row: LeaderboardRow }) {
   return (
     <div className="flex w-28 flex-col items-center justify-end">
       <div className="text-4xl">{MEDAL[row.rank - 1]}</div>
-      <div className="text-4xl">{row.avatar}</div>
+      <div className="text-4xl"><Avatar value={row.avatar} /></div>
       <div className="max-w-full truncate font-bold">{row.nickname}</div>
       <div className="mb-1 text-sm opacity-80">{row.score} pts</div>
       <div

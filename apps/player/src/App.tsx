@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { OPTION_SHAPES, MAX_NICKNAME_LENGTH, AVATARS, REACTIONS, optColor, applyBrandVars, brandName as toBrandName, type Brand } from '@karick/shared';
+import { Avatar } from './Avatar.js';
 
 const SERVER_URL =
   import.meta.env.VITE_SERVER_URL ?? (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin);
@@ -303,7 +304,7 @@ export function App() {
               onClick={() => setAvatar(a)}
               className={`rounded-lg p-1 text-2xl ${a === avatar ? 'bg-indigo-100 ring-2 ring-indigo-500' : 'bg-slate-100'}`}
             >
-              {a}
+              <Avatar value={a} />
             </button>
           ))}
         </div>
@@ -334,8 +335,8 @@ export function App() {
             </div>
           </div>
         ) : (
-          <button className="rounded-lg bg-indigo-600 p-4 text-lg font-bold text-white active:scale-95">
-            {t('enterAs', { avatar })}
+          <button className="inline-flex items-center justify-center gap-1 rounded-lg bg-indigo-600 p-4 text-lg font-bold text-white active:scale-95">
+            {t('enterAs', { avatar: '' }).trim()} <Avatar value={avatar} />
           </button>
         )}
         {error && <p className="text-center text-red-600">{t(error as never)}</p>}

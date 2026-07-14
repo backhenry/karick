@@ -6,6 +6,7 @@ import { QuizEditor } from './QuizEditor.js';
 import { Library } from './Library.js';
 import { Auth } from './Auth.js';
 import { ResetPassword } from './ResetPassword.js';
+import { Avatar } from './Avatar.js';
 import { GameSetup } from './GameSetup.js';
 import { api, type AuthUser } from './lib/api.js';
 import { TimerBar } from './TimerBar.js';
@@ -271,7 +272,7 @@ export function App() {
                 <div className="flex flex-col gap-1">
                   {g.players.filter((p) => p.team === tname).map((p) => (
                     <span key={p.nickname} className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
-                      <span className="text-lg">{p.avatar}</span>
+                      <Avatar value={p.avatar} className="text-lg" />
                       {p.nickname}
                       <button onClick={() => g.kick(p.nickname)} title={t('remove')} aria-label={t('removePlayer', { name: p.nickname })} className="ml-auto text-white/30 hover:text-red-400">✕</button>
                     </span>
@@ -284,7 +285,7 @@ export function App() {
           <div className="flex max-w-4xl flex-wrap justify-center gap-2">
             {g.players.map((p) => (
               <span key={p.nickname} className="group flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-lg">
-                <span className="text-xl">{p.avatar}</span>
+                <Avatar value={p.avatar} className="text-xl" />
                 {p.nickname}
                 <button
                   onClick={() => g.kick(p.nickname)}
@@ -573,7 +574,7 @@ function PopAvatar({ avatar, nickname }: { avatar?: string; nickname: string }) 
         transition: reducedMotion() ? 'none' : 'transform 350ms cubic-bezier(.34,1.56,.64,1), opacity 250ms',
       }}
     >
-      {avatar ?? '👤'}
+      <Avatar value={avatar} />
     </span>
   );
 }
