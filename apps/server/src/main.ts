@@ -29,6 +29,21 @@ import { connectRedis } from './db/redis.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? '*';
+// Produção deve ter banco: sem ele, as contas ficam só na memória e são
+// apagadas a cada reinício. Com REQUIRE_DB=1 o servidor RECUSA subir sem um
+// Postgres funcionando (falha alta e visível no deploy, em vez de silenciosa).
+const REQUIRE_DB = process.env.REQUIRE_DB === '1' || process.env.REQUIRE_DB === 'true';
+
+/** Encerra o processo com uma mensagem clara (deploy falha de forma visível). */
+function fatal(msg: string): never {
+  console.error(`\n❌ Karick não pode iniciar: ${msg}\n   Defina as variáveis de ambiente e refaça o deploy.\n`);
+  process.exit(1);
+}
+
+// Sessão sem segredo fixo cai a cada reinício — inaceitável quando exigimos banco.
+if (REQUIRE_DB && !process.env.SESSION_SECRET) {
+  fatal('SESSION_SECRET não definido (com REQUIRE_DB=1). Sem ele, todos são deslogados a cada reinício.');
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_APPS = join(__dirname, '..', '..');
@@ -54,6 +69,10 @@ if (pool) {
     dbEnabled = true;
     console.log('🗄️  Postgres conectado (biblioteca, histórico, contas e banco persistentes)');
   } catch (err) {
+    // Conexão/schema falhou. Com REQUIRE_DB não caímos para memória (apagaria contas).
+    if (REQUIRE_DB) {
+      fatal(`falha ao conectar no Postgres (REQUIRE_DB=1). Verifique o DATABASE_URL e se o Supabase não está pausado.\n   Detalhe: ${(err as Error).message}`);
+    }
     console.error('⚠️  Falha ao conectar no Postgres, caindo para memória:', err);
     quizRepo = new InMemoryQuizRepository();
     historyRepo = new InMemoryHistoryRepository();
@@ -61,6 +80,9 @@ if (pool) {
     bankRepo = new InMemoryBankRepository();
   }
 } else {
+  if (REQUIRE_DB) {
+    fatal('DATABASE_URL não definido (REQUIRE_DB=1). Configure a connection string do Postgres/Supabase no ambiente.');
+  }
   quizRepo = new InMemoryQuizRepository();
   historyRepo = new InMemoryHistoryRepository();
   userRepo = new InMemoryUserRepository();
