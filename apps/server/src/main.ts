@@ -95,7 +95,12 @@ const app = express();
 app.set('trust proxy', 1); // atrás do proxy do Render: usa o IP real do cliente
 app.use(express.json({ limit: '256kb' }));
 
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/health', (_req, res) => {
+  // Toque leve no banco (sem bloquear a resposta): assim um pinger externo em
+  // /health mantém o Render acordado E tira o Supabase da inatividade.
+  if (dbEnabled && pool) pool.query('SELECT 1').catch(() => {});
+  res.json({ status: 'ok' });
+});
 
 // Rate limit da API (por IP) — protege contra flood de requisições.
 const apiLimiter = new RateLimiter(Number(process.env.API_RATE_MAX ?? 100), 60_000);
@@ -150,6 +155,17 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents, Record<string,
 if (redis) io.adapter(createAdapter(redis, redis.duplicate()));
 
 registerGameGateway(io, roomStore, historyRepo, userRepo);
+
+// Keep-alive do banco: o Supabase (free) pausa após ~7 dias sem atividade, o que
+// derruba o login. Uma consulta periódica evita a pausa enquanto o servidor roda.
+if (dbEnabled && pool) {
+  const everyMs = Number(process.env.DB_KEEPALIVE_MS) || 6 * 60 * 60 * 1000; // padrão 6h
+  const keepAlive = setInterval(() => {
+    pool.query('SELECT 1').catch((e) => console.warn('⏰ keep-alive do banco falhou:', (e as Error).message));
+  }, everyMs);
+  keepAlive.unref(); // não segura o processo aberto no encerramento
+  console.log(`⏰ Keep-alive do banco a cada ${Math.round(everyMs / 60000)} min (anti-pausa do Supabase)`);
+}
 
 httpServer.listen(PORT, () => {
   console.log(`🚀 Karick server pronto na porta ${PORT}`);
