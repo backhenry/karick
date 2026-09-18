@@ -87,6 +87,57 @@ repositório em memória (não persiste entre reinícios) — útil em dev.
 DATABASE_URL="postgresql://...pooler.supabase.com:5432/postgres" npm start
 ```
 
+## Variáveis de ambiente
+
+| Variável | Obrigatória | Padrão | Para quê |
+|---|---|---|---|
+| `DATABASE_URL` | **em produção** | — | Postgres/Supabase (contas, quizzes, histórico). Sem ela, roda em memória (não persiste). |
+| `SESSION_SECRET` | **em produção** | efêmero | Assina o cookie de sessão. Sem valor fixo, todos são deslogados a cada reinício. |
+| `REQUIRE_DB` | não | `0` | `1` faz o servidor **recusar subir sem banco** (falha visível no deploy em vez de apagar contas em silêncio). Ligue só depois de `DATABASE_URL`/`SESSION_SECRET` corretos. |
+| `DB_KEEPALIVE_MS` | não | `21600000` (6h) | Intervalo do keep-alive do banco (ver abaixo). |
+| `PORT` | não | `3001` | Porta do servidor. |
+| `CORS_ORIGIN` | não | `*` | Origem permitida no Socket.IO. |
+| `API_RATE_MAX` | não | `100` | Requisições/min por IP na API. |
+| `REDIS_URL` | não | — | Ativa adapter + estado das salas no Redis (escala horizontal). |
+| `RESEND_API_KEY` | não | — | Envio real do e-mail de redefinição de senha (sem ela, o link vai ao log). |
+| `MAIL_FROM` | não | `onboarding@resend.dev` | Remetente dos e-mails. |
+| `APP_URL` | não | origem da requisição | Base dos links de e-mail (ex.: `https://karick.onrender.com`). |
+
+## Keep-alive (anti-pausa do banco)
+
+O **Supabase free pausa o projeto após ~7 dias sem atividade**, e o **Render free
+dorme após ~15 min**. Um banco pausado derruba o login (o app cai para memória e
+perde as contas no reinício). Duas defesas, já no código:
+
+- **Interno:** enquanto o servidor roda, um `SELECT 1` a cada `DB_KEEPALIVE_MS`
+  (padrão 6h) mantém o Supabase ativo.
+- **Externo:** o workflow `.github/workflows/keepalive.yml` (GitHub Actions,
+  ~10 min) faz `GET /health`, que dispara um `SELECT 1` não-bloqueante — assim
+  **acorda o Render e mantém o Supabase ativo** sem depender de serviço de terceiros.
+
+> Execuções agendadas do GitHub podem atrasar e são desativadas após 60 dias sem
+> commits no repo. Para o ciclo de 7 dias do Supabase isso é folgado; se precisar
+> de SLA firme, use um UptimeRobot em `/health` ou o Supabase Pro (não pausa).
+
+## Runbook — "usuários não conseguem logar"
+
+1. **Diagnóstico:** `curl https://<app>/api/status`.
+   - `{"dbEnabled":false}` → o app está **sem banco** (rodando em memória) → as
+     contas somem a cada reinício. Siga abaixo.
+   - `{"dbEnabled":true}` → banco OK; investigue outra causa.
+2. **Causa mais comum:** projeto Supabase **pausado**. No dashboard do Supabase,
+   se aparecer "Project is paused", clique em **Resume** (os dados de antes da
+   pausa são restaurados).
+3. **Reconectar o Render:** o app só tenta o banco no boot — faça **Manual Deploy
+   → Deploy latest commit** (ou Restart) após o Supabase ficar ativo.
+4. **Se persistir:** confira nos logs do Render qual linha aparece no boot —
+   `💾 Sem DATABASE_URL` (variável ausente) ou `⚠️ Falha ao conectar no Postgres`
+   (senha trocada / string errada) — e ajuste `DATABASE_URL` no **Environment**.
+5. **Prevenir recorrência:** garanta o keep-alive (acima) ativo e, opcionalmente,
+   `REQUIRE_DB=1` para que uma queda futura falhe o deploy em vez de apagar contas.
+6. **Contas criadas durante a janela em memória não são recuperáveis** — só as que
+   já estavam no banco antes da pausa.
+
 ## Importar quiz via JSON
 
 No editor há **Importar JSON** (upload de arquivo ou colar texto). Ótimo para
@@ -118,6 +169,8 @@ vê apenas a **própria** biblioteca de quizzes e histórico.
   em memória (contas somem no restart).
 - Defina **`SESSION_SECRET`** (o `render.yaml` gera automaticamente). Sem ele,
   um segredo efêmero é usado e as sessões caem a cada restart.
+- Em produção, considere **`REQUIRE_DB=1`**: o servidor recusa subir sem banco em
+  vez de rodar em memória e apagar contas silenciosamente (ver _Variáveis de ambiente_).
 - Login/cadastro têm rate limit (10/min por IP) contra força-bruta.
 
 > Quizzes criados antes do login ficam sem dono (`owner_id` nulo) e não
