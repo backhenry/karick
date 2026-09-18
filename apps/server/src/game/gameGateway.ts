@@ -63,10 +63,14 @@ type IOSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string
 /** Timers autoritativos, em processo (não serializáveis). Ao escalar: BullMQ. */
 const timers = new Map<string, NodeJS.Timeout>();
 
-const createRoomLimiter = new RateLimiter(15, 60_000);
-const joinLimiter = new RateLimiter(40, 60_000);
-const answerLimiter = new RateLimiter(120, 60_000);
-const reactionLimiter = new RateLimiter(20, 60_000);
+// Limites por IP e por minuto. Turmas inteiras costumam compartilhar UM IP
+// (Wi-Fi/NAT da escola), então os padrões precisam caber uma sala grande.
+// Todos configuráveis por env para eventos ainda maiores atrás de um só IP.
+const envMax = (name: string, def: number) => Number(process.env[name]) || def;
+const createRoomLimiter = new RateLimiter(envMax('CREATE_ROOM_RATE_MAX', 30), 60_000);
+const joinLimiter = new RateLimiter(envMax('JOIN_RATE_MAX', 300), 60_000);
+const answerLimiter = new RateLimiter(envMax('ANSWER_RATE_MAX', 1200), 60_000);
+const reactionLimiter = new RateLimiter(envMax('REACTION_RATE_MAX', 240), 60_000);
 
 function clearRoomTimer(pin: string) {
   const t = timers.get(pin);

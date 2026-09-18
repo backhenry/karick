@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Typecheck
+        run: |
+          npx tsc -p packages/shared/tsconfig.json --noEmit
+          npx tsc -p apps/server/tsconfig.json --noEmit
+          npx tsc -p apps/host/tsconfig.json --noEmit
+          npx tsc -p apps/player/tsconfig.json --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Testes unitários (Vitest)
+        run: npm test
+
+      - name: E2E — fluxo de jogo
+        run: node tests/e2e/game-flow.mjs
+
+      - name: Carga (amostra)
+        run: ROOMS=3 PER_ROOM=15 node tests/load/stress.mjs
